@@ -1,0 +1,80 @@
+{% extends "layout/base.html" %}
+
+{% set action_title = "Ban/Mute: " + (user_to_manage.full_name or user_to_manage.username) %}
+{% block page_title %}{{ action_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-fill-lock me-2 text-danger"></i>{{ action_title }}
+        </h1>
+        <a href="{{ url_for('manage_tc_members_leader') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Member Management
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-md-9">
+            {% include 'layout/_flash_messages.html' %}
+
+            {% if active_ban %}
+            <div class="alert alert-warning" role="alert">
+                <h5 class="alert-heading font-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i>Active Restriction</h5>
+                <p class="mb-1">This user currently has an active <strong>{{ active_ban.type | title }}</strong> in place.</p>
+                <p class="mb-1"><strong>Reason:</strong> {{ active_ban.reason }}</p>
+                <p class="mb-0"><strong>Expires:</strong> {{ active_ban.expires_at | datetimeformat if active_ban.expires_at else "Permanent" }}</p>
+                <hr>
+                <p class="mb-0">Applying a new ban/mute will end the current one.</p>
+            </div>
+            {% endif %}
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger-subtle text-danger-emphasis">
+                    <h5 class="mb-0 font-heading">Apply Restriction to: {{ user_to_manage.full_name or user_to_manage.username }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('ban_mute_tc_member', user_id=user_to_manage.id) }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.ban_type.label(class="form-label fw-medium") }}
+                            {{ form.ban_type(class="form-select" + (" is-invalid" if form.ban_type.errors else "")) }}
+                            <small class="form-text text-muted">
+                                <strong>Ban:</strong> Removes user from TC system, memberships, and community. <br>
+                                <strong>Mute:</strong> Prevents user from posting in TC feeds and community group.
+                            </small>
+                            {% if form.ban_type.errors %}<div class="invalid-feedback">{% for e in form.ban_type.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.reason.label(class="form-label fw-medium") }}
+                            {{ form.reason(class="form-control" + (" is-invalid" if form.reason.errors else ""), rows="4", placeholder="Clearly state the reason for this action...") }}
+                            {% if form.reason.errors %}<div class="invalid-feedback">{% for e in form.reason.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.duration_days.label(class="form-label fw-medium") }}
+                            {{ form.duration_days(class="form-control" + (" is-invalid" if form.duration_days.errors else ""), type="number", min="1", placeholder="e.g., 7, 30. Leave empty for permanent.") }}
+                            {% if form.duration_days.errors %}<div class="invalid-feedback">{% for e in form.duration_days.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="alert alert-info small p-2">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            Applying a 'Ban' will remove the user from all their Talent Clubs and the TC Community.
+                            A 'Mute' will restrict their ability to post. Permanent actions require manual reversal.
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('manage_tc_members_leader') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-danger px-4", value="Apply Restriction") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

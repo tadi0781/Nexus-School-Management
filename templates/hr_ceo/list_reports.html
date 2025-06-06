@@ -1,0 +1,96 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}All Asset Reports{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-flag-fill text-danger me-2"></i>All Asset Reports
+        </h1>
+        {# Optional: Add filter controls or a "Report General Issue" button here if needed #}
+        <a href="{{ url_for('report_asset_general') }}" class="btn btn-sm btn-outline-warning">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> Report General Issue
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="card shadow-sm">
+        <div class="card-header bg-light-subtle">
+            <h5 class="mb-0 font-heading">List of Asset Reports</h5>
+            {# Add search/filter form here if you implement those features in the route #}
+        </div>
+        <div class="card-body p-0">
+            {% if reports %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col" class="ps-3">ID</th>
+                            <th scope="col">Asset Name</th>
+                            <th scope="col">Reported By</th>
+                            <th scope="col">Report Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end pe-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report_item in reports %} {# Iterate through 'reports' (plural) #}
+                        <tr>
+                            <td class="ps-3"><strong>#{{ report_item.id }}</strong></td>
+                            <td>
+                                {% if report_item.asset %}
+                                    <a href="{{ url_for('edit_asset', asset_id=report_item.asset.id) }}" class="text-decoration-none" title="View Asset Details">{{ report_item.asset.name }}</a>
+                                    <small class="d-block text-muted">Category: {{ report_item.asset.category.name if report_item.asset.category else 'N/A' }}</small>
+                                {% else %}
+                                    <span class="fst-italic text-muted">General Report</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ report_item.reporter.full_name or report_item.reporter.username if report_item.reporter else 'N/A' }}
+                                <small class="d-block text-muted">{{ report_item.reporter.role.name.replace('_', ' ').title() if report_item.reporter and report_item.reporter.role else '' }}</small>
+                            </td>
+                            <td>
+                                {{ report_item.report_date | datetimeformat('%b %d, %Y %I:%M %p') }}
+                                <small class="d-block text-muted">({{ report_item.report_date | humanize_time_diff }})</small>
+                            </td>
+                            <td>
+                                {% if report_item.status == 'Pending' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1">{{ report_item.status }}</span>
+                                {% elif report_item.status == 'In Progress' %}
+                                    <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1">{{ report_item.status }}</span>
+                                {% elif report_item.status == 'Resolved' %}
+                                    <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2 py-1">{{ report_item.status }}</span>
+                                {% elif report_item.status == 'Rejected' %}
+                                    <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2 py-1">{{ report_item.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2 py-1">{{ report_item.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-3">
+                                <a href="{{ url_for('resolve_asset_report', report_id=report_item.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-search me-1"></i> View/Resolve
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center p-5 text-muted">
+                <i class="bi bi-inbox fs-1 mb-2"></i>
+                <p class="mb-0">No asset reports found.</p>
+            </div>
+            {% endif %}
+        </div>
+        {# Optional: Add pagination controls here if you implement pagination in the route #}
+        {# {% if pagination and pagination.pages > 1 %}
+            <div class="card-footer text-center">
+                ... pagination links ...
+            </div>
+        {% endif %} #}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{# templates/partials/_notification_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase D.1 #}
+{#
+    Reusable item for displaying a single notification.
+    Expects a `notification` object in the context.
+    Can be used in dropdowns or full notification lists.
+    - notification.sender (User object)
+    - notification.content
+    - notification.timestamp
+    - notification.is_read (boolean)
+    - notification.link_url (optional)
+    - notification.notification_type (optional, for specific icons/styling)
+#}
+
+{% set item_class = "list-group-item-light" if notification.is_read else "list-group-item-primary bg-primary-subtle border-primary-subtle" %}
+{% set icon_class = 'bi-envelope-fill' %} {# Default icon #}
+{% set icon_color_class = 'text-primary' %}
+
+{# Determine icon based on notification_type #}
+{% if notification.notification_type == 'chat' %}
+    {% set icon_class = 'bi-chat-dots-fill' %}
+    {% set icon_color_class = 'text-success' %}
+{% elif notification.notification_type == 'task_assigned' or notification.notification_type == 'task_status_update' or notification.notification_type == 'task_review_result' %}
+    {% set icon_class = 'bi-list-task' %}
+    {% set icon_color_class = 'text-info' %}
+{% elif notification.notification_type == 'request_submitted' or notification.notification_type == 'request_status_update' or notification.notification_type == 'request_forwarded' %}
+    {% set icon_class = 'bi-file-earmark-medical-fill' %}
+    {% set icon_color_class = 'text-warning' %}
+{% elif notification.notification_type and notification.notification_type.startswith('tc_') %}
+    {% set icon_class = 'bi-trophy-fill' %}
+    {% set icon_color_class = 'text-danger' %}
+{% elif notification.notification_type == 'asset_new' or notification.notification_type == 'asset_report' or notification.notification_type == 'asset_status_change' %}
+    {% set icon_class = 'bi-archive-fill' %}
+    {% set icon_color_class = 'text-secondary' %}
+{% endif %}
+
+<a href="{{ notification.link_url if notification.link_url else '#' }}"
+   class="list-group-item list-group-item-action notification-item {{ item_class }} {% if not notification.is_read %} unread-notification {% endif %}"
+   data-notification-id="{{ notification.id }}"
+   aria-current="{{ 'true' if not notification.is_read else 'false' }}">
+    <div class="d-flex w-100">
+        <div class="notification-icon me-3 pt-1">
+            <span class="badge bg-{{ icon_color_class.split('-')[-1] if icon_color_class else 'primary' }}-subtle p-2 rounded-circle">
+                 <i class="bi {{ icon_class }} fs-5 {{ icon_color_class }}"></i>
+            </span>
+        </div>
+        <div class="notification-content flex-grow-1">
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1 notification-title font-heading">
+                    {% if notification.sender %}
+                        From: {{ notification.sender.full_name or notification.sender.username }}
+                    {% else %}
+                        System Notification
+                    {% endif %}
+                </h6>
+                <small class="text-muted notification-timestamp" title="{{ notification.timestamp | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+                    {{ notification.timestamp | humanize_time_diff }} {# Requires a custom filter or JS formatting #}
+                </small>
+            </div>
+            <p class="mb-1 notification-text text-dark-emphasis">
+                {{ notification.content | truncate(150, True) }}
+            </p>
+            {% if not notification.is_read %}
+                <small class="text-primary fw-bold">New</small>
+            {% endif %}
+        </div>
+        {# Optional: Action button within the notification item itself (e.g., "Mark as Read" if not auto-marked on view) #}
+        {# {% if not notification.is_read %}
+        <button class="btn btn-sm btn-outline-secondary mark-notification-read-btn ms-2 align-self-start" data-notification-id="{{ notification.id }}">
+            <i class="bi bi-check2-square"></i>
+        </button>
+        {% endif %} #}
+    </div>
+</a>

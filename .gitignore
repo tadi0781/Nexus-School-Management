@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+*/venv/
+env/
+*/env/
+.env
+*.env.*
+env.bak
+
+# Instance Folder (if you use one for secrets)
+instance/
+/instance/
+
+# Database Files
+*.sqlite3
+*.db
+
+# Session Files (Flask-Session filesystem type)
+/flask_session/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Backup Files
+*.backup
+Backup/
+
+# Render.com specific (if render.yaml contains secrets)
+# render.yaml # Uncomment if you have secrets in it
+
+# Uploaded Media (if you decide not to track them, which is common)
+# These are often stored elsewhere (like AWS S3) in production.
+# For a school project on GitHub, you might CHOOSE to include some placeholders
+# but not user-generated content. The current .gitignore will TRACK your uploads folder.
+# To IGNORE user uploads, uncomment the line below:
+# /uploads/

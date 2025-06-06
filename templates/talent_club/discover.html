@@ -1,0 +1,113 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Discover Talent Clubs{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-compass-fill me-2 text-primary"></i>Discover Talent Clubs
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('my_talent_clubs') }}" class="btn btn-sm btn-outline-secondary me-2">
+                <i class="bi bi-view-list me-1"></i> My Clubs & Follows
+            </a>
+            <a href="{{ url_for('create_talent_club_proposal') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-lightbulb-fill me-1"></i> Propose New Club
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light-subtle p-3">
+            <form method="GET" action="{{ url_for('talent_club_discover') }}" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="tcSearchInput" class="form-label fw-medium text-muted small">Search Clubs:</label>
+                    <input type="text" name="search_query" id="tcSearchInput" class="form-control form-control-sm" value="{{ search_query or '' }}" placeholder="Search by name or description...">
+                </div>
+                <div class="col-md-5">
+                    <label for="tcCategoryFilter" class="form-label fw-medium text-muted small">Filter by Category:</label>
+                    <select name="category_id" id="tcCategoryFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="" {% if not selected_category_id %}selected{% endif %}>All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if selected_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if all_clubs and all_clubs | length > 0 %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4" id="discoverTcClubsContainer">
+            {% for club_loop_var in all_clubs %} 
+                 {% set is_member = club_statuses.get(club_loop_var.id, {}).get('is_member', False) %}
+                 {% set is_following = club_statuses.get(club_loop_var.id, {}).get('is_following', False) %}
+                 {% with
+                    club=club_loop_var, 
+                    current_user=current_user,
+                    is_member_of_club=is_member,
+                    is_following_club=is_following
+                 %}
+                    {% include 'partials/_tc_club_card_item.html' %}
+                 {% endwith %}
+            {% endfor %}
+        </div>
+        
+        {% if pagination %}
+            <nav aria-label="Talent Club discovery pagination" class="mt-5 d-flex justify-content-center">
+                <ul class="pagination shadow-sm">
+                    <li class="page-item {{ 'disabled' if not pagination.has_prev else '' }}">
+                        <a class="page-link" href="{{ url_for('talent_club_discover', page=pagination.prev_num, search_query=search_query, category_id=selected_category_id) if pagination.has_prev else '#' }}" aria-label="Previous">
+                            <span aria-hidden="true">«</span>
+                        </a>
+                    </li>
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {{ 'active' if page_num == pagination.page else '' }}" {% if page_num == pagination.page %}aria-current="page"{% endif %}>
+                                <a class="page-link" href="{{ url_for('talent_club_discover', page=page_num, search_query=search_query, category_id=selected_category_id) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {{ 'disabled' if not pagination.has_next else '' }}">
+                        <a class="page-link" href="{{ url_for('talent_club_discover', page=pagination.next_num, search_query=search_query, category_id=selected_category_id) if pagination.has_next else '#' }}" aria-label="Next">
+                            <span aria-hidden="true">»</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center text-muted p-5 content-placeholder">
+            <i class="bi bi-binoculars display-3 mb-3" aria-hidden="true"></i>
+            <h4 class="font-heading">No Talent Clubs Found</h4>
+            <p>No active Talent Clubs match your current search or filter criteria. <a href="{{ url_for('talent_club_discover', search_query='', category_id='') }}">Clear filters</a> or perhaps <a href="{{ url_for('create_talent_club_proposal') }}">propose a new one</a>?</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categoryFilterSelect = document.getElementById('tcCategoryFilter');
+        if (categoryFilterSelect) {
+            new TomSelect(categoryFilterSelect, {
+                create: false,
+                placeholder: 'Select a category...'
+            });
+        }
+        console.log('Discover Talent Clubs page JS initialized with TomSelect.');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Claude Chat System</title>
+  <!-- Load Puter.js FIRST -->
+  <script src="https://js.puter.com/v2/"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; padding: 20px; }
+    #chatBox { max-width: 500px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; }
+    #messages { min-height: 150px; margin-bottom: 10px; border: 1px solid #ddd; padding: 10px; border-radius: 4px; background: #fafafa; }
+    #userInput { width: 80%; padding: 8px; }
+    #sendBtn { padding: 8px 16px; }
+  </style>
+</head>
+<body>
+  <div id="chatBox">
+    <h2>Claude Chat System</h2>
+    <div id="messages"></div>
+    <input id="userInput" type="text" placeholder="Type your message..." autocomplete="off" />
+    <button id="sendBtn">Send</button>
+  </div>
+  <!-- Place your script AFTER Puter.js is loaded -->
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function appendMessage(sender, text) {
+      const msg = document.createElement('div');
+      msg.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      messagesDiv.appendChild(msg);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    sendBtn.onclick = async function() {
+      const prompt = userInput.value.trim();
+      if (!prompt) return;
+      appendMessage('You', prompt);
+      userInput.value = '';
+      appendMessage('Claude', '...');
+      try {
+        // Use Puter.js to call Claude
+        const response = await puter.ai.chat(prompt, { model: 'claude-sonnet-4' });
+        messagesDiv.lastChild.innerHTML = `<strong>Claude:</strong> ${response.message.content.text}`;
+      } catch (e) {
+        messagesDiv.lastChild.innerHTML = `<strong>Claude:</strong> Error: ${e.message}`;
+      }
+    };
+
+    userInput.addEventListener('keyup', function(e) {
+      if (e.key === 'Enter') sendBtn.click();
+    });
+  </script>
+</body>
+</html>

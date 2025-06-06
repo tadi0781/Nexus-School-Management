@@ -1,0 +1,36 @@
+{# templates/partials/_task_history_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase G.2 #}
+{#
+    Reusable item for displaying a single task history entry.
+    Expects a `history_entry` object (TaskHistory instance) in the context.
+    - history_entry.changed_by (User object)
+    - history_entry.timestamp
+    - history_entry.action
+    - history_entry.old_status
+    - history_entry.new_status
+    - history_entry.notes
+#}
+<li class="list-group-item task-history-entry py-2 px-3">
+    <div class="d-flex w-100 justify-content-between">
+        <small class="text-muted history-timestamp" title="{{ history_entry.timestamp | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+            <i class="bi bi-clock-history me-1"></i>{{ history_entry.timestamp | humanize_time_diff }}
+        </small>
+        <small class="text-muted history-actor">
+            by: {{ history_entry.changed_by.full_name or history_entry.changed_by.username if history_entry.changed_by else 'System' }}
+        </small>
+    </div>
+    <p class="mb-1 history-action">
+        <strong class="font-heading">{{ history_entry.action }}:</strong>
+        {% if history_entry.old_status %}
+            Status changed from <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-1">{{ history_entry.old_status }}</span>
+            to <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-1">{{ history_entry.new_status }}</span>.
+        {% else %}
+            Status set to <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-1">{{ history_entry.new_status }}</span>.
+        {% endif %}
+    </p>
+    {% if history_entry.notes %}
+        <small class="d-block text-muted fst-italic history-notes ps-3 border-start border-2">
+            <i class="bi bi-chat-left-quote me-1"></i> {{ history_entry.notes | nl2br | safe }}
+        </small>
+    {% endif %}
+</li>

@@ -1,0 +1,128 @@
+{% extends "layout/base.html" %}
+
+{% set student_page_title = "Student Library Profile: " + (student.full_name or student.username if student else "N/A") %}
+{% block page_title %}{{ student_page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0 text-truncate" style="max-width: 70%;">
+            <i class="bi bi-person-badge-fill me-2 text-primary"></i>{{ student_page_title }}
+        </h1>
+        <a href="{{ request.referrer or url_for('librarian_attendance') if student and student.grade and student.section else url_for('librarian_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {% if student %}
+    <div class="row g-4">
+        {# Left Column: Student Info & Library Quick Actions #}
+        <div class="col-lg-4 col-xl-3">
+            <div class="card shadow-sm mb-4 text-center">
+                <div class="card-body">
+                    {% set student_avatar = url_for('static', filename=(student.profile_photo_url if student.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                    <img src="{{ student_avatar }}" alt="{{ student.username }}" class="rounded-circle mb-3 shadow-sm" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid var(--nexus-border-color);">
+                    <h4 class="font-heading mb-1">{{ student.full_name or student.username }}</h4>
+                    <p class="text-muted mb-0">{{ student.username }}</p>
+                    <p class="text-muted"><small>Grade: {{ student.grade or 'N/A' }} | Section: {{ student.section or 'N/A' }}</small></p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                 <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-info-circle-fill me-2"></i>Student Details</h5>
+                </div>
+                <ul class="list-group list-group-flush small">
+                    <li class="list-group-item"><strong>Role:</strong> {{ student.role.name.replace('_',' ') | title if student.role else 'N/A' }}</li>
+                    <li class="list-group-item"><strong>Email:</strong> {{ student.email or 'N/A' }}</li>
+                    {# Add more relevant details if needed by librarian #}
+                </ul>
+            </div>
+
+            {% set librarian_student_actions = [
+                {'url': url_for('checkout_book', user_id_prefill=student.id), 'text': 'Checkout Book to Student', 'icon': 'bi-journal-plus', 'color_class': 'text-success'},
+                {'url': url_for('universal_chat', target_user_id=student.id), 'text': 'Send Message', 'icon': 'bi-chat-dots-fill', 'color_class': 'text-primary'},
+                {'url': "#", 'text': 'View Reading History', 'icon': 'bi-clock-history', 'color_class': 'text-info'} {# Placeholder for future feature #}
+            ] %}
+            {{ render_quick_links(librarian_student_actions, "Librarian Actions") }}
+        </div>
+
+        {# Right Column: Checkouts, Fines, Library Activity #}
+        <div class="col-lg-8 col-xl-9">
+            {# Current Book Checkouts Section #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-journal-arrow-up me-2"></i>Current Checkouts ({{ current_checkouts | length if current_checkouts else 0 }})</h5>
+                    <a href="{{ url_for('checkout_book', user_id_prefill=student.id) }}" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i> New Checkout</a>
+                </div>
+                <div class="card-body p-0">
+                     {% if current_checkouts and current_checkouts | length > 0 %}
+                        <div class="list-group list-group-flush">
+                            {% for checkout in current_checkouts %}
+                                {# Reusing the _book_checkout_item partial #}
+                                {% include 'partials/_book_checkout_item.html' %}
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center p-3">This student has no books currently checked out.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Library Fines - Placeholder Section #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-cash-coin me-2 text-danger"></i>Outstanding Library Fines</h5>
+                </div>
+                 <div class="card-body text-center text-muted content-placeholder">
+                    <i class="bi bi-receipt-cutoff fs-1 mb-2"></i>
+                    <p>Fines information will be displayed here.</p>
+                    <small>(Feature coming soon)</small>
+                </div>
+            </div>
+
+            {# Recent Library Activity - Placeholder Section (could show past returns, holds, etc.) #}
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-activity me-2"></i>Recent Library Activity</h5>
+                </div>
+                <div class="card-body text-center text-muted content-placeholder">
+                    <i class="bi bi-hourglass-split fs-1 mb-2"></i>
+                    <p>A log of this student's recent library interactions (e.g., past returns, renewals) will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+        <div class="alert alert-danger text-center" role="alert">
+            <h4 class="alert-heading">Student Not Found</h4>
+            <p>The requested student profile could not be loaded.</p>
+        </div>
+    {% endif %}
+</div>
+
+{# Re-define macros if not globally available or imported from _macros.html #}
+{% macro render_quick_links(links, title="Quick Actions") %}
+    {% if links and links | length > 0 %}
+    <div class="card shadow-sm dashboard-quick-links-card">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading"><i class="bi bi-lightning-charge-fill me-2"></i>{{ title }}</h5>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for link in links %}
+                <a href="{{ link.url | default('#') }}" class="list-group-item list-group-item-action d-flex align-items-center py-3">
+                    <i class="bi {{ link.icon | default('bi-link-45deg') }} fs-5 me-3 {{ link.color_class | default('text-primary') }}" style="min-width: 24px;"></i>
+                    <span class="fw-medium">{{ link.text | default('Link') }}</span>
+                    <i class="bi bi-chevron-right ms-auto text-muted small"></i>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+{% endmacro %}
+
+{% endblock %}

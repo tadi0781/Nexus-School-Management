@@ -1,0 +1,192 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Edit Asset: " + (asset.name if asset else "New Asset") %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-pencil-square me-2 text-primary"></i>{{ page_title }}
+        </h1>
+        <a href="{{ request.referrer or url_for('list_pending_assets') if asset and asset.status == 'Pending Review' else url_for('list_all_assets') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Cancel & Go Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <form method="POST" action="{{ url_for('edit_asset', asset_id=asset.id if asset else 0) }}" novalidate> {# Action URL needs asset.id if editing #}
+        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+        <div class="row g-4">
+            {# Left Column: Core Details & Status #}
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-info-circle-fill me-2"></i>Asset Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else ""), placeholder="e.g., Laptop XYZ, Projector Model A") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label fw-medium") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="4", placeholder="Detailed description, specifications, purpose...") }}
+                            {% if form.description.errors %}<div class="invalid-feedback">{% for e in form.description.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.quantity.label(class="form-label fw-medium") }}
+                                {{ form.quantity(class="form-control" + (" is-invalid" if form.quantity.errors else ""), type="number", min="0") }}
+                                {% if form.quantity.errors %}<div class="invalid-feedback">{% for e in form.quantity.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.purchase_cost.label(class="form-label fw-medium") }}
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    {{ form.purchase_cost(class="form-control" + (" is-invalid" if form.purchase_cost.errors else ""), type="number", step="0.01", min="0", placeholder="0.00") }}
+                                    {% if form.purchase_cost.errors %}<div class="invalid-feedback d-block">{% for e in form.purchase_cost.errors %}{{e}}{% endfor %}</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.condition.label(class="form-label fw-medium") }}
+                                {{ form.condition(class="form-select" + (" is-invalid" if form.condition.errors else "")) }}
+                                {% if form.condition.errors %}<div class="invalid-feedback">{% for e in form.condition.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+                         <div class="form-check form-switch mb-3">
+                            {{ form.is_consumable(class="form-check-input" + (" is-invalid" if form.is_consumable.errors else ""), role="switch", id="isConsumableSwitch") }}
+                            {{ form.is_consumable.label(class="form-check-label fw-medium", for="isConsumableSwitch") }}
+                            {% if form.is_consumable.errors %}<div class="invalid-feedback d-block">{% for e in form.is_consumable.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-calendar-week-fill me-2"></i>Dates & Maintenance</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                             <div class="col-md-6 mb-3" id="expiryDateGroup" {% if not form.is_consumable.data %}style="display:none;"{% endif %}>
+                                {{ form.expiry_date.label(class="form-label fw-medium") }}
+                                {{ form.expiry_date(class="form-control flatpickr-date" + (" is-invalid" if form.expiry_date.errors else ""), placeholder="YYYY-MM-DD") }}
+                                {% if form.expiry_date.errors %}<div class="invalid-feedback">{% for e in form.expiry_date.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.last_maintenance_date.label(class="form-label fw-medium") }}
+                                {{ form.last_maintenance_date(class="form-control flatpickr-date" + (" is-invalid" if form.last_maintenance_date.errors else ""), placeholder="YYYY-MM-DD") }}
+                                {% if form.last_maintenance_date.errors %}<div class="invalid-feedback">{% for e in form.last_maintenance_date.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Right Column: Classification, Location & Metadata #}
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary-subtle text-primary-emphasis">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-tags-fill me-2"></i>Classification & Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.category_id.label(class="form-label fw-medium") }}
+                            {{ form.category_id(class="form-select tom-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                            {% if form.category_id.errors %}<div class="invalid-feedback">{% for e in form.category_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            {{ form.status.label(class="form-label fw-medium") }}
+                            {{ form.status(class="form-select" + (" is-invalid" if form.status.errors else "")) }}
+                            {% if form.status.errors %}<div class="invalid-feedback">{% for e in form.status.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                     <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-geo-alt-fill me-2"></i>Location</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.lab_id.label(class="form-label fw-medium") }}
+                            {{ form.lab_id(class="form-select tom-select" + (" is-invalid" if form.lab_id.errors else "")) }}
+                            {% if form.lab_id.errors %}<div class="invalid-feedback">{% for e in form.lab_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                         <div class="mb-3">
+                            {{ form.location_description.label(class="form-label fw-medium") }}
+                            {{ form.location_description(class="form-control" + (" is-invalid" if form.location_description.errors else ""), rows="2", placeholder="e.g., Room 101, Storage Closet B") }}
+                            {% if form.location_description.errors %}<div class="invalid-feedback">{% for e in form.location_description.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if asset and asset.added_by_user %}
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-person-fill-up me-2"></i>Metadata</h5>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <strong>Added By:</strong> {{ asset.added_by_user.full_name or asset.added_by_user.username }}
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Date Added:</strong> {{ asset.created_at | datetimeformat if asset.created_at else 'N/A' }}
+                        </li>
+                        {# Add Last Updated if available on model #}
+                        {# <li class="list-group-item">
+                            <strong>Last Updated:</strong> {{ asset.updated_at | datetimeformat if asset.updated_at else 'N/A' }}
+                        </li> #}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <hr class="my-4">
+        <div class="d-flex justify-content-end mb-3">
+            <a href="{{ request.referrer or url_for('list_pending_assets') if asset and asset.status == 'Pending Review' else url_for('list_all_assets') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+            {{ form.submit(class="btn btn-primary btn-lg px-4", value="Save Asset Changes") }}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // TomSelect for category and lab dropdowns
+        const categorySelect = document.getElementById('{{ form.category_id.id }}');
+        if (categorySelect) new TomSelect(categorySelect, { create: false, placeholder: 'Select a category...' });
+
+        const labSelect = document.getElementById('{{ form.lab_id.id }}');
+        if (labSelect) new TomSelect(labSelect, { create: false, placeholder: 'Select a lab/location...' });
+
+        // Toggle Expiry Date field based on Is Consumable checkbox
+        const isConsumableSwitch = document.getElementById('isConsumableSwitch');
+        const expiryDateGroup = document.getElementById('expiryDateGroup');
+
+        if (isConsumableSwitch && expiryDateGroup) {
+            function toggleExpiryDate() {
+                if (isConsumableSwitch.checked) {
+                    expiryDateGroup.style.display = 'block';
+                } else {
+                    expiryDateGroup.style.display = 'none';
+                    // Optionally clear the expiry date field when hidden
+                    // const expiryDateField = expiryDateGroup.querySelector('input');
+                    // if (expiryDateField) expiryDateField.value = '';
+                }
+            }
+            // Initial check
+            toggleExpiryDate();
+            // Listen for changes
+            isConsumableSwitch.addEventListener('change', toggleExpiryDate);
+        }
+        console.log('Edit Asset page JS loaded.');
+    });
+</script>
+{% endblock %}

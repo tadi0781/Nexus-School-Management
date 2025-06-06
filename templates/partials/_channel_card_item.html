@@ -1,0 +1,63 @@
+{# templates/partials/_channel_card_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase E.2 #}
+{#
+    Reusable card for displaying a single channel in a list or discovery view.
+    Expects a `channel` object (Channel instance) and `current_user` in the context.
+    Optionally, `is_subscribed` and `is_owner` booleans can be passed for button states.
+#}
+
+{% set channel_avatar = url_for('static', filename=(channel.profile_photo_url if channel.profile_photo_url else 'img/placeholders/channel_default_avatar.png')) %}
+{% set subscriber_count = channel.subscribers.count() if channel.subscribers else 0 %} {# Efficiently get count #}
+
+<div class="col"> {# Bootstrap column class to be applied by parent template #}
+    <div class="card channel-card h-100 shadow-sm">
+        <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="text-decoration-none d-block channel-card-image-link">
+            <div class="channel-card-img-placeholder bg-primary-subtle text-center d-flex align-items-center justify-content-center" style="height: 120px;">
+                {% if channel.profile_photo_url %}
+                    <img src="{{ channel_avatar }}" alt="{{ channel.name }} Cover" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <i class="bi {{ channel.social_category.icon_class if channel.social_category and channel.social_category.icon_class else 'bi-broadcast' }} display-3 text-primary opacity-75"></i>
+                {% endif %}
+            </div>
+        </a>
+        <div class="card-body d-flex flex-column">
+            <h5 class="card-title font-heading mb-1">
+                <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="text-decoration-none stretched-link text-dark">
+                    {{ channel.name | truncate(40) }}
+                </a>
+            </h5>
+            <small class="text-muted mb-2">
+                <i class="bi bi-tag-fill me-1"></i>{{ channel.social_category.name if channel.social_category else 'Uncategorized' }}
+                <span class="mx-1">•</span>
+                <i class="bi bi-people-fill me-1"></i>{{ subscriber_count }} Subscriber{{ 's' if subscriber_count != 1 else '' }}
+            </small>
+            <p class="card-text text-muted small mb-2 flex-grow-1">
+                {{ channel.bio | truncate(70) if channel.bio else 'No description available.' }}
+            </p>
+            <small class="text-muted">Type: {{ channel.type | title }}</small>
+        </div>
+        <div class="card-footer bg-light-subtle d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Owner: {{ channel.owner.full_name or channel.owner.username if channel.owner else 'N/A' }}
+            </small>
+            <div>
+                {# Subscription button logic - depends on whether this card is in 'discover' or 'my_channels' #}
+                {% if is_subscribed is defined %} {# Check if the variable is passed #}
+                    {% if is_subscribed %}
+                         <button class="btn btn-sm btn-outline-secondary channel-action-btn" data-action="unsubscribe" data-channel-id="{{ channel.id }}">
+                            <i class="bi bi-bell-slash-fill me-1"></i> Unsubscribe
+                        </button>
+                    {% elif channel.type == 'public' %}
+                        <button class="btn btn-sm btn-primary channel-action-btn" data-action="subscribe" data-channel-id="{{ channel.id }}">
+                            <i class="bi bi-bell-fill me-1"></i> Subscribe
+                        </button>
+                    {% elif channel.type == 'private' %}
+                         <button class="btn btn-sm btn-outline-secondary channel-action-btn" disabled title="Private Channel">
+                            <i class="bi bi-lock-fill me-1"></i> Private
+                        </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

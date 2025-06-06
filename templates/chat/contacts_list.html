@@ -1,0 +1,119 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <div class="row">
+        <div class="col-lg-11 col-xl-10 mx-auto">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 text-primary fw-bold"><i class="bi bi-people-fill me-2"></i>{{ title }}</h1>
+            </div>
+
+            <div class="row">
+                <!-- Left Column: Staff and Teachers -->
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    
+                    <!-- Staff & Admin Contacts -->
+                    {% if other_contacts_by_role %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-muted"><i class="bi bi-person-badge-fill me-2"></i>Staff & Administration</h5>
+                        </div>
+                        {% for role_name, contacts in other_contacts_by_role.items() %}
+                        <div class="list-group list-group-flush">
+                            <h6 class="list-group-item bg-light-subtle small text-uppercase fw-bold">{{ role_name }}</h6>
+                            {% for contact in contacts %}
+                                {% include 'partials/_contact_list_item.html' %}
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Teacher Contacts (Grouped by Class) -->
+                    {% if 'teacher' in allowed_role_names and sorted_teacher_blocks %}
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-muted"><i class="bi bi-person-video3 me-2"></i>Teachers (by Class)</h5>
+                        </div>
+                        <div class="accordion accordion-flush" id="teachersAccordion">
+                            {% for (grade, section), teachers in sorted_teacher_blocks %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-{{ grade }}-{{ section }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ grade }}-{{ section }}" aria-expanded="false" aria-controls="collapse-{{ grade }}-{{ section }}">
+                                        Grade {{ grade }} - Section {{ section }}
+                                    </button>
+                                </h2>
+                                <div id="collapse-{{ grade }}-{{ section }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ grade }}-{{ section }}" data-bs-parent="#teachersAccordion">
+                                    <div class="list-group list-group-flush">
+                                        {% for contact in teachers %}
+                                            {% include 'partials/_contact_list_item.html' %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div> <!-- End Left Column -->
+
+                <!-- Right Column: Students -->
+                <div class="col-lg-6">
+                    {% if 'student' in allowed_role_names %}
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-muted"><i class="bi bi-mortarboard-fill me-2"></i>Students (by Grade/Section)</h5>
+                        </div>
+                        <div class="card-body">
+                            
+                            <!-- Talent Club Members Block -->
+                            <h6 class="text-success fw-bold"><i class="bi bi-stars me-2"></i>Talent Club Members</h6>
+                            {% if tc_student_blocks %}
+                                <div class="list-group list-group-flush mb-4">
+                                {% for grade, section, student_count in tc_student_blocks %}
+                                    <a href="{{ url_for('contacts_by_section', grade=grade, section=section, tc_only='true') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-grid-3x3-gap-fill me-2 text-success"></i>
+                                            <span class="fw-bold">Grade {{ grade }} - Section {{ section }}</span>
+                                        </div>
+                                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill">{{ student_count }} member(s)</span>
+                                    </a>
+                                {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="small text-muted ps-3">No Talent Club members found.</p>
+                            {% endif %}
+                            
+                            <hr>
+
+                            <!-- Other Students Block -->
+                            <h6 class="text-secondary fw-bold"><i class="bi bi-people me-2"></i>Other Students</h6>
+                            {% if non_tc_student_blocks %}
+                                <div class="list-group list-group-flush">
+                                {% for grade, section, student_count in non_tc_student_blocks %}
+                                    <a href="{{ url_for('contacts_by_section', grade=grade, section=section, tc_only='false') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-grid-3x3-gap-fill me-2 text-secondary"></i>
+                                            <span class="fw-bold">Grade {{ grade }} - Section {{ section }}</span>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">{{ student_count }} student(s)</span>
+                                    </a>
+                                {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="small text-muted ps-3">No other students found.</p>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                    {% endif %}
+                </div> <!-- End Right Column -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

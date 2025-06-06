@@ -1,0 +1,94 @@
+{# templates/partials/_asset_report_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase C.2 #}
+{#
+    Reusable item for displaying an asset report in a list.
+    Expects a `report` object (AssetReport instance) in the context.
+    - report.asset (related Asset object, can be None for general reports)
+    - report.reporter (User object)
+    - report.resolver (User object, can be None)
+#}
+<div class="list-group-item list-group-item-action flex-column align-items-start asset-report-item py-3 px-3 mb-2 shadow-sm border rounded">
+    <div class="d-flex w-100 justify-content-between mb-2">
+        <h6 class="mb-1 font-heading">
+            <i class="bi {{ 'bi-tools text-danger' if report.status in ['Pending', 'In Progress'] else ('bi-check2-circle text-success' if report.status == 'Resolved' else 'bi-slash-circle text-secondary') }} me-2"></i>
+            Report ID: {{ report.id }}
+            {% if report.asset %}
+                - For Asset: <a href="{{ url_for('edit_asset', asset_id=report.asset.id) if current_user.role.name in ['hr_ceo', 'system_admin'] else '#' }}"
+                                class="text-decoration-none {% if not (current_user.role.name in ['hr_ceo', 'system_admin']) %} pe-none text-dark {% endif %}">
+                                {{ report.asset.name }} (ID: {{ report.asset.id }})
+                              </a>
+            {% else %}
+                <span class="fst-italic text-muted">- General Report</span>
+            {% endif %}
+        </h6>
+        <small class="text-muted" title="{{ report.report_date | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+            {{ report.report_date | datetimeformat('%b %d, %Y') }}
+        </small>
+    </div>
+
+    <p class="mb-2 text-muted- GGGGGGGGGGG">
+        <strong class="text-dark">Issue:</strong> {{ report.damage_description | truncate(200) }}
+    </p>
+
+    <div class="row gx-3 gy-2 small text-muted align-items-center">
+        <div class="col-auto">
+            <strong>Status:</strong>
+            {% if report.status == 'Pending' %}
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+            {% elif report.status == 'In Progress' %}
+                <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+            {% elif report.status == 'Resolved' %}
+                <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+            {% elif report.status == 'Rejected' %}
+                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+            {% else %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+            {% endif %}
+        </div>
+        <div class="col-auto">
+            <strong>Reported by:</strong> {{ report.reporter.full_name or report.reporter.username if report.reporter else 'N/A' }}
+        </div>
+        {% if report.date_of_damage %}
+        <div class="col-auto">
+            <strong>Damage Date:</strong> {{ report.date_of_damage | dateformat }}
+        </div>
+        {% endif %}
+        <div class="col-auto">
+            <strong>Qty Damaged:</strong> {{ report.quantity_damaged }}
+        </div>
+        {% if report.status == 'Resolved' or report.status == 'Rejected' %}
+            {% if report.resolver %}
+            <div class="col-auto">
+                <strong>{{ report.status }} by:</strong> {{ report.resolver.full_name or report.resolver.username }}
+            </div>
+            {% endif %}
+            {% if report.resolved_date %}
+            <div class="col-auto">
+                 <strong>{{ report.status }} on:</strong> {{ report.resolved_date | dateformat }}
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {% if report.resolution_notes and (report.status == 'Resolved' or report.status == 'Rejected') %}
+        <div class="mt-2 p-2 bg-light-subtle border rounded small">
+            <strong class="d-block mb-1">Resolution Notes:</strong>
+            <p class="mb-0 fst-italic">{{ report.resolution_notes }}</p>
+        </div>
+    {% endif %}
+
+    {# Action button for HR/CEO to resolve/view details #}
+    {% if current_user.role.name in ['hr_ceo', 'system_admin'] and report.status not in ['Resolved', 'Rejected'] %}
+        <div class="mt-3">
+            <a href="{{ url_for('resolve_asset_report', report_id=report.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil-fill me-1"></i> Review/Resolve Report
+            </a>
+        </div>
+    {% elif current_user.role.name in ['hr_ceo', 'system_admin'] %}
+         <div class="mt-3">
+            <a href="{{ url_for('resolve_asset_report', report_id=report.id) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye-fill me-1"></i> View Resolved Details
+            </a>
+        </div>
+    {% endif %}
+</div>

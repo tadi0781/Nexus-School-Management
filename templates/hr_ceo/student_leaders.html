@@ -1,0 +1,191 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}{{ title or "Manage Student Leaders" }}{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="page-title font-heading mb-0">
+        <i class="bi bi-person-badge-fill me-2 text-primary"></i>Manage Student Leaders & Assignments
+    </h1>
+    <a href="{{ url_for('hr_ceo_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="row g-4">
+        {# Left Column: Assign Students Form & Current Leaders List (Optional) #}
+        <div class="col-lg-4 col-xl-3">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-person-plus-fill me-2"></i>Assign Students to Leader</h5>
+                </div>
+                <div class="card-body p-3">
+                    {% if form and form.leader.choices and form.leader.choices[0][0] != 0 %} {# Check if leaders exist for form #}
+                        <form method="POST" action="{{ url_for('manage_student_leaders') }}" novalidate>
+                            {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+                            <div class="mb-3">
+                                {{ form.leader.label(class="form-label fw-medium") }}
+                                {{ form.leader(class="form-select tom-select" + (" is-invalid" if form.leader.errors else "")) }}
+                                {% if form.leader.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.leader.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">Select an active student leader who has a grade and section assigned.</small>
+                            </div>
+                            <p class="fw-medium">Select students below (from the main list) to assign to this leader.</p>
+                            <div class="d-grid">
+                                {{ form.submit(class="btn btn-primary", value="Assign Selected Students") }}
+                            </div>
+                            <small class="form-text text-muted mt-2 d-block">Note: Students will only be assigned if they are in the same grade and section as the selected leader.</small>
+                        </form>
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="bi bi-person-x-fill fs-3 mb-2"></i><br>
+                            No active student leaders with assigned grade/sections found. Promote a student to leader first to enable assignment.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if current_leaders %}
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-star-fill me-2 text-warning"></i>Current Student Leaders</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for leader_user in current_leaders %}
+                        <a href="#block-{{ leader_user.grade }}-{{ leader_user.section }}" class="list-group-item list-group-item-action">
+                            {{ leader_user.full_name or leader_user.username }}
+                            <small class="d-block text-muted">Grade {{ leader_user.grade }} - Section {{ leader_user.section }}</small>
+                        </a>
+                    {% else %}
+                        <div class="list-group-item text-muted">No student leaders currently assigned.</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Right Column: Student Blocks by Grade/Section #}
+        <div class="col-lg-8 col-xl-9">
+            {% if students_by_grade_section %}
+                {% for key, data in students_by_grade_section.items() %}
+                    {% set grade, section = key %}
+                    <div class="card shadow-sm mb-4" id="block-{{ grade }}-{{ section }}">
+                        <div class="card-header">
+                            <h5 class="mb-0 font-heading">
+                                <i class="bi bi-collection-fill me-2"></i>Grade {{ grade }} - Section {{ section }}
+                                {% if data.leader %}
+                                    <small class="text-muted fw-normal ms-2">(Leader: <span class="text-success">{{ data.leader.full_name or data.leader.username }}</span>)</small>
+                                {% else %}
+                                    <small class="text-danger fw-normal ms-2">(No Leader Assigned)</small>
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if not data.leader and not data.followers and not data.unassigned_students %}
+                                <p class="text-muted text-center m-0 py-3">No students found in this block.</p>
+                            {% else %}
+                                <form method="POST" action="{{ url_for('manage_student_leaders') }}"> {# Target for student selection checkboxes #}
+                                    {{ form.hidden_tag() if form.hidden_tag }} {# CSRF for the main assignment form #}
+                                    
+                                    <h6 class="font-heading text-muted mb-2">
+                                        {% if data.leader %}
+                                            Leader & Followers ({{ (data.followers or []) | length + 1 }})
+                                        {% else %}
+                                            Unassigned Students (Potential Leaders) ({{ (data.unassigned_students or []) | length }})
+                                        {% endif %}
+                                    </h6>
+                                    <ul class="list-group list-group-flush mb-3">
+                                        {# Display Leader (if exists for this block) #}
+                                        {% if data.leader %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2">
+                                                <div>
+                                                    <input class="form-check-input me-2" type="checkbox" name="students_to_assign" value="{{ data.leader.id }}" id="student-{{ data.leader.id }}" form="assignStudentsFormId"> {# Add form attribute if assign form is outside this one #}
+                                                    <label class="form-check-label fw-bold text-success" for="student-{{ data.leader.id }}">
+                                                        {{ data.leader.full_name or data.leader.username }} (Current Leader <i class="bi bi-star-fill text-warning"></i>)
+                                                    </label>
+                                                </div>
+                                                <form method="POST" action="{{ url_for('toggle_student_leader_status', student_id=data.leader.id) }}" class="d-inline">
+                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger p-1" title="Demote Leader">
+                                                        <i class="bi bi-person-x-fill fs-6"></i> Demote
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        {% endif %}
+
+                                        {# Display Followers (if leader exists) #}
+                                        {% if data.leader and data.followers %}
+                                            {% for student in data.followers %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2 ps-4"> {# Indent followers #}
+                                                <div>
+                                                    <input class="form-check-input me-2" type="checkbox" name="students_to_assign" value="{{ student.id }}" id="student-{{ student.id }}" form="assignStudentsFormId">
+                                                    <label class="form-check-label" for="student-{{ student.id }}">
+                                                        {{ student.full_name or student.username }}
+                                                        <small class="text-muted ms-1">(Following {{ data.leader.username }})</small>
+                                                    </label>
+                                                </div>
+                                                {# Action for follower - e.g., Unassign (handled by re-assigning to no one or another leader) #}
+                                            </li>
+                                            {% endfor %}
+                                        {% endif %}
+
+                                        {# Display Unassigned Students (or potential leaders if no leader for block) #}
+                                        {% for student in data.unassigned_students %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2">
+                                                <div>
+                                                    <input class="form-check-input me-2" type="checkbox" name="students_to_assign" value="{{ student.id }}" id="student-{{ student.id }}" form="assignStudentsFormId">
+                                                    <label class="form-check-label" for="student-{{ student.id }}">
+                                                        {{ student.full_name or student.username }}
+                                                        {% if student.leader %}<small class="text-muted ms-1">(Assigned to: {{ student.leader.username }})</small>{% endif %}
+                                                    </label>
+                                                </div>
+                                                <form method="POST" action="{{ url_for('toggle_student_leader_status', student_id=student.id) }}" class="d-inline">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-success p-1" title="Promote to Leader">
+                                                        <i class="bi bi-person-check-fill fs-6"></i> Promote
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </form> {# End of the checkbox form for assignments #}
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info text-center">No student blocks found. Please ensure students have grades and sections assigned.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for the leader selection dropdown if it exists
+        const leaderSelect = document.querySelector('.tom-select'); // Target the class if dynamically added
+        if (leaderSelect) {
+            new TomSelect(leaderSelect, {
+                placeholder: 'Search or select a leader...',
+                allowEmptyOption: true // If you have a "--- Select Leader ---" option
+            });
+        }
+
+        // Optional: Add JS to handle dynamic checkbox selection and update hidden field for Assign Students form
+        // This depends on how the form in the left column is structured relative to checkboxes in the right column.
+        // For simplicity, the template above assumes the checkboxes are part of the same form, or `form="assignStudentsFormId"` is used.
+        // If they are separate, JS would be needed to collect checked student IDs and populate a hidden field.
+        console.log('Manage Student Leaders JS loaded.');
+    });
+</script>
+{% endblock %}

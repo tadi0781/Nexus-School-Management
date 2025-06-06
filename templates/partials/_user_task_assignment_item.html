@@ -1,0 +1,84 @@
+{# templates/partials/_user_task_assignment_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase G.3 #}
+{#
+    Reusable item for displaying a single user's assignment under a task (for creator's view).
+    Expects a `user_assignment` object (UserTask instance) and `current_user`.
+    - user_assignment.user (User object - the assignee)
+    - user_assignment.status
+    - user_assignment.completion_notes
+    - user_assignment.reviewer_notes
+    - user_assignment.last_status_update_at
+    - user_assignment.assigned_at
+    - user_assignment.task (the parent Task object)
+#}
+
+{% set assignee = user_assignment.user %}
+{% set task = user_assignment.task %}
+{% set assignee_avatar = url_for('static', filename=(assignee.profile_photo_url if assignee and assignee.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+
+<div class="list-group-item user-task-assignment-item py-3 px-3 mb-2 shadow-sm border rounded
+    {% if user_assignment.status == 'Open' %} border-info-subtle border-start-info border-start-3
+    {% elif user_assignment.status == 'In Progress' %} border-primary-subtle border-start-primary border-start-3
+    {% elif user_assignment.status in ['Completed (Pending Review)', 'Delayed (Pending Review)', 'Rejected (Pending Review)'] %} border-warning-subtle border-start-warning border-start-3
+    {% elif user_assignment.status == 'Accepted' %} border-success-subtle border-start-success border-start-3
+    {% elif user_assignment.status == 'Review Rejected' %} border-danger-subtle border-start-danger border-start-3
+    {% else %} border-light-subtle {% endif %}">
+
+    <div class="d-flex w-100 align-items-center mb-2">
+        <img src="{{ assignee_avatar }}" alt="{{ assignee.username if assignee else 'N/A' }}" class="rounded-circle me-2 shadow-sm" style="width: 35px; height: 35px; object-fit: cover;">
+        <div class="flex-grow-1">
+            <h6 class="mb-0 font-heading assignee-name">
+                {{ assignee.full_name or assignee.username if assignee else 'Unassigned User' }}
+                <small class="text-muted fw-normal">({{ assignee.role.name.replace('_',' ') | title if assignee and assignee.role else 'N/A' }})</small>
+            </h6>
+            <small class="text-muted">Assigned: {{ user_assignment.assigned_at | dateformat }}</small>
+        </div>
+        <div class="text-end">
+            <span class="badge fs-08rem px-2 py-1 rounded-pill
+                {% if user_assignment.status == 'Open' %} bg-info-subtle text-info-emphasis
+                {% elif user_assignment.status == 'In Progress' %} bg-primary-subtle text-primary-emphasis
+                {% elif user_assignment.status.endswith('(Pending Review)') %} bg-warning-subtle text-warning-emphasis
+                {% elif user_assignment.status == 'Accepted' %} bg-success-subtle text-success-emphasis
+                {% elif user_assignment.status == 'Review Rejected' %} bg-danger-subtle text-danger-emphasis
+                {% else %} bg-secondary-subtle text-secondary-emphasis {% endif %}">
+                {{ user_assignment.status | replace(' (Pending Review)', '') }} {# Shorten for display #}
+            </span>
+            <small class="d-block text-muted mt-1">Last Update: {{ user_assignment.last_status_update_at | humanize_time_diff }}</small>
+        </div>
+    </div>
+
+    {% if user_assignment.completion_notes %}
+        <div class="assignment-notes my-2 p-2 bg-light-subtle border rounded small">
+            <strong class="d-block mb-1"><i class="bi bi-chat-left-text-fill me-1"></i>Assignee's Notes:</strong>
+            <p class="mb-0 fst-italic" style="white-space: pre-wrap;">{{ user_assignment.completion_notes }}</p>
+        </div>
+    {% endif %}
+
+    {% if user_assignment.status == 'Review Rejected' and user_assignment.reviewer_notes %}
+         <div class="assignment-notes my-2 p-2 bg-danger-subtle border border-danger- GGGGGGGGGGG rounded small">
+            <strong class="d-block mb-1 text-danger-emphasis"><i class="bi bi-reply-all-fill me-1"></i>Your Review Notes (Rejected):</strong>
+            <p class="mb-0 fst-italic" style="white-space: pre-wrap;">{{ user_assignment.reviewer_notes }}</p>
+        </div>
+    {% elif user_assignment.status == 'Accepted' and user_assignment.reviewer_notes %}
+         <div class="assignment-notes my-2 p-2 bg-success-subtle border border-success- GGGGGGGGGGG rounded small">
+            <strong class="d-block mb-1 text-success-emphasis"><i class="bi bi-check2-all me-1"></i>Your Review Notes (Accepted):</strong>
+            <p class="mb-0 fst-italic" style="white-space: pre-wrap;">{{ user_assignment.reviewer_notes }}</p>
+        </div>
+    {% endif %}
+
+
+    {# Action button for Creator/Admin to Review or View Detail #}
+    {% if current_user.id == task.created_by_id or (current_user.role and current_user.role.name in ['system_admin', 'hr_ceo']) %}
+        <div class="mt-2 text-end">
+            {% if user_assignment.status in ['Completed (Pending Review)', 'Delayed (Pending Review)', 'Rejected (Pending Review)'] %}
+                <a href="{{ url_for('view_user_task', user_task_id=user_assignment.id) }}#reviewFormSection" class="btn btn-sm btn-warning"> {# Anchor to review form section #}
+                    <i class="bi bi-check-square-fill me-1"></i> Review Submission
+                </a>
+            {% else %}
+                 <a href="{{ url_for('view_user_task', user_task_id=user_assignment.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-eye-fill me-1"></i> View Details & History
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

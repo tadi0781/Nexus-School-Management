@@ -1,0 +1,198 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Talent Clubs (Leader Admin){% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-kanban-fill me-2 text-primary"></i>Manage All Talent Clubs
+        </h1>
+        <a href="{{ url_for('talent_club_dashboard') }}" class="btn btn-sm btn-outline-secondary"> {# Or TC Leader specific dashboard #}
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Dashboard
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Talent Club Instances Overview</h5>
+            {# Optional: Add filters for active/inactive, category, level #}
+        </div>
+        <div class="card-body p-0">
+            {% if all_clubs and all_clubs | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle tc-club-management-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;">ID</th>
+                                <th scope="col">Club Name</th>
+                                <th scope="col">Category</th>
+                                <th scope="col">Owner</th>
+                                <th scope="col" class="text-center">Level</th>
+                                <th scope="col" class="text-center">Warnings</th>
+                                <th scope="col" class="text-center">Members</th>
+                                <th scope="col" class="text-center">Status</th>
+                                <th scope="col" class="text-center" style="min-width: 200px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for club in all_clubs %}
+                            <tr id="club-row-{{ club.id }}" class="{{ 'table-secondary opacity-75' if not club.is_active }}">
+                                <td>{{ club.id }}</td>
+                                <td class="fw-medium">
+                                    <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="text-decoration-none">{{ club.name | truncate(30) }}</a>
+                                    {% if not club.is_active %}<span class="badge bg-dark-subtle text-dark-emphasis ms-1 small">Inactive</span>{% endif %}
+                                </td>
+                                <td><small>{{ club.social_category.name if club.social_category else 'N/A' }}</small></td>
+                                <td><small>{{ club.owner.full_name or club.owner.username if club.owner else 'N/A' }}</small></td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info-emphasis p-2 fs-09rem">{{ club.level }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge {{ 'bg-danger-subtle text-danger-emphasis' if club.warning_count >= 2 else ('bg-warning-subtle text-warning-emphasis' if club.warning_count > 0 else 'bg-success-subtle text-success-emphasis') }} p-2 fs-09rem">
+                                        {{ club.warning_count }}
+                                    </span>
+                                </td>
+                                <td class="text-center">{{ club_counts.get(club.id, {}).get('members', 0) }}</td>
+                                <td class="text-center">
+                                    {% if club.is_active %}
+                                        <span class="badge bg-success-subtle text-success-emphasis p-2">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger-subtle text-danger-emphasis p-2">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary p-1 me-1 tc-set-level-btn" title="Set Level"
+                                            data-bs-toggle="modal" data-bs-target="#setLevelModal"
+                                            data-club-id="{{ club.id }}" data-club-name="{{ club.name }}" data-current-level="{{ club.level }}"
+                                            {% if not club.is_active %}disabled{% endif %}>
+                                        <i class="bi bi-award-fill fs-6"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-warning p-1 me-1 tc-warn-club-btn" title="Issue Warning"
+                                            data-bs-toggle="modal" data-bs-target="#warnClubModal"
+                                            data-club-id="{{ club.id }}" data-club-name="{{ club.name }}"
+                                            {% if not club.is_active %}disabled{% endif %}>
+                                        <i class="bi bi-exclamation-triangle-fill fs-6"></i>
+                                    </button>
+                                    {# Deactivate/Reactivate button - a more complex action than simple delete #}
+                                    {# <button class="btn btn-sm btn-outline-danger p-1 tc-toggle-active-btn" title="{{ 'Deactivate' if club.is_active else 'Activate' }} Club">
+                                        <i class="bi {{ 'bi-toggle-off' if club.is_active else 'bi-toggle-on' }} fs-6"></i>
+                                    </button> #}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-collection-play-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Talent Clubs Found</h4>
+                    <p>There are no Talent Clubs currently in the system. Proposals might be pending your review.</p>
+                    <a href="{{ url_for('review_tc_proposals') }}" class="btn btn-info text-white mt-2">Review Pending Proposals</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Modal for Setting Club Level #}
+    <div class="modal fade" id="setLevelModal" tabindex="-1" aria-labelledby="setLevelModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="setLevelForm" method="POST" action=""> {# Action set by JS #}
+                    {{ csrf_token() if csrf_token else '' }}
+                    <div class="modal-header bg-primary-subtle text-primary-emphasis">
+                        <h5 class="modal-title font-heading" id="setLevelModalLabel"><i class="bi bi-award-fill me-2"></i>Set Level for <span id="setLevelClubName">Club</span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="club_id" id="setLevelClubIdInput">
+                        <div class="mb-3">
+                            <label for="newClubLevelInput" class="form-label fw-medium">New Level (Current: <span id="currentClubLevelDisplay"></span>):</label>
+                            {# Assuming TalentClubLevelForm has a 'level' field #}
+                            {{ set_level_form.level(class="form-control" + (" is-invalid" if set_level_form.level.errors else ""), id="newClubLevelInput", type="number", min="1", step="1") }}
+                            {% if set_level_form.level.errors %}<div class="invalid-feedback">{% for e in set_level_form.level.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        {{ set_level_form.submit(class="btn btn-primary", value="Set Level") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# Modal for Issuing Warning #}
+    <div class="modal fade" id="warnClubModal" tabindex="-1" aria-labelledby="warnClubModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                 <form id="warnClubForm" method="POST" action=""> {# Action set by JS #}
+                    {{ csrf_token() if csrf_token else '' }}
+                    <div class="modal-header bg-warning-subtle text-warning-emphasis">
+                        <h5 class="modal-title font-heading" id="warnClubModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>Issue Warning to <span id="warnClubName">Club</span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="club_id" id="warnClubIdInput">
+                        <div class="mb-0">
+                            <label for="warningReasonTextarea" class="form-label fw-medium">Reason for Warning:</label>
+                            {# Assuming TalentClubWarningForm has a 'reason' field #}
+                            {{ warning_form.reason(class="form-control" + (" is-invalid" if warning_form.reason.errors else ""), id="warningReasonTextarea", rows="4", placeholder="Clearly state the reason for this warning...") }}
+                            {% if warning_form.reason.errors %}<div class="invalid-feedback">{% for e in warning_form.reason.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        {{ warning_form.submit(class="btn btn-warning", value="Issue Warning") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Modal for Set Level
+        const setLevelModal = document.getElementById('setLevelModal');
+        if (setLevelModal) {
+            setLevelModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const clubId = button.dataset.clubId;
+                const clubName = button.dataset.clubName;
+                const currentLevel = button.dataset.currentLevel;
+
+                setLevelModal.querySelector('#setLevelClubName').textContent = clubName;
+                setLevelModal.querySelector('#currentClubLevelDisplay').textContent = currentLevel;
+                setLevelModal.querySelector('#setLevelClubIdInput').value = clubId;
+                setLevelModal.querySelector('#newClubLevelInput').value = currentLevel; // Pre-fill with current
+                setLevelModal.querySelector('#setLevelForm').action = `/talent_club/leader/club/${clubId}/set_level`;
+            });
+        }
+
+        // Modal for Warn Club
+        const warnClubModal = document.getElementById('warnClubModal');
+        if (warnClubModal) {
+            warnClubModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const clubId = button.dataset.clubId;
+                const clubName = button.dataset.clubName;
+
+                warnClubModal.querySelector('#warnClubName').textContent = clubName;
+                warnClubModal.querySelector('#warnClubIdInput').value = clubId;
+                warnClubModal.querySelector('#warnClubForm').action = `/talent_club/leader/club/${clubId}/warn`;
+                warnClubModal.querySelector('#warningReasonTextarea').value = ''; // Clear previous reason
+            });
+        }
+        console.log('TC Leader Club Management JS loaded.');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Review Request ID: " + (request_obj.id | string) %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0 text-truncate" style="max-width: 70%;">
+            <i class="bi bi-card-heading me-2 text-primary"></i>{{ page_title }} - {{ request_obj.title | truncate(40) }}
+        </h1>
+        <a href="{{ url_for('requests_inbox') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Inbox
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row g-4">
+        {# Left Column: Request Details Summary #}
+        <div class="col-lg-5 col-xl-4">
+            <div class="card shadow-sm mb-4 sticky-lg-top" style="top: 70px;"> {# Sticky summary #}
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading">Request Summary</h5>
+                </div>
+                <div class="card-body small">
+                    <p><strong>Title:</strong> {{ request_obj.title }}</p>
+                    <p><strong>Type:</strong> {{ request_obj.request_type }}</p>
+                    <p><strong>Urgency:</strong>
+                        {% if request_obj.urgency == 'Critical' %}<span class="badge bg-danger text-white rounded-pill">{{ request_obj.urgency }}</span>
+                        {% elif request_obj.urgency == 'High' %}<span class="badge bg-warning text-dark rounded-pill">{{ request_obj.urgency }}</span>
+                        {% else %}<span class="badge bg-info text-white rounded-pill">{{ request_obj.urgency }}</span>{% endif %}
+                    </p>
+                    <p><strong>Submitted By:</strong> {{ request_obj.requester.full_name or request_obj.requester.username if request_obj.requester else 'N/A' }}</p>
+                    <p><strong>Submitted On:</strong> {{ request_obj.created_at | datetimeformat }}</p>
+                    <p><strong>Current Status:</strong> <span class="badge fs-08rem px-2 py-1 rounded-pill {{ status_badge_class }}">{{ request_obj.status }}</span></p>
+                    <p><strong>Current Tier:</strong> Tier {{ request_obj.tier }}</p>
+                    <hr>
+                    <h6 class="font-heading">Full Description:</h6>
+                    <div class="p-2 bg-light-subtle border rounded" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;">
+                        {{ request_obj.description }}
+                    </div>
+                    {% if request_obj.last_forwarded_by %}
+                        <p class="mt-2 text-muted"><small>Last Forwarded By: {{ request_obj.last_forwarded_by.full_name or request_obj.last_forwarded_by.username }}</small></p>
+                    {% endif %}
+                </div>
+                 <a href="{{ url_for('view_request_detail', request_id=request_obj.id) }}" class="card-footer text-center text-decoration-none text-primary fw-medium hover-bg-light">
+                    View Full Details & History <i class="bi bi-box-arrow-up-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+
+        {# Right Column: Review Form & Actions #}
+        <div class="col-lg-7 col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-pencil-square me-2"></i>Process This Request</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('review_request', request_id=request_obj.id) }}" id="reviewRequestForm" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token for ReviewRequestForm #}
+
+                        <div class="mb-3">
+                            {{ form.status.label(text="Select Action / New Status:", class="form-label fw-medium") }}
+                            {{ form.status(class="form-select form-select-lg" + (" is-invalid" if form.status.errors else ""), id="requestActionStatusSelect") }}
+                            {% if form.status.errors %}<div class="invalid-feedback">{% for e in form.status.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        {# Denial Reason - Shown/Hidden by JS #}
+                        <div id="denialReasonGroup" class="mb-3 assignment-section-sub" style="display:none;"> {# Using assignment-section-sub for potential shared styling #}
+                            {{ form.denial_reason.label(class="form-label fw-medium") }}
+                            {{ form.denial_reason(class="form-control" + (" is-invalid" if form.denial_reason.errors else ""), rows="3", placeholder="Provide a clear reason for denial...") }}
+                            {% if form.denial_reason.errors %}<div class="invalid-feedback">{% for e in form.denial_reason.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        {# Forward To User - Shown/Hidden by JS #}
+                        <div id="forwardToUserGroup" class="mb-3 assignment-section-sub" style="display:none;">
+                            {{ form.forward_to_user_id.label(text="Forward To (Next Tier Handler):", class="form-label fw-medium") }}
+                            {% if form.forward_to_user_id.choices and form.forward_to_user_id.choices|length > 1 %} {# Check if choices beyond default exist #}
+                                {{ form.forward_to_user_id(class="form-select tom-select-user" + (" is-invalid" if form.forward_to_user_id.errors else "")) }}
+                            {% else %}
+                                <p class="text-muted"><em>No eligible users found in the next tier, or this is the final tier. Forwarding not available.</em></p>
+                            {% endif %}
+                            {% if form.forward_to_user_id.errors %}<div class="invalid-feedback">{% for e in form.forward_to_user_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.resolution_notes.label(text="Handler Notes / Comments:", class="form-label fw-medium") }}
+                            {{ form.resolution_notes(class="form-control" + (" is-invalid" if form.resolution_notes.errors else ""), rows="4", placeholder="Add any comments, progress updates, or details related to your action...") }}
+                            {% if form.resolution_notes.errors %}<div class="invalid-feedback">{% for e in form.resolution_notes.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="alert alert-info small p-2">
+                            <i class="bi bi-info-circle-fill me-1"></i>
+                            Select an action. If denying, provide a reason. If forwarding, select a user. Notes are optional but recommended.
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('requests_inbox') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4 btn-lg", value="Update Request Status") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/requests.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize dynamic form field visibility in requests.js
+        // initializeReviewRequestForm() // This will be called from requests.js based on IDs
+
+        // Initialize TomSelect for the forward_to_user_id dropdown
+        const forwardUserSelect = document.getElementById('{{ form.forward_to_user_id.id }}');
+        if (forwardUserSelect && typeof TomSelect !== 'undefined' && forwardUserSelect.options.length > 1) {
+             new TomSelect(forwardUserSelect, {
+                create: false,
+                placeholder: 'Select a user to forward to...'
+            });
+        }
+        console.log('Review Request page JS loaded.');
+    });
+</script>
+{% endblock %}

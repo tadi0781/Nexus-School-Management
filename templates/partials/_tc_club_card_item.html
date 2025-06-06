@@ -1,0 +1,72 @@
+{# templates/partials/_tc_club_card_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase F.1 #}
+{#
+    Reusable card for displaying a single Talent Club instance.
+    Expects a `club` object (TalentClub instance) and `current_user` in the context.
+    Optionally, `is_member_of_club` and `is_following_club` booleans for button states.
+#}
+
+{% set club_avatar = url_for('static', filename=(club.profile_photo_url if club.profile_photo_url else 'img/placeholders/tc_club_default_avatar.png')) %}
+{% set member_count = club.memberships.filter_by(is_active=True).count() if club.memberships else 0 %}
+{% set follower_count = club.follows.count() if club.follows else 0 %}
+{% set total_engagement = member_count + follower_count %}
+
+<div class="col"> {# Bootstrap column class to be applied by parent template #}
+    <div class="card talent-club-card h-100 shadow-sm">
+        <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="text-decoration-none d-block tc-club-card-image-link">
+            <div class="tc-club-card-img-placeholder bg-primary-subtle text-center d-flex align-items-center justify-content-center" style="height: 140px;">
+                {% if club.profile_photo_url %}
+                    <img src="{{ club_avatar }}" alt="{{ club.name }} Cover" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    {# Using club.social_category.icon_class is hypothetical, requires adding this field to SocialCategory model #}
+                    <i class="bi {{ club.social_category.icon_class if club.social_category and club.social_category.icon_class else 'bi-trophy-fill' }} display-2 text-primary opacity-75"></i>
+                {% endif %}
+            </div>
+        </a>
+        <div class="card-body d-flex flex-column">
+            <h5 class="card-title font-heading mb-1">
+                <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="text-decoration-none stretched-link text-dark">
+                    {{ club.name | truncate(40) }}
+                </a>
+            </h5>
+            <div class="mb-2">
+                <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
+                    <i class="bi bi-award-fill me-1"></i>Level {{ club.level | default(1) }}
+                </span>
+                {% if club.warning_count > 0 %}
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 fs-08rem">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ club.warning_count }} Warning{{ 's' if club.warning_count != 1 else '' }}
+                </span>
+                {% endif %}
+            </div>
+            <small class="text-muted mb-2">
+                <i class="bi bi-tag-fill me-1"></i>{{ club.social_category.name if club.social_category else 'Uncategorized' }}
+                <span class="mx-1">•</span>
+                <i class="bi bi-people-fill me-1"></i>{{ total_engagement }} Engaged
+            </small>
+            <p class="card-text text-muted small mb-2 flex-grow-1">
+                {{ club.description | truncate(70) if club.description else 'No description available.' }}
+            </p>
+        </div>
+        <div class="card-footer bg-light-subtle d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Lead: {{ club.owner.full_name or club.owner.username if club.owner else 'N/A' }}
+            </small>
+            <div class="tc-club-actions">
+                {% if is_member_of_club %}
+                     <button class="btn btn-sm btn-outline-secondary tc-action-btn" data-action="leave_club" data-club-id="{{ club.id }}" title="You are a member">
+                        <i class="bi bi-person-check-fill me-1"></i> Member
+                    </button>
+                {% elif is_following_club %}
+                    <button class="btn btn-sm btn-info tc-action-btn" data-action="unfollow_club" data-club-id="{{ club.id }}">
+                        <i class="bi bi-bell-slash-fill me-1"></i> Following
+                    </button>
+                {% else %}
+                     <button class="btn btn-sm btn-primary tc-action-btn" data-action="follow_club" data-club-id="{{ club.id }}">
+                        <i class="bi bi-bell-fill me-1"></i> Follow
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

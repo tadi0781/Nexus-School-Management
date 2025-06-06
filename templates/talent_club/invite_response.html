@@ -1,0 +1,88 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Club Proposal Invitation{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-envelope-paper-heart-fill me-2 text-primary"></i>Club Proposal Invitation
+        </h1>
+        <a href="{{ url_for('view_notifications') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Notifications
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            {% include 'layout/_flash_messages.html' %}
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Invitation to Join: {{ proposal.name }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="lead">
+                        You have been mentioned by <strong>{{ proposal.creator.full_name or proposal.creator.username }}</strong>
+                        in a proposal for a new Talent Club: <strong>"{{ proposal.name }}"</strong>.
+                    </p>
+                    <hr>
+                    <h6 class="font-heading">Proposal Details:</h6>
+                    <p><strong>Category:</strong> {{ proposal.social_category.name if proposal.social_category else 'N/A' }}</p>
+                    <p><strong>Description:</strong></p>
+                    <blockquote class="blockquote bg-light-subtle p-3 rounded">
+                        <p class="mb-0 small">{{ proposal.description | nl2br | safe }}</p>
+                    </blockquote>
+
+                    {% if proposal.proposal_file %}
+                        <p class="mt-3">
+                            <a href="{{ url_for('download_social_file', file_id=proposal.proposal_file.id) }}" class="btn btn-outline-info btn-sm" download="{{ proposal.proposal_file.original_filename }}">
+                                <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> Download Proposal Document
+                            </a>
+                            <small class="text-muted ms-2">({{ (proposal.proposal_file.size / 1024) | round(1) }} KB)</small>
+                        </p>
+                    {% endif %}
+
+                    <hr class="my-4">
+
+                    {% if mention.status == 'pending' and proposal.status == 'pending_leader_review' %}
+                        <h5 class="font-heading text-center">Do you want to be part of this proposed club?</h5>
+                        <p class="text-muted text-center small">Your response is needed for the proposal to proceed.</p>
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-3">
+                            <form method="POST" action="{{ url_for('respond_tc_proposal_mention', mention_id=mention.id, response='accept') }}" class="d-inline">
+                                {{ csrf_token() if csrf_token else '' }}
+                                <button type="submit" class="btn btn-success btn-lg px-4">
+                                    <i class="bi bi-check-circle-fill me-2"></i>Yes, I'm In!
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('respond_tc_proposal_mention', mention_id=mention.id, response='decline') }}" class="d-inline">
+                                 {{ csrf_token() if csrf_token else '' }}
+                                <button type="submit" class="btn btn-outline-danger btn-lg px-4">
+                                    <i class="bi bi-x-circle-fill me-2"></i>No, Decline
+                                </button>
+                            </form>
+                        </div>
+                    {% elif mention.status != 'pending' %}
+                        <div class="alert alert-{{ 'success' if mention.status == 'accepted' else ('danger' if mention.status == 'rejected' else 'info') }} text-center" role="alert">
+                            <h5 class="alert-heading font-heading">You have already responded!</h5>
+                            <p>You <strong>{{ mention.status | title }}</strong> this invitation on {{ mention.responded_at | dateformat }}.</p>
+                             {% if proposal.status != 'pending_leader_review' %}
+                                <hr>
+                                <p class="mb-0 small">The overall proposal status is: <strong>{{ proposal.status.replace('_', ' ') | title }}</strong>. No further action is needed from you on this invite.</p>
+                            {% endif %}
+                        </div>
+                    {% elif proposal.status != 'pending_leader_review' %}
+                         <div class="alert alert-warning text-center" role="alert">
+                            <h5 class="alert-heading font-heading">Proposal Review Status Changed</h5>
+                            <p>This proposal is no longer in the 'Pending Leader Review' stage (Current status: <strong>{{ proposal.status.replace('_', ' ') | title }}</strong>).</p>
+                            <p class="mb-0 small">You can no longer respond to this specific invitation.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

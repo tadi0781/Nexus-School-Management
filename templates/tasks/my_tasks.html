@@ -1,0 +1,54 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Assigned Tasks{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-list-check me-2 text-primary"></i>My Assigned Tasks
+        </h1>
+        {# Optional: Link to create task if user also has creator role #}
+        {% if current_user.role.name in TASK_CREATOR_ROLES %}
+        <a href="{{ url_for('create_task') }}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus-circle-fill me-1"></i> Create New Task
+        </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Filters - Placeholder for future enhancement (e.g., filter by status, urgency) #}
+    {# <div class="card shadow-sm mb-3">
+        <div class="card-body bg-light-subtle py-2 px-3">
+            <small class="text-muted">Filters: (Coming soon)</small>
+        </div>
+    </div> #}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Tasks Requiring Your Action</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if my_tasks and my_tasks | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for user_task_item in my_tasks %} {# Renamed to avoid conflict with task variable in partial #}
+                        {% with user_task=user_task_item, current_user=current_user %}
+                            {% include 'partials/_task_list_item.html' %}
+                        {% endwith %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-check2-circle display-3 mb-3 text-success"></i>
+                    <h4 class="font-heading">No Tasks Assigned!</h4>
+                    <p>You currently have no tasks assigned to you that require action.</p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination if task list is very long #}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{# templates/partials/_dashboard_stat_card.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase B.0 #}
+{#
+    Reusable dashboard statistic card.
+    Expects the following variables to be passed in the context:
+    - card_title: (String) The title/label for the statistic (e.g., "Total Students")
+    - card_value: (String or Number) The statistic value to display.
+    - card_icon: (String) Bootstrap Icon class (e.g., "bi-people-fill").
+    - card_color_class: (String, optional) Bootstrap text color class for the icon (e.g., "text-primary", "text-success"). Defaults to "text-primary".
+    - card_url: (String, optional) URL for the "View Details" link.
+    - card_url_text: (String, optional) Text for the "View Details" link (e.g., "Manage Students"). Defaults to "View Details".
+    - card_extra_class: (String, optional) Extra CSS classes for the card.
+    - card_id: (String, optional) ID for the card element.
+#}
+{% set color_class = card_color_class | default('text-primary') %}
+{% set url_text = card_url_text | default('View Details') %}
+
+<div class="col"> {# Bootstrap column class should be applied by the parent template #}
+    <div class="card dashboard-stat-card h-100 shadow-sm {{ card_extra_class | default('') }}" {% if card_id %}id="{{ card_id }}"{% endif %}>
+        <div class="card-body d-flex align-items-center">
+            <div class="stat-icon display-4 me-3 {{ color_class }}">
+                <i class="bi {{ card_icon | default('bi-bar-chart-line-fill') }}"></i>
+            </div>
+            <div class="stat-content">
+                <h6 class="card-subtitle mb-1 text-muted text-uppercase font-body" style="font-size: 0.8rem;">{{ card_title | default('Statistic') }}</h6>
+                <p class="card-text display-6 fw-bold mb-0 font-heading">{{ card_value | default('N/A') }}</p>
+            </div>
+        </div>
+        {% if card_url %}
+        <a href="{{ card_url }}" class="card-footer text-decoration-none text-muted bg-light-subtle hover-bg-light">
+            <small>{{ url_text }} <i class="bi bi-arrow-right-short ms-1"></i></small>
+        </a>
+        {% else %}
+        {# Optionally, a non-clickable footer or no footer if no URL #}
+        {# <div class="card-footer bg-light-subtle text-muted">
+            <small> </small> {# Placeholder for consistent height if needed #}
+        {# </div> #}
+        {% endif %}
+    </div>
+</div>

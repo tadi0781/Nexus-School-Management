@@ -1,0 +1,59 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Social Groups{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-bounding-box me-2 text-primary"></i>My Social Groups
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            {# Optional: Discover public groups link if feature exists #}
+            {# <a href="{{ url_for('social_group_discover') }}" class="btn btn-sm btn-outline-info me-2">
+                <i class="bi bi-compass-fill me-1"></i> Discover Groups
+            </a> #}
+            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %} {# Role check for create button #}
+            <a href="{{ url_for('create_social_group') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create New Group
+            </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {% if my_groups and my_groups | length > 0 %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+            {% for group in my_groups %}
+                {% include 'partials/_group_card_item.html' with {'group': group, 'current_user': current_user, 'is_member': True, 'is_owner': (group.owner_id == current_user.id)} %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center text-muted p-5 content-placeholder">
+            <i class="bi bi-people display-3 mb-3"></i>
+            <h4 class="font-heading">No Groups Joined Yet</h4>
+            <p>You are not a member of any social groups.
+            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+                You can <a href="{{ url_for('create_social_group') }}">create a new group</a>.
+            {% else %}
+                Ask a group owner or admin to add you to a group.
+            {% endif %}
+            </p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // JS for handling group join/leave buttons if they are AJAX-based
+        // For now, list.html mainly links to view_social_group
+        console.log('My Groups page JS loaded.');
+    });
+</script>
+{% endblock %}

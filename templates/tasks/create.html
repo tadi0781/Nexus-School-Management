@@ -1,0 +1,98 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Create New Task{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="page-title font-heading mb-0">
+        <i class="bi bi-plus-square-dotted me-2 text-primary"></i>Create New Task
+    </h1>
+    <a href="{{ url_for('my_assigned_tasks') if current_user.role.name in TASK_CREATOR_ROLES else url_for('my_tasks') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i> Back to Tasks
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Task Details & Assignment</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('create_task') }}" id="createTaskForm" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        {# --- Task Information (Unchanged) --- #}
+                        <fieldset class="mb-4">
+                            <legend class="font-heading fs-5 mb-3 border-bottom pb-2">Task Information</legend>
+                            <div class="mb-3">
+                                {{ form.title.label(class="form-label fw-medium") }}
+                                {{ form.title(class="form-control form-control-lg" + (" is-invalid" if form.title.errors else ""), placeholder="Enter a clear and concise task title") }}
+                                {% if form.title.errors %}<div class="invalid-feedback">{% for e in form.title.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.description.label(class="form-label fw-medium") }}
+                                {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="5", placeholder="Provide a detailed description of the task, expected outcomes, and any necessary instructions.") }}
+                                {% if form.description.errors %}<div class="invalid-feedback">{% for e in form.description.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    {{ form.due_date.label(class="form-label fw-medium") }}
+                                    {{ form.due_date(class="form-control flatpickr-date" + (" is-invalid" if form.due_date.errors else ""), placeholder="YYYY-MM-DD (Optional)") }}
+                                    {% if form.due_date.errors %}<div class="invalid-feedback">{% for e in form.due_date.errors %}{{e}}{% endfor %}</div>{% endif %}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    {{ form.urgency.label(class="form-label fw-medium") }}
+                                    {{ form.urgency(class="form-select" + (" is-invalid" if form.urgency.errors else "")) }}
+                                    {% if form.urgency.errors %}<div class="invalid-feedback">{% for e in form.urgency.errors %}{{e}}{% endfor %}</div>{% endif %}
+                                </div>
+                            </div>
+                        </fieldset>
+
+                        {# --- MODERN UNIFIED ASSIGNMENT SECTION --- #}
+                        <fieldset class="mb-4">
+                            <legend class="font-heading fs-5 mb-3 border-bottom pb-2">Assign Task To</legend>
+                            <div class="mb-3">
+                                <label for="assigneePicker" class="form-label fw-medium">Assignees</label>
+                                <select id="assigneePicker" multiple placeholder="Search for users, roles, or classes..."></select>
+                                <small class="form-text text-muted">You can assign this task to individual users, entire roles (e.g., all Teachers), or specific classes (e.g., Grade 9, Section A).</small>
+                                
+                                {# Hidden input to store the structured selection data #}
+                                <input type="hidden" name="assignees_data" id="assignees_data">
+                            </div>
+                        </fieldset>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('my_assigned_tasks') if current_user.role.name in TASK_CREATOR_ROLES else url_for('my_tasks') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4 btn-lg", value="Create & Assign Task") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/tasks.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize the new, modern assignee picker
+        if (typeof initializeModernAssigneePicker === 'function') {
+            initializeModernAssigneePicker({
+                pickerId: 'assigneePicker',
+                hiddenInputId: 'assignees_data',
+                searchUrl: "{{ url_for('api_search_assignees') }}" // Use the new API endpoint
+            });
+        } else {
+            console.error('initializeModernAssigneePicker function not found in tasks.js');
+        }
+    });
+</script>
+{% endblock %}

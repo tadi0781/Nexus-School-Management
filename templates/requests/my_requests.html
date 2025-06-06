@@ -1,0 +1,49 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Submitted Requests{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-folder-check me-2 text-primary"></i>My Submitted Requests
+        </h1>
+        {% if permissions and permissions.can_create_request %} {# Check if user can create more #}
+        <a href="{{ url_for('submit_request') }}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus-circle-fill me-1"></i> Submit New Request
+        </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Requests You Have Submitted</h5>
+            {# Optional: Filters for status, type, date range #}
+        </div>
+        <div class="card-body p-0">
+            {% if requests and requests | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for request_obj in requests %}
+                        {% include 'partials/_request_list_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-journal-richtext display-3 mb-3"></i>
+                    <h4 class="font-heading">No Requests Submitted Yet</h4>
+                    {% if permissions and permissions.can_create_request %}
+                    <p>You haven't submitted any requests. <a href="{{ url_for('submit_request') }}">Need to request something?</a></p>
+                    {% else %}
+                    <p>You haven't submitted any requests.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination #}
+    </div>
+</div>
+{% endblock %}

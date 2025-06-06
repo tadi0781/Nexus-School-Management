@@ -1,0 +1,77 @@
+{# templates/partials/_request_list_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase H.1 #}
+{#
+    Reusable item for displaying a request summary in a list.
+    Expects a `request_obj` (Request instance) in the context.
+    - request_obj.title, .request_type, .urgency, .status, .last_updated_at, .current_handler
+#}
+
+{% set status_badge_class = 'bg-secondary-subtle text-secondary-emphasis' %}
+{% if request_obj.status == 'Pending' %}
+    {% set status_badge_class = 'bg-warning-subtle text-warning-emphasis' %}
+{% elif request_obj.status == 'Approved' or request_obj.status == 'On Progress' %}
+    {% set status_badge_class = 'bg-primary-subtle text-primary-emphasis' %}
+{% elif request_obj.status == 'Resolved' %}
+    {% set status_badge_class = 'bg-success-subtle text-success-emphasis' %}
+{% elif request_obj.status == 'Denied' %}
+    {% set status_badge_class = 'bg-danger-subtle text-danger-emphasis' %}
+{% endif %}
+
+<a href="{{ url_for('view_request_detail', request_id=request_obj.id) }}" class="list-group-item list-group-item-action request-list-item flex-column align-items-start py-3 px-3 mb-2 shadow-sm border rounded
+    {% if request_obj.status == 'Pending' and request_obj.current_handler_id == current_user.id %} border-warning-subtle border-start-warning border-start-3 {# Highlight for handler's inbox #}
+    {% elif request_obj.status == 'Denied' %} border-danger-subtle border-start-danger border-start-3
+    {% elif request_obj.status == 'Resolved' %} border-success-subtle border-start-success border-start-3
+    {% else %} border-light-subtle {% endif %}">
+
+    <div class="d-flex w-100 justify-content-between mb-1">
+        <h6 class="mb-1 font-heading request-title">
+            <i class="bi bi-file-earmark-text-fill me-1 {{ status_badge_class.split(' ')[1] | replace('text-', 'text-') }}"></i>
+            {{ request_obj.title | truncate(70) }} <small class="text-muted fw-normal">(ID: {{ request_obj.id }})</small>
+        </h6>
+        <small class="text-muted request-last-updated" title="Last Updated">
+             <i class="bi bi-clock-history me-1"></i>{{ request_obj.last_updated_at | humanize_time_diff }}
+        </small>
+    </div>
+
+    <div class="d-flex w-100 justify-content-between align-items-center small mb-1">
+        <div class="request-meta">
+            <span class="me-3" title="Type">
+                <strong>Type:</strong>
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2">{{ request_obj.request_type }}</span>
+            </span>
+            <span class="me-3" title="Urgency">
+                <strong>Urgency:</strong>
+                {% if request_obj.urgency == 'Critical' %}<span class="badge bg-danger text-white rounded-pill px-2">{{ request_obj.urgency }}</span>
+                {% elif request_obj.urgency == 'High' %}<span class="badge bg-warning text-dark rounded-pill px-2">{{ request_obj.urgency }}</span>
+                {% elif request_obj.urgency == 'Medium' %}<span class="badge bg-info text-white rounded-pill px-2">{{ request_obj.urgency }}</span>
+                {% else %}<span class="badge bg-light text-dark border rounded-pill px-2">{{ request_obj.urgency }}</span>
+                {% endif %}
+            </span>
+            <span title="Current Tier">
+                <strong>Tier:</strong>
+                <span class="badge bg-dark-subtle text-dark-emphasis rounded-pill px-2">{{ request_obj.tier }}</span>
+            </span>
+        </div>
+        <div class="request-status">
+            <strong>Status:</strong>
+            <span class="badge fs-08rem px-2 py-1 rounded-pill {{ status_badge_class }}">
+                {{ request_obj.status }}
+            </span>
+        </div>
+    </div>
+
+    <p class="mb-1 text-muted small request-description d-none d-md-block">
+        {{ request_obj.description | truncate(150) }}
+    </p>
+
+    <div class="mt-1 small text-muted">
+        {% if request_obj.status == 'Pending' and request_obj.current_handler %}
+            Awaiting review by: <strong>{{ request_obj.current_handler.full_name or request_obj.current_handler.username }}</strong>
+            ({{ request_obj.current_handler.role.name.replace('_',' ') | title if request_obj.current_handler.role else 'N/A' }})
+        {% elif request_obj.status == 'On Progress' and request_obj.current_handler %}
+            In progress with: <strong>{{ request_obj.current_handler.full_name or request_obj.current_handler.username }}</strong>
+        {% elif request_obj.requester_id == current_user.id and request_obj.status not in ['Resolved', 'Denied'] %}
+            <span class="text-primary-emphasis">You submitted this request.</span>
+        {% endif %}
+    </div>
+</a>

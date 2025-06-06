@@ -1,0 +1,154 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Review Proposal: " + (proposal.name if proposal else "N/A") %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-clipboard2-data-fill me-2 text-primary"></i>{{ page_title }}
+        </h1>
+        <a href="{{ url_for('review_tc_proposals') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to All Pending Proposals
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <form id="reviewProposalForm" method="POST" action="{{ url_for('review_tc_proposal', proposal_id=proposal.id) }}">
+        {{ csrf_token() if csrf_token else '' }} {# For WTForms if form object is used, or manual CSRF #}
+        <input type="hidden" name="action" id="proposalActionInput" value="save_notes"> {# Default action #}
+
+        <div class="row g-4">
+            {# Left Column: Proposal Details & Mentioned Members #}
+            <div class="col-lg-7 col-xl-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading">Proposal Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Proposed Name:</dt>
+                            <dd class="col-sm-9">{{ proposal.name }}</dd>
+
+                            <dt class="col-sm-3">Creator:</dt>
+                            <dd class="col-sm-9">{{ proposal.creator.full_name or proposal.creator.username if proposal.creator else 'N/A' }}</dd>
+
+                            <dt class="col-sm-3">Category:</dt>
+                            <dd class="col-sm-9">{{ proposal.social_category.name if proposal.social_category else 'N/A' }}</dd>
+
+                            <dt class="col-sm-3">Submitted On:</dt>
+                            <dd class="col-sm-9">{{ proposal.created_at | datetimeformat }}</dd>
+
+                            <dt class="col-sm-3">Description:</dt>
+                            <dd class="col-sm-9"><p style="white-space: pre-wrap;">{{ proposal.description }}</p></dd>
+
+                            {% if proposal.proposal_file %}
+                            <dt class="col-sm-3">Attached Document:</dt>
+                            <dd class="col-sm-9">
+                                <a href="{{ url_for('download_social_file', file_id=proposal.proposal_file.id) }}" class="btn btn-sm btn-outline-info" download="{{ proposal.proposal_file.original_filename }}">
+                                    <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> {{ proposal.proposal_file.original_filename }}
+                                </a>
+                            </dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-people-fill me-2"></i>Mentioned Members ({{ mentions | length }})</h5>
+                        <span class="badge {{ 'bg-success-subtle text-success-emphasis' if meets_min_members else 'bg-danger-subtle text-danger-emphasis' }} rounded-pill p-2">
+                            {{ accepted_count }} / 5 Accepted Mentions
+                        </span>
+                    </div>
+                    <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                        {% if mentions %}
+                            {% for mention in mentions %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% set user_avatar = url_for('static', filename=(mention.user.profile_photo_url if mention.user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                    <img src="{{ user_avatar }}" alt="{{ mention.user.username }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
+                                    <span class="fw-medium">{{ mention.user.full_name or mention.user.username }}</span>
+                                    <small class="text-muted">({{ mention.user.role.name.replace('_',' ') | title if mention.user.role else 'N/A' }})</small>
+                                </div>
+                                {% if mention.status == 'pending' %}
+                                    <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">Pending Response</span>
+                                {% elif mention.status == 'accepted' %}
+                                    <span class="badge bg-success-subtle text-success-emphasis rounded-pill"><i class="bi bi-check-circle-fill me-1"></i>Accepted</span>
+                                {% elif mention.status == 'rejected' %}
+                                    <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill"><i class="bi bi-x-circle-fill me-1"></i>Declined</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="list-group-item text-muted text-center p-3">No members were mentioned in this proposal.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# Right Column: Review Actions & Notes #}
+            <div class="col-lg-5 col-xl-4">
+                <div class="card shadow-sm sticky-lg-top" style="top: 70px;"> {# Sticky top for review panel #}
+                    <div class="card-header bg-primary-subtle text-primary-emphasis">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-ui-checks-grid me-2"></i>Review & Action</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="reviewNotesTextarea" class="form-label fw-medium">Leader's Review Notes:</label>
+                            <textarea class="form-control" id="reviewNotesTextarea" name="review_notes" rows="5" placeholder="Add your comments or reasons for decision here...">{{ proposal.leader_review_notes or '' }}</textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" name="action" value="save_notes" class="btn btn-outline-secondary proposal-action-btn">
+                                <i class="bi bi-save-fill me-1"></i> Save Notes Only
+                            </button>
+                            <button type="submit" name="action" value="accept" class="btn btn-success proposal-action-btn" {% if not meets_min_members %}disabled title="Requires 5 accepted mentions"{% endif %}>
+                                <i class="bi bi-check-circle-fill me-1"></i> Accept Proposal & Create Club
+                            </button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger proposal-action-btn">
+                                <i class="bi bi-x-octagon-fill me-1"></i> Reject Proposal
+                            </button>
+                        </div>
+                        {% if not meets_min_members %}
+                        <small class="text-danger d-block mt-2 text-center">
+                            Acceptance is disabled until at least 5 members accept their mention.
+                        </small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // JavaScript to set the hidden 'action' input based on which button is clicked.
+        // Or, backend can check request.form for 'accept', 'reject', 'save_notes'.
+        // The current HTML uses name="action" on buttons, so backend can check request.form.get('action').
+        
+        // Optional: AJAX submission for review actions (more complex)
+        // const reviewForm = document.getElementById('reviewProposalForm');
+        // if(reviewForm) {
+        //     reviewForm.querySelectorAll('.proposal-action-btn').forEach(button => {
+        //         button.addEventListener('click', function(e) {
+        //             document.getElementById('proposalActionInput').value = this.value;
+        //             // If not using AJAX, form will submit normally.
+        //             // If using AJAX:
+        //             // e.preventDefault();
+        //             // handleTCProposalReviewAction(reviewForm, this.value); // Function in talent_club.js
+        //         });
+        //     });
+        // }
+        console.log('Review TC Proposal Detail JS loaded.');
+    });
+</script>
+{% endblock %}

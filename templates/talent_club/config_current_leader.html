@@ -1,0 +1,117 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}TC Leadership & Election{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-workspace me-2 text-primary"></i>Talent Club Leadership
+        </h1>
+        <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Configuration
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="row g-4 justify-content-center">
+        {# Current Leader Information #}
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm text-center">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading">Current System Talent Club Leader</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% if current_leader %}
+                        {% set leader_avatar = url_for('static', filename=(current_leader.profile_photo_url if current_leader.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                        <img src="{{ leader_avatar }}" alt="{{ current_leader.username }}" class="rounded-circle mb-3 shadow-sm" style="width: 100px; height: 100px; object-fit: cover; border: 3px solid var(--nexus-primary);">
+                        <h4 class="font-heading mb-1">{{ current_leader.full_name or current_leader.username }}</h4>
+                        <p class="text-muted mb-0">{{ current_leader.username }}</p>
+                        <p class="text-muted"><small>{{ current_leader.role.name | title if current_leader.role }} | TC Leader</small></p>
+                    {% else %}
+                        <i class="bi bi-person-fill-slash display-3 text-muted mb-3"></i>
+                        <p class="text-muted lead">No system-wide Talent Club Leader is currently assigned.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# Active Election Section #}
+        {% if active_election %}
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success-subtle text-success-emphasis">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-megaphone-fill me-2"></i>Active Election for TC Leader!</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">An election is currently underway to select the next Talent Club Leader. Initiated on {{ active_election.initiated_at | dateformat }}.</p>
+                    
+                    {% if can_vote and vote_form %}
+                        <h6 class="font-heading mt-3">Cast Your Vote:</h6>
+                        <form method="POST" action="{{ url_for('cast_tc_leader_vote') }}" id="tcLeaderVoteForm" novalidate>
+                            {{ vote_form.hidden_tag() if vote_form.hidden_tag }}
+                            <div class="mb-3">
+                                {{ vote_form.candidate_id.label(class="form-label fw-medium") }}
+                                {{ vote_form.candidate_id(class="form-select tom-select" + (" is-invalid" if vote_form.candidate_id.errors else "")) }}
+                                {% if vote_form.candidate_id.errors %}<div class="invalid-feedback">{% for e in vote_form.candidate_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="d-grid">
+                                {{ vote_form.submit(class="btn btn-success w-100", value="Submit My Vote") }}
+                            </div>
+                        </form>
+                    {% elif user_vote %}
+                        <div class="alert alert-info mt-3" role="alert">
+                            <i class="bi bi-check-circle-fill me-1"></i> You have already voted in this election for <strong>{{ user_vote.candidate.full_name or user_vote.candidate.username if user_vote.candidate else 'a candidate' }}</strong> on {{ user_vote.voted_at | dateformat }}.
+                        </div>
+                    {% elif not current_user.is_tc_member %}
+                         <div class="alert alert-warning mt-3" role="alert">
+                            <i class="bi bi-exclamation-circle-fill me-1"></i> Only Talent Club members can vote in this election.
+                        </div>
+                    {% else %}
+                         <div class="alert alert-secondary mt-3" role="alert">
+                            <i class="bi bi-info-circle-fill me-1"></i> Voting form is not available at this moment.
+                        </div>
+                    {% endif %}
+                    <hr class="my-3">
+                    <small class="text-muted d-block">The election will be concluded by HR/Administration.</small>
+                </div>
+            </div>
+        </div>
+        {% elif not current_leader %} {# No active election AND no current leader #}
+         <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading">No Active Election</h5>
+                </div>
+                <div class="card-body text-center text-muted p-4">
+                    <i class="bi bi-person-bounding-box display-4 mb-3"></i>
+                    <p>There is no active election for a new Talent Club Leader at this time. HR/Administration may initiate one when required.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for candidate selection if form is present
+        {% if can_vote and vote_form and vote_form.candidate_id %}
+        const candidateSelect = document.getElementById('{{ vote_form.candidate_id.id }}');
+        if (candidateSelect) {
+            new TomSelect(candidateSelect, {
+                create: false,
+                placeholder: 'Select your preferred candidate...'
+            });
+        }
+        {% endif %}
+        console.log('View Current TC Leader / Vote page JS loaded.');
+    });
+</script>
+{% endblock %}

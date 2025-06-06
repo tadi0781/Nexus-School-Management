@@ -1,0 +1,106 @@
+{% extends "layout/base.html" %}
+
+{% set block_title = "Students: Grade " + grade + " - Section " + section %}
+{% block page_title %}{{ block_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-people-fill me-2 text-primary"></i>{{ block_title }}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            {% if current_user.role.name in ['hr_ceo', 'system_admin'] %}
+            <a href="{{ url_for('export_block', grade=grade, section=section) }}" class="btn btn-sm btn-outline-success me-2" title="Export this block to CSV">
+                <i class="bi bi-file-earmark-arrow-down-fill me-1"></i> Export CSV
+            </a>
+            {% endif %}
+            <a href="{{ url_for('student_database_index') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i> Back to Index
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Student Roster</h5>
+            {# Optional: Add student search within this block #}
+        </div>
+        <div class="card-body p-0">
+            {% if students and students | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle student-roster-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;">Avatar</th>
+                                <th scope="col">Full Name</th>
+                                <th scope="col">Username</th>
+                                <th scope="col">Email</th>
+                                <th scope="col" class="text-center">Leader</th>
+                                <th scope="col" class="text-center">TC Member</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student_user in students %} {# Renamed to avoid conflict with student variable if used inside #}
+                            <tr>
+                                <td>
+                                    {% set student_avatar = url_for('static', filename=(student_user.profile_photo_url if student_user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                    <img src="{{ student_avatar }}" alt="{{ student_user.username }}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;">
+                                </td>
+                                <td class="fw-medium">
+                                    {% if current_user.role.name == 'teacher' %}
+                                        <a href="{{ url_for('teacher_student_profile_view', user_id=student_user.id) }}" class="text-decoration-none">{{ student_user.full_name or student_user.username }}</a>
+                                    {% elif current_user.role.name == 'librarian' %}
+                                         <a href="{{ url_for('librarian_student_profile', user_id=student_user.id) }}" class="text-decoration-none">{{ student_user.full_name or student_user.username }}</a>
+                                    {% else %} {# HR/CEO/System Admin direct to more detailed behavior log or a general admin profile view #}
+                                        <a href="{{ url_for('view_student_behavior_records', user_id=student_user.id) }}" class="text-decoration-none">{{ student_user.full_name or student_user.username }}</a>
+                                    {% endif %}
+                                </td>
+                                <td><small class="text-muted">{{ student_user.username }}</small></td>
+                                <td><small class="text-muted">{{ student_user.email or 'N/A' }}</small></td>
+                                <td class="text-center">
+                                    {% if student_user.is_leader %}
+                                        <i class="bi bi-star-fill text-warning" title="Section Leader"></i>
+                                    {% else %}
+                                        <i class="bi bi-star text-muted" title="Not a leader"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                     {% if student_user.is_tc_member %}
+                                        <i class="bi bi-trophy-fill text-success" title="Talent Club Member"></i>
+                                    {% else %}
+                                        <i class="bi bi-trophy text-muted" title="Not a TC member"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {# HR/CEO/Admin can view full behavior log, edit student profile (future) #}
+                                    <a href="{{ url_for('view_student_behavior_records', user_id=student_user.id) }}" class="btn btn-sm btn-outline-info p-1 me-1" title="View/Manage Behavior Records">
+                                        <i class="bi bi-person-exclamation fs-6"></i>
+                                    </a>
+                                    {% if current_user.role.name in ['hr_ceo', 'system_admin'] %}
+                                    <a href="{{ url_for('settings') }}?user_id={{ student_user.id }}" class="btn btn-sm btn-outline-primary p-1" title="Edit Student Profile (Admin)"> {# Needs admin edit user route #}
+                                        <i class="bi bi-pencil-square fs-6"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-fill-x display-3 mb-3"></i>
+                    <h4 class="font-heading">No Students Found</h4>
+                    <p>There are no active students currently listed for Grade {{ grade }}, Section {{ section }}.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

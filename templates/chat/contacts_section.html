@@ -1,0 +1,36 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <a href="{{ url_for('contacts_list') }}" class="btn btn-outline-secondary btn-sm me-2" title="Back to All Contacts">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h1 class="h2 text-primary fw-bold d-inline-block">{{ title }}</h1>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for contact in students %}
+                            {% include 'partials/_contact_list_item.html' %}
+                        {% else %}
+                        <div class="list-group-item text-center text-muted p-4">
+                            No students found in this section that match the criteria.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

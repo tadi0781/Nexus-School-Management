@@ -1,0 +1,98 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Edit Channel: {{ channel.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-pencil-square me-2 text-primary"></i>Edit Channel Settings
+        </h1>
+        <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Channel
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Editing: {{ channel.name }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('edit_social_channel', channel_id=channel.id) }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter channel name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.bio.label(class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Brief channel description") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.social_category_id.label(class="form-label fw-medium") }}
+                            {{ form.social_category_id(class="form-select tom-select" + (" is-invalid" if form.social_category_id.errors else "")) }}
+                            {% if form.social_category_id.errors %}<div class="invalid-feedback">{% for e in form.social_category_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {# Current Profile Photo Preview #}
+                        {% if channel.profile_photo_url %}
+                        <div class="mb-2">
+                            <label class="form-label fw-medium">Current Profile Photo:</label><br>
+                            <img src="{{ url_for('static', filename=channel.profile_photo_url) }}" alt="Current channel photo" class="img-thumbnail mb-2" style="max-width: 150px; max-height: 150px;">
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(text="Change Profile Photo (Optional)", class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Max 2MB. JPG, PNG, GIF, WEBP. Leave blank to keep current photo.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="font-heading mb-3">Channel Content Settings:</h6>
+                        <div class="form-check form-switch mb-2">
+                            {{ form.allow_comments(class="form-check-input" + (" is-invalid" if form.allow_comments.errors else ""), role="switch", id="allowCommentsSwitch") }}
+                            {{ form.allow_comments.label(class="form-check-label fw-medium", for="allowCommentsSwitch") }}
+                            {% if form.allow_comments.errors %}<div class="invalid-feedback d-block">{% for e in form.allow_comments.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            {{ form.allow_reactions(class="form-check-input" + (" is-invalid" if form.allow_reactions.errors else ""), role="switch", id="allowReactionsSwitch") }}
+                            {{ form.allow_reactions.label(class="form-check-label fw-medium", for="allowReactionsSwitch") }}
+                            {% if form.allow_reactions.errors %}<div class="invalid-feedback d-block">{% for e in form.allow_reactions.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Save Channel Changes") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categorySelect = document.getElementById('{{ form.social_category_id.id }}');
+        if (categorySelect) {
+            new TomSelect(categorySelect, { create: false });
+        }
+        console.log('Edit Channel page JS loaded.');
+    });
+</script>
+{% endblock %}

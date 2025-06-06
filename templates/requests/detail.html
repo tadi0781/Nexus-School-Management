@@ -1,0 +1,138 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Request Details: " + (request_obj.title[:30] + '...' if request_obj.title and request_obj.title|length > 30 else request_obj.title or "N/A") %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0 text-truncate" style="max-width: 70%;">
+            <i class="bi bi-file-earmark-medical-fill me-2 text-primary"></i>Request Details (ID: {{ request_obj.id }})
+        </h1>
+        {% if permissions.is_handler_for_request and request_obj.status not in ['Resolved', 'Denied'] %}
+            <a href="{{ url_for('review_request', request_id=request_obj.id) }}" class="btn btn-sm btn-warning">
+                <i class="bi bi-pencil-square me-1"></i> Review This Request
+            </a>
+        {% elif permissions.is_requester_of_request %}
+             <a href="{{ url_for('my_requests') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i> Back to My Requests
+            </a>
+        {% else %} {# Admin or other viewer #}
+            <a href="{{ url_for('requests_inbox') if permissions.can_review else (request.referrer or url_for('hr_ceo_dashboard')) }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i> Back
+            </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="row g-4">
+        {# Left Column: Request Information #}
+        <div class="col-lg-7 col-xl-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading">Request Information</h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="font-heading mb-3">{{ request_obj.title }}</h4>
+                    <dl class="row">
+                        <dt class="col-sm-3">Request ID:</dt>
+                        <dd class="col-sm-9">{{ request_obj.id }}</dd>
+
+                        <dt class="col-sm-3">Type:</dt>
+                        <dd class="col-sm-9">{{ request_obj.request_type }}</dd>
+
+                        <dt class="col-sm-3">Urgency:</dt>
+                        <dd class="col-sm-9">
+                            {% if request_obj.urgency == 'Critical' %}<span class="badge fs-09rem bg-danger text-white rounded-pill px-2 py-1">{{ request_obj.urgency }}</span>
+                            {% elif request_obj.urgency == 'High' %}<span class="badge fs-09rem bg-warning text-dark rounded-pill px-2 py-1">{{ request_obj.urgency }}</span>
+                            {% elif request_obj.urgency == 'Medium' %}<span class="badge fs-09rem bg-info text-white rounded-pill px-2 py-1">{{ request_obj.urgency }}</span>
+                            {% else %}<span class="badge fs-09rem bg-secondary-subtle text-secondary-emphasis rounded-pill px-2 py-1">{{ request_obj.urgency }}</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-3">Submitted By:</dt>
+                        <dd class="col-sm-9">{{ request_obj.requester.full_name or request_obj.requester.username if request_obj.requester else 'N/A' }}</dd>
+
+                        <dt class="col-sm-3">Submitted On:</dt>
+                        <dd class="col-sm-9">{{ request_obj.created_at | datetimeformat }}</dd>
+
+                        <dt class="col-sm-3">Last Updated:</dt>
+                        <dd class="col-sm-9">{{ request_obj.last_updated_at | datetimeformat }}</dd>
+
+                        <dt class="col-sm-3">Current Status:</dt>
+                        <dd class="col-sm-9">
+                            {% set status_badge_class = 'bg-secondary-subtle text-secondary-emphasis' %}
+                            {% if request_obj.status == 'Pending' %}{% set status_badge_class = 'bg-warning-subtle text-warning-emphasis' %}
+                            {% elif request_obj.status == 'Approved' or request_obj.status == 'On Progress' %}{% set status_badge_class = 'bg-primary-subtle text-primary-emphasis' %}
+                            {% elif request_obj.status == 'Resolved' %}{% set status_badge_class = 'bg-success-subtle text-success-emphasis' %}
+                            {% elif request_obj.status == 'Denied' %}{% set status_badge_class = 'bg-danger-subtle text-danger-emphasis' %}{% endif %}
+                            <span class="badge fs-09rem px-2 py-1 rounded-pill {{ status_badge_class }}">{{ request_obj.status }}</span>
+                        </dd>
+
+                        <dt class="col-sm-3">Current Tier:</dt>
+                        <dd class="col-sm-9">Tier {{ request_obj.tier }}</dd>
+
+                        <dt class="col-sm-3">Current Handler:</dt>
+                        <dd class="col-sm-9">
+                            {{ request_obj.current_handler.full_name or request_obj.current_handler.username if request_obj.current_handler else 'None (Finalized or Awaiting System)' }}
+                            {% if request_obj.current_handler %}
+                                <small class="text-muted">({{ request_obj.current_handler.role.name.replace('_',' ') | title if request_obj.current_handler.role }})</small>
+                            {% endif %}
+                        </dd>
+
+                        {% if request_obj.last_forwarded_by %}
+                        <dt class="col-sm-3">Last Forwarded By:</dt>
+                        <dd class="col-sm-9">{{ request_obj.last_forwarded_by.full_name or request_obj.last_forwarded_by.username }}</dd>
+                        {% endif %}
+                    </dl>
+                    <hr>
+                    <h5 class="font-heading mt-3">Full Description:</h5>
+                    <div class="p-3 bg-light-subtle border rounded" style="white-space: pre-wrap;">
+                        {{ request_obj.description }}
+                    </div>
+
+                     {% if request_obj.status == 'Denied' and request_obj.denial_reason %}
+                        <h5 class="font-heading mt-3 text-danger">Denial Reason:</h5>
+                        <div class="p-3 bg-danger-subtle border border-danger- GGGGGGGGGGG rounded" style="white-space: pre-wrap;">
+                            {{ request_obj.denial_reason }}
+                        </div>
+                    {% endif %}
+
+                    {% if request_obj.status == 'Resolved' and request_obj.resolution_notes %}
+                        <h5 class="font-heading mt-3 text-success">Resolution Notes:</h5>
+                        <div class="p-3 bg-success-subtle border border-success- GGGGGGGGGGG rounded" style="white-space: pre-wrap;">
+                            {{ request_obj.resolution_notes }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# Right Column: Request History Log #}
+        <div class="col-lg-5 col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-list-ol me-2"></i>Request History & Audit Trail</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;"> {# Max height and scroll for long histories #}
+                    {% if history_records and history_records | length > 0 %}
+                        <ul class="list-group list-group-flush">
+                            {% for history_item in history_records %}
+                                {% include 'partials/_request_history_log_item.html' %}
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="p-3 text-muted text-center">
+                            <i class="bi bi-archive fs-2 mb-2 d-block"></i>
+                            No history recorded for this request yet.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

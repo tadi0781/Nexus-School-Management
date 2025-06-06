@@ -1,0 +1,134 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}All School Assets{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-boxes me-2 text-primary"></i>School Asset Inventory
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher', 'librarian'] or (current_user.role.name == 'student' and current_user.is_leader) or (current_user.role.name == 'talent_club' and current_user.is_tc_leader) %}
+            <a href="{{ url_for('add_asset') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle-fill me-1"></i> Add New Asset
+            </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    {# Filters Section #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light-subtle">
+            <form method="GET" action="{{ url_for('list_all_assets') }}" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="categoryFilter" class="form-label fw-medium text-muted small">Category:</label>
+                    <select name="category" id="categoryFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="all" {% if category_filter == 'all' %}selected{% endif %}>All Categories</option>
+                        {% for category in all_categories %}
+                            <option value="{{ category.name }}" {% if category_filter == category.name %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="statusFilter" class="form-label fw-medium text-muted small">Status:</label>
+                    <select name="status" id="statusFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="available_active" {% if status_filter == 'available_active' %}selected{% endif %}>Available/Active Use</option>
+                        <option value="Pending Review" {% if status_filter == 'Pending Review' %}selected{% endif %}>Pending Review</option>
+                        <option value="Available" {% if status_filter == 'Available' %}selected{% endif %}>Available</option>
+                        <option value="CheckedOut" {% if status_filter == 'CheckedOut' %}selected{% endif %}>Checked Out</option>
+                        <option value="Under Maintenance" {% if status_filter == 'Under Maintenance' %}selected{% endif %}>Under Maintenance</option>
+                        <option value="Needs Repair" {% if status_filter == 'Needs Repair' %}selected{% endif %}>Needs Repair</option>
+                        <option value="Lost" {% if status_filter == 'Lost' %}selected{% endif %}>Lost</option>
+                        <option value="Retired" {% if status_filter == 'Retired' %}selected{% endif %}>Retired</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="labFilter" class="form-label fw-medium text-muted small">Lab/Location:</label>
+                    <select name="lab" id="labFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="all" {% if lab_filter == 'all' %}selected{% endif %}>All Labs/Locations</option>
+                        {% for lab in all_labs %}
+                            <option value="{{ lab.name }}" {% if lab_filter == lab.name %}selected{% endif %}>{{ lab.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="searchFilter" class="form-label fw-medium text-muted small">Search:</label>
+                    <input type="text" name="search" id="searchFilter" class="form-control form-control-sm" value="{{ search_query or '' }}" placeholder="Name, desc...">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-funnel-fill"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Asset Listing #}
+    {% if paginated_assets and paginated_assets.items %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+            {% for asset in paginated_assets.items %}
+                <div class="col"> {# This col is for Bootstrap's grid system #}
+                    {% include 'partials/_asset_card.html' %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {# Pagination #}
+        {% if paginated_assets.has_prev or paginated_assets.has_next %}
+            <nav aria-label="Asset pagination" class="mt-5 d-flex justify-content-center">
+                <ul class="pagination shadow-sm">
+                    <li class="page-item {{ 'disabled' if not paginated_assets.has_prev else '' }}">
+                        <a class="page-link" href="{{ url_for('list_all_assets', page=paginated_assets.prev_num, category=category_filter, status=status_filter, lab=lab_filter, search=search_query) if paginated_assets.has_prev else '#' }}" aria-label="Previous">
+                            <span aria-hidden="true">«</span>
+                        </a>
+                    </li>
+                    {% for page_num in paginated_assets.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {{ 'active' if page_num == paginated_assets.page else '' }}">
+                                <a class="page-link" href="{{ url_for('list_all_assets', page=page_num, category=category_filter, status=status_filter, lab=lab_filter, search=search_query) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {{ 'disabled' if not paginated_assets.has_next else '' }}">
+                        <a class="page-link" href="{{ url_for('list_all_assets', page=paginated_assets.next_num, category=category_filter, status=status_filter, lab=lab_filter, search=search_query) if paginated_assets.has_next else '#' }}" aria-label="Next">
+                            <span aria-hidden="true">»</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+
+    {% else %}
+        <div class="card shadow-sm">
+            <div class="card-body text-center text-muted p-5 content-placeholder">
+                <i class="bi bi-binoculars-fill display-3 mb-3"></i>
+                <h4 class="font-heading">No Assets Found</h4>
+                <p>There are no assets matching your current filter criteria.</p>
+                <a href="{{ url_for('list_all_assets') }}" class="btn btn-outline-primary mt-2"><i class="bi bi-arrow-counterclockwise me-1"></i>Clear Filters</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for filter dropdowns
+        document.querySelectorAll('.tom-select-filter').forEach(el => {
+            new TomSelect(el, {
+                create: false,
+                // allowEmptyOption: true, // If you want the "All..." to be clearable
+                // placeholder: 'Select filter...' // If you use allowEmptyOption
+            });
+        });
+        console.log('All Assets page JS loaded.');
+    });
+</script>
+{% endblock %}

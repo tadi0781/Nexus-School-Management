@@ -1,0 +1,72 @@
+{# templates/partials/_tc_proposal_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase F.3 #}
+{#
+    Reusable item for displaying a Talent Club proposal in a list.
+    Expects a `proposal` object (TalentClubProposal instance) and `current_user`.
+    Optionally `accepted_count` for this proposal.
+#}
+
+<div class="list-group-item list-group-item-action flex-column align-items-start tc-proposal-item py-3 px-3 mb-2 shadow-sm border rounded
+    {% if proposal.status == 'pending_leader_review' %} border-info-subtle border-start-info border-start-3
+    {% elif proposal.status == 'pending_members_accept' %} border-warning-subtle border-start-warning border-start-3
+    {% elif proposal.status == 'accepted' %} border-success-subtle border-start-success border-start-3
+    {% elif proposal.status == 'rejected' %} border-danger-subtle border-start-danger border-start-3
+    {% else %} border-light-subtle {% endif %}">
+
+    <div class="d-flex w-100 justify-content-between mb-2">
+        <h6 class="mb-1 font-heading">
+            <i class="bi {{ 'bi-lightbulb-fill text-primary' if proposal.status.startswith('pending') else ('bi-check-circle-fill text-success' if proposal.status == 'accepted' else 'bi-x-circle-fill text-danger') }} me-2"></i>
+            Proposal: {{ proposal.name | truncate(50) }}
+            {% if current_user.id == proposal.creator_id %}
+                <a href="{{ url_for('view_tc_proposal', proposal_id=proposal.id) }}" class="btn btn-sm btn-outline-secondary p-0 px-1 ms-2" style="font-size: 0.7rem;">View/Edit</a>
+            {% elif current_user.is_tc_leader %}
+                 <a href="{{ url_for('review_tc_proposal', proposal_id=proposal.id) }}" class="btn btn-sm btn-outline-primary p-0 px-1 ms-2" style="font-size: 0.7rem;">Review</a>
+            {% endif %}
+        </h6>
+        <small class="text-muted" title="{{ proposal.created_at | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+            {{ proposal.created_at | humanize_time_diff }}
+        </small>
+    </div>
+
+    <p class="mb-2 text-muted- GGGGGGGGGGG">
+        <strong class="text-dark">Category:</strong> {{ proposal.social_category.name if proposal.social_category else 'N/A' }}
+    </p>
+    <p class="mb-2 text-muted- GGGGGGGGGGG small">
+        {{ proposal.description | truncate(150) }}
+    </p>
+
+    <div class="row gx-3 gy-1 small text-muted align-items-center">
+        <div class="col-auto">
+            <strong>Status:</strong>
+            {% if proposal.status == 'pending_leader_review' %}
+                <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1">Pending Leader Review</span>
+            {% elif proposal.status == 'pending_members_accept' %}
+                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1">Pending Member Acceptance ({{ accepted_count | default(0) }}/5)</span>
+            {% elif proposal.status == 'accepted' %}
+                <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2 py-1">Accepted & Club Created</span>
+            {% elif proposal.status == 'rejected' %}
+                 <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2 py-1">Rejected</span>
+            {% else %}
+                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2 py-1">{{ proposal.status | title }}</span>
+            {% endif %}
+        </div>
+        <div class="col-auto">
+            <strong>Creator:</strong> {{ proposal.creator.full_name or proposal.creator.username if proposal.creator else 'N/A' }}
+        </div>
+        {% if proposal.reviewed_by %}
+        <div class="col-auto">
+            <strong>Reviewed By:</strong> {{ proposal.reviewed_by.full_name or proposal.reviewed_by.username }}
+        </div>
+         {% if proposal.reviewed_at %}
+            <div class="col-auto"><strong>On:</strong> {{ proposal.reviewed_at | dateformat }}</div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    {% if proposal.leader_review_notes and (current_user.id == proposal.creator_id or current_user.is_tc_leader) %}
+        <div class="mt-2 p-2 bg-light-subtle border rounded small">
+            <strong class="d-block mb-1">Leader's Review Notes:</strong>
+            <p class="mb-0 fst-italic">{{ proposal.leader_review_notes }}</p>
+        </div>
+    {% endif %}
+</div>

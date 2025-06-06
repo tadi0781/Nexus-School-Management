@@ -1,0 +1,129 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}{{ group.name }} - Group{% endblock %}
+
+{% block head_css %}
+<style>
+    .group-chat-window { /* Similar to universal_chat.html but can be distinct */
+        height: calc(100vh - 56px - 56px - 70px - 3rem - 70px); /* Adjust for group header */
+        min-height: 350px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse;
+        padding: 1rem;
+        background-color: var(--nexus-body-bg);
+    }
+    .group-chat-input-area {
+        border-top: 1px solid var(--nexus-border-color);
+        background-color: var(--nexus-content-bg);
+    }
+    .group-header {
+        background-color: var(--nexus-content-bg);
+        border-bottom: 1px solid var(--nexus-border-color);
+    }
+</style>
+{% endblock %}
+
+{% block content_header %}
+    <div class="group-header pt-3 pb-2 mb-0 sticky-top shadow-sm" style="top: 56px; z-index: 1010;">
+        <div class="container-fluid"> {# Use container-fluid from base for alignment #}
+            <div class="d-flex flex-column flex-md-row align-items-md-center">
+                <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
+                    {% set group_avatar_view = url_for('static', filename=(group.profile_photo_url if group.profile_photo_url else 'img/placeholders/group_default_avatar.png')) %}
+                    <img src="{{ group_avatar_view }}" alt="{{ group.name }} Profile Photo" class="rounded-circle shadow-sm" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid var(--nexus-body-bg);">
+                </div>
+                <div class="flex-grow-1 text-center text-md-start">
+                    <h1 class="page-title font-heading mb-0 fs-4">{{ group.name }}</h1>
+                    <p class="text-muted mb-1 small">
+                        <i class="bi bi-people-fill me-1"></i> <span id="groupMemberCount">{{ group.members.count() }}</span> Member{{ 's' if group.members.count() != 1 else '' }}
+                        <span class="mx-1 text-muted">|</span>
+                        Owned by: {{ group.owner.full_name or group.owner.username if group.owner else 'N/A' }}
+                    </p>
+                </div>
+                <div class="mt-2 mt-md-0 ms-md-auto">
+                    {% if user_group_role in ['owner', 'admin'] %}
+                        <a href="{{ url_for('edit_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-primary me-2" title="Edit Group Settings">
+                            <i class="bi bi-gear-fill"></i>
+                        </a>
+                        <a href="{{ url_for('manage_group_members', group_id=group.id) }}" class="btn btn-sm btn-outline-info" title="Manage Members">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </a>
+                    {% endif %}
+                     {% if user_group_role %} {# If member #}
+                        <button class="btn btn-sm btn-outline-danger ms-2 group-action-btn" data-action="leave" data-group-id="{{ group.id }}" title="Leave Group">
+                            <i class="bi bi-door-closed-fill"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+             {% if group.description %}
+                <p class="text-muted small mb-2 mt-2 text-center text-md-start">{{ group.description | truncate(150) }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+{% set no_sidebar = True %} {# Full focus on group chat #}
+
+<div class="container-fluid px-0 h-100 d-flex flex-column">
+    <div class="group-chat-window flex-grow-1" id="groupChatWindowMessages-{{ group.id }}">
+        {% if messages and messages | length > 0 %}
+            {% for message in messages %} {# Assuming messages are pre-sorted newest first for column-reverse #}
+                {% include 'partials/_chat_message_item.html' with {'message': message, 'current_user_id': current_user.id} %}
+            {% endfor %}
+        {% else %}
+            <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
+                <div>
+                    <i class="bi bi-chat-square-dots-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">Welcome to the {{ group.name }} group!</h4>
+                    <p>Be the first to send a message.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="group-chat-input-area p-3">
+        {% if user_group_role %} {# Only show input if user is a member #}
+            {# Using _social_content_form.html for consistency in posting UI #}
+            {% include 'partials/_social_content_form.html' with {
+                'post_form': post_form, {# Assumes post_form is an instance of PostContentForm #}
+                'submit_url': url_for('create_group_message', group_id=group.id),
+                'submit_button_text': 'Send',
+                'parent_id': group.id
+            } %}
+        {% else %}
+            <p class="text-center text-muted">You must be a member to send messages in this group.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const groupId = {{ group.id | tojson }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        // Initialize chat-like functionality for group messages
+        if (typeof initializeGroupChat === 'function') { // This function would be in social.js or a new group.js
+            initializeGroupChat(groupId, currentUserId);
+        } else {
+            console.warn('initializeGroupChat function not found. Using generic social post handler for messages.');
+            // The generic social post handler in social.js might work if the form action is correct
+            // and backend returns appropriate JSON for prepending messages.
+        }
+
+        // Handle Leave Group button
+        document.querySelectorAll('.group-action-btn[data-action="leave"]').forEach(button => {
+            button.addEventListener('click', async function(e){
+                e.preventDefault();
+                await handleGroupMembershipAction(groupId, 'leave', this);
+            });
+        });
+
+        console.log('View Group page JS loaded.');
+    });
+</script>
+{% endblock %}

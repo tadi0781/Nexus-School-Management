@@ -1,0 +1,212 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Settings{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-fill-gear me-2 text-primary"></i>Account Settings & Profile
+        </h1>
+        {# Optional: Button for a specific action, e.g., View Public Profile #}
+        {# <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="#" class="btn btn-sm btn-outline-info">
+                <i class="bi bi-eye-fill me-1"></i> View My Public Profile
+            </a>
+        </div> #}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <form method="POST" action="{{ url_for('settings') }}" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF token and other hidden fields #}
+
+        <div class="row g-4">
+            {# Left Column: Profile Picture and Basic Info #}
+            <div class="col-lg-4 col-xl-3">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-person-badge me-2"></i>Profile Picture</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        {% if current_user.profile_photo_url %}
+                            <img src="{{ url_for('static', filename=current_user.profile_photo_url) }}"
+                                 alt="{{ current_user.username }}'s profile photo"
+                                 class="img-fluid rounded-circle mb-3 shadow-sm"
+                                 style="width: 150px; height: 150px; object-fit: cover; border: 3px solid var(--nexus-border-color);"
+                                 id="profileImagePreview">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='img/placeholders/user_avatar_default.png') }}"
+                                 alt="Default profile avatar"
+                                 class="img-fluid rounded-circle mb-3 shadow-sm"
+                                 style="width: 150px; height: 150px; object-fit: cover; border: 3px solid var(--nexus-border-color);"
+                                 id="profileImagePreview">
+                        {% endif %}
+
+                        {# Profile Photo Upload Field - from UniversalSettingsForm #}
+                        {% if form.profile_photo %}
+                            <div class="mb-3">
+                                {{ form.profile_photo.label(class="form-label visually-hidden") }} {# Label can be hidden if input is clear #}
+                                {{ form.profile_photo(class="form-control form-control-sm" + (" is-invalid" if form.profile_photo.errors else ""), id="profilePhotoInput") }}
+                                <small class="form-text text-muted d-block mt-1">Max 2MB. JPG, PNG, GIF, WEBP.</small>
+                                {% if form.profile_photo.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.profile_photo.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% elif form.profile_photo_url %} {# Fallback to URL if FileField isn't on the form #}
+                             <div class="mb-3">
+                                {{ form.profile_photo_url.label(class="form-label") }}
+                                {{ form.profile_photo_url(class="form-control" + (" is-invalid" if form.profile_photo_url.errors else ""), placeholder="http://example.com/photo.jpg (Optional)") }}
+                                <small class="form-text text-muted">Direct link to an image (e.g., .jpg, .png).</small>
+                                {% if form.profile_photo_url.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.profile_photo_url.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        <p class="text-muted small">Changes to profile picture may require a page refresh to update everywhere.</p>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                         <h5 class="mb-0 font-heading"><i class="bi bi-person-lines-fill me-2"></i>Role & Status</h5>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>Role:</strong> {{ current_user.role.name.replace('_', ' ') | title if current_user.role else 'N/A' }}</li>
+                        <li class="list-group-item"><strong>Status:</strong> <span class="badge {{ 'bg-success-subtle text-success-emphasis' if current_user.is_active else 'bg-danger-subtle text-danger-emphasis' }}">{{ 'Active' if current_user.is_active else 'Inactive' }}</span></li>
+                        {% if current_user.role.name == 'student' %}
+                        <li class="list-group-item"><strong>Grade:</strong> {{ current_user.grade or 'N/A' }}</li>
+                        <li class="list-group-item"><strong>Section:</strong> {{ current_user.section or 'N/A' }}</li>
+                        <li class="list-group-item">
+                            <strong>TC Member:</strong>
+                            {{ form.is_tc_member_display(class="form-check-input ms-2", disabled=True, role="switch") if form.is_tc_member_display else ('Yes' if current_user.is_tc_member else 'No') }}
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            {# Right Column: Form Sections #}
+            <div class="col-lg-8 col-xl-9">
+                {% include 'layout/_flash_messages.html' %}
+
+                {# Personal Information Section #}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-person-vcard-fill me-2"></i>Personal Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            {{ form.full_name.label(class="form-label") }}
+                            {{ form.full_name(class="form-control" + (" is-invalid" if form.full_name.errors else ""), placeholder="Your Full Name") }}
+                            {% if form.full_name.errors %}<div class="invalid-feedback">{% for e in form.full_name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.age.label(class="form-label") }}
+                                {{ form.age(class="form-control" + (" is-invalid" if form.age.errors else ""), placeholder="e.g., 16") }}
+                                {% if form.age.errors %}<div class="invalid-feedback">{% for e in form.age.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.sex.label(class="form-label") }}
+                                {{ form.sex(class="form-select" + (" is-invalid" if form.sex.errors else "")) }}
+                                {% if form.sex.errors %}<div class="invalid-feedback">{% for e in form.sex.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+                        {# Additional personal fields from User model if added to form #}
+                        {# e.g., form.date_of_birth, form.phone, form.address #}
+                    </div>
+                </div>
+
+                {# Account Information Section #}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-shield-lock me-2"></i>Account Credentials</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="Your Username") }}
+                                {% if form.username.errors %}<div class="invalid-feedback">{% for e in form.username.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="your.email@example.com") }}
+                                {% if form.email.errors %}<div class="invalid-feedback">{% for e in form.email.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ url_for('change_password') }}" class="btn btn-outline-secondary"><i class="bi bi-key-fill me-1"></i>Change My Password</a>
+                    </div>
+                </div>
+
+                {# Notification Preferences Section (Placeholder) #}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0 font-heading"><i class="bi bi-bell-slash-fill me-2"></i>Notification Preferences</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">Manage how you receive notifications from Nexus.</p>
+                        {# Example form fields if they exist on UniversalSettingsForm and User model #}
+                        {# {% if form.email_notifications %}
+                        <div class="form-check form-switch mb-2">
+                            {{ form.email_notifications(class="form-check-input" + (" is-invalid" if form.email_notifications.errors else ""), role="switch", id="emailNotificationsSwitch") }}
+                            {{ form.email_notifications.label(class="form-check-label", for="emailNotificationsSwitch") }}
+                            {% if form.email_notifications.errors %}<div class="invalid-feedback d-block">{% for e in form.email_notifications.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        {% endif %} #}
+                        <div class="content-placeholder">
+                            <i class="bi bi-tools fs-1 mb-2"></i>
+                            <p>Notification settings will be available here soon.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {# Other Settings Sections (Placeholders) - e.g., Appearance, Privacy #}
+
+                <div class="mt-4 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary btn-lg px-4">
+                        <i class="bi bi-save-fill me-2"></i>Save All Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('Settings Page JS loaded.');
+
+        const profilePhotoInput = document.getElementById('profilePhotoInput');
+        const profileImagePreview = document.getElementById('profileImagePreview');
+
+        if (profilePhotoInput && profileImagePreview) {
+            profilePhotoInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        profileImagePreview.src = e.target.result;
+                    }
+                    reader.readAsDataURL(file);
+                } else {
+                    // If no file selected, or selection cancelled, revert to original or default
+                    // This might need to fetch the original URL from a data attribute on the preview img
+                    // For simplicity, not implemented here. The backend will handle no-change.
+                }
+            });
+        }
+
+        // Initialize TomSelect for any .tom-select elements if used on this page
+        // (e.g., if a 'preferred_language' select field was enhanced)
+        // initializeTomSelect(); // Assuming initializeTomSelect is in main.js or utils.js
+    });
+</script>
+{% endblock %}

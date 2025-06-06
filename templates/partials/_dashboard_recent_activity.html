@@ -1,0 +1,50 @@
+{# templates/partials/_dashboard_recent_activity.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase B.1 (Placeholder) #}
+{#
+    Reusable dashboard recent activity feed.
+    Expects `recent_activities` in the context: a list of activity items.
+    Each item could be a dictionary with keys like 'icon', 'text', 'timestamp', 'url'.
+#}
+
+<div class="card shadow-sm recent-activity-card">
+    <div class="card-header">
+        <h5 class="mb-0 font-heading"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
+    </div>
+    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+        {% if recent_activities and recent_activities | length > 0 %}
+            <ul class="list-unstyled">
+                {% for activity in recent_activities %}
+                    <li class="d-flex align-items-start mb-3 pb-3 border-bottom">
+                        <div class="activity-icon me-3">
+                            <span class="badge bg-{{ activity.badge_color | default('secondary') }} p-2 rounded-circle">
+                                <i class="bi {{ activity.icon | default('bi-bell') }} fs-5 text-white"></i>
+                            </span>
+                        </div>
+                        <div class="activity-content">
+                            <p class="mb-1 text-dark">{{ activity.text | safe }}</p> {# Use safe if text contains HTML like links #}
+                            <small class="text-muted">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                {{ activity.timestamp | datetimeformat('%b %d, %Y %I:%M %p') if activity.timestamp else 'Just now' }}
+                            </small>
+                            {% if activity.url %}
+                                <a href="{{ activity.url }}" class="ms-2 small text-decoration-none">View <i class="bi bi-arrow-up-right-square"></i></a>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="text-center text-muted p-3">
+                <i class="bi bi-moon-stars fs-1 mb-2"></i>
+                <p>No recent activity to display.</p>
+            </div>
+        {% endif %}
+    </div>
+    {% if recent_activities and recent_activities | length > 5 %} {# Example: Show 'View All' if more than 5 #}
+    <a href="{{ url_for('view_notifications') }}" class="card-footer text-center text-decoration-none text-muted bg-light-subtle hover-bg-light">
+        <small>View All Activity <i class="bi bi-arrow-right-short ms-1"></i></small>
+    </a>
+    {% endif %}
+</div>
+
+{# SCSS for .recent-activity-card can be added to style.scss #}

@@ -1,0 +1,171 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage System TC Leader{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-workspace me-2 text-primary"></i>Manage System Talent Club Leader
+        </h1>
+        <a href="{{ url_for('hr_ceo_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to HR Dashboard
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="row g-4">
+        {# Current Leader & Election Status Column #}
+        <div class="col-lg-5 col-xl-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-person-check-fill me-2"></i>Current System TC Leader</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_leader %}
+                        <div class="d-flex align-items-center">
+                            {% set leader_avatar = url_for('static', filename=(current_leader.profile_photo_url if current_leader.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                            <img src="{{ leader_avatar }}" alt="{{ current_leader.username }}" class="rounded-circle me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            <div>
+                                <h6 class="font-heading mb-0">{{ current_leader.full_name or current_leader.username }}</h6>
+                                <small class="text-muted">{{ current_leader.username }} | {{ current_leader.role.name | title if current_leader.role }}</small>
+                            </div>
+                        </div>
+                        <form action="{{ url_for('hr_ceo_demote_tc_leader', user_id=current_leader.id) }}" method="POST" class="mt-3">
+                            {{ csrf_token() if csrf_token else '' }}
+                            <button type="submit" class="btn btn-sm btn-outline-danger w-100 confirm-demote-leader">
+                                <i class="bi bi-person-fill-down me-1"></i> Demote Current Leader
+                            </button>
+                        </form>
+                    {% else %}
+                        <p class="text-muted text-center py-3">No system-wide Talent Club Leader is currently assigned.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-archive-fill me-2"></i>Past Elections</h5>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 300px; overflow-y:auto;">
+                    {% if past_elections and past_elections | length > 0 %}
+                        {% for election in past_elections %}
+                            <div class="list-group-item">
+                                <small class="d-block">
+                                    <strong>Concluded:</strong> {{ election.concluded_at | dateformat }}
+                                    {% if election.elected_leader %}
+                                        | <strong>Winner:</strong> {{ election.elected_leader.full_name or election.elected_leader.username }}
+                                    {% else %}
+                                        | <span class="text-muted">No winner declared</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="list-group-item text-muted text-center p-3">No past election records.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# Active Election Management Column #}
+        <div class="col-lg-7 col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-person-bounding-box me-2"></i>Talent Club Leader Election</h5>
+                </div>
+                <div class="card-body">
+                    {% if active_election %}
+                        <h6 class="font-heading">Active Election (ID: {{ active_election.id }})</h6>
+                        <p class="text-muted">Initiated on: {{ active_election.initiated_at | datetimeformat }}</p>
+                        <p><strong>Total Votes Cast:</strong> <span class="badge bg-info rounded-pill fs-09rem">{{ total_votes_in_active_election }}</span></p>
+
+                        <h6 class="mt-3 font-heading">Candidate Votes:</h6>
+                        {% if candidate_vote_counts %}
+                            <ul class="list-group list-group-numbered mb-3">
+                                {% for candidate_id, votes in candidate_vote_counts.items() | sort(attribute='1', reverse=True) %}
+                                    {% set cand = eligible_candidates | selectattr('id', 'equalto', candidate_id) | first %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ cand.full_name or cand.username if cand else 'Unknown Candidate' }}
+                                        <span class="badge bg-primary rounded-pill">{{ votes }} vote{{'s' if votes != 1 else ''}}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">No votes cast yet in this election.</p>
+                        {% endif %}
+
+                        <form action="{{ url_for('hr_ceo_conclude_tc_leader_election', election_id=active_election.id) }}" method="POST" class="mt-3">
+                            {{ csrf_token() if csrf_token else '' }}
+                            <button type="submit" class="btn btn-success w-100 confirm-conclude-election">
+                                <i class="bi bi-flag-fill me-1"></i> Conclude Election & Declare Winner
+                            </button>
+                        </form>
+                        {# Optional: Cancel election button #}
+
+                    {% else %}
+                        <p class="text-muted">No election is currently active.</p>
+                        {% if eligible_candidates and eligible_candidates | length > 0 %}
+                        <form action="{{ url_for('hr_ceo_initiate_tc_leader_election') }}" method="POST">
+                            {{ csrf_token() if csrf_token else '' }}
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-megaphone-fill me-1"></i> Initiate New Election
+                            </button>
+                        </form>
+                        {% else %}
+                            <div class="alert alert-warning small" role="alert">
+                                <i class="bi bi-exclamation-circle-fill me-1"></i> Cannot initiate an election: No eligible Talent Club members found to be candidates/voters.
+                            </div>
+                        {% endif %}
+                    {% endif %}
+
+                    <hr class="my-4">
+                    <h6 class="font-heading">Eligible Candidates/Voters (Active TC Members)</h6>
+                    {% if eligible_candidates and eligible_candidates | length > 0 %}
+                        <ul class="list-unstyled list-group- DGGGGGGGGGG" style="font-size: 0.9rem; max-height: 200px; overflow-y: auto;">
+                            {% for candidate in eligible_candidates %}
+                                <li class="list-group-item list-group-item-light py-1 px-2 d-flex align-items-center">
+                                     {% set cand_avatar = url_for('static', filename=(candidate.profile_photo_url if candidate.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                    <img src="{{ cand_avatar }}" alt="{{ candidate.username }}" class="rounded-circle me-2" style="width: 24px; height: 24px; object-fit: cover;">
+                                    {{ candidate.full_name or candidate.username }}
+                                    <small class="text-muted ms-auto">{{candidate.username}}</small>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted small">No active Talent Club members found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Confirmation for demoting leader
+        document.querySelectorAll('.confirm-demote-leader').forEach(button => {
+            button.addEventListener('click', function(event) {
+                if (!confirm('Are you sure you want to demote the current Talent Club Leader? This action cannot be undone easily.')) {
+                    event.preventDefault();
+                }
+            });
+        });
+        // Confirmation for concluding election
+         document.querySelectorAll('.confirm-conclude-election').forEach(button => {
+            button.addEventListener('click', function(event) {
+                if (!confirm('Are you sure you want to conclude this election? The candidate(s) with the most votes will be declared the winner. This cannot be undone.')) {
+                    event.preventDefault();
+                }
+            });
+        });
+        console.log('Manage System TC Leader JS loaded.');
+    });
+</script>
+{% endblock %}

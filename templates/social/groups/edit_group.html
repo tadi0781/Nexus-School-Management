@@ -1,0 +1,83 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Edit Group: {{ group.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-pencil-square me-2 text-primary"></i>Edit Group Settings
+        </h1>
+        <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Group
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Editing: {{ group.name }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('edit_social_group', group_id=group.id) }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter group name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                             {{ form.bio.label(text="Description (Optional)", class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Brief group description") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {% if group.profile_photo_url %}
+                        <div class="mb-2">
+                            <label class="form-label fw-medium">Current Group Photo:</label><br>
+                            <img src="{{ url_for('static', filename=group.profile_photo_url) }}" alt="Current group photo" class="img-thumbnail mb-2" style="max-width: 150px; max-height: 150px;">
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(text="Change Group Photo (Optional)", class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Max 2MB. JPG, PNG, GIF, WEBP. Leave blank to keep current photo.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {# Add other group settings if they exist on EditGroupForm, e.g., group type #}
+                        {# <div class="mb-3">
+                            <label for="groupIsActive" class="form-label fw-medium">Group Status:</label>
+                            <select name="is_active" id="groupIsActive" class="form-select">
+                                <option value="true" {% if group.is_active %}selected{% endif %}>Active</option>
+                                <option value="false" {% if not group.is_active %}selected{% endif %}>Inactive (Archived)</option>
+                            </select>
+                        </div> #}
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Save Group Changes") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('Edit Group page JS loaded.');
+    });
+</script>
+{% endblock %}

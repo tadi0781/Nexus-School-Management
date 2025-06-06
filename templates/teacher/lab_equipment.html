@@ -1,0 +1,99 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Lab Equipment - {{ lab_name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-binoculars-fill me-2 text-primary"></i>Lab Equipment: {{ lab_name }}
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+             <a href="{{ url_for('add_asset') }}" class="btn btn-sm btn-success me-2" title="Request new equipment for your lab">
+                <i class="bi bi-plus-circle-dotted me-1"></i> Request New Equipment
+            </a>
+            <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {% if not current_user.lab_id %}
+        <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i>Not Assigned to a Lab</h4>
+            <p>You are not currently assigned to a specific lab. Therefore, no lab equipment can be displayed for you.</p>
+            <hr>
+            <p class="mb-0">If you believe this is an error, please contact an administrator to have your lab assignment updated.</p>
+        </div>
+    {% elif lab_equipment and lab_equipment | length > 0 %}
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0 font-heading">Equipment in {{ lab_name }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Asset ID</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Category</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">Condition</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in lab_equipment %}
+                            <tr>
+                                <td>{{ asset.id }}</td>
+                                <td class="fw-medium">
+                                    {# Link to a detailed asset view if one exists for teachers, or HR edit view if appropriate and permitted #}
+                                    {{ asset.name | truncate(40) }}
+                                </td>
+                                <td><span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2">{{ asset.category.name if asset.category else 'N/A' }}</span></td>
+                                <td>{{ asset.quantity }}</td>
+                                <td>
+                                    {% if asset.condition == 'New' or asset.condition == 'Good' %} <span class="badge bg-success-subtle text-success-emphasis rounded-pill">{{ asset.condition }}</span>
+                                    {% elif asset.condition == 'Fair' %} <span class="badge bg-info-subtle text-info-emphasis rounded-pill">{{ asset.condition }}</span>
+                                    {% elif asset.condition == 'Poor' or asset.condition == 'Needs Repair' %} <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">{{ asset.condition }}</span>
+                                    {% elif asset.condition == 'Broken' %} <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">{{ asset.condition }}</span>
+                                    {% else %} <span class="badge bg-light text-dark border rounded-pill">{{ asset.condition }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if asset.status == 'Available' %} <span class="badge bg-success-subtle text-success-emphasis rounded-pill">{{ asset.status }}</span>
+                                    {% elif asset.status == 'Pending Review' %} <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">{{ asset.status }}</span>
+                                    {% elif asset.status == 'CheckedOut' %} <span class="badge bg-info-subtle text-info-emphasis rounded-pill">Checked Out</span>
+                                    {% elif asset.status == 'Under Maintenance' or asset.status == 'Needs Repair' %} <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill">{{ asset.status }}</span>
+                                    {% else %} <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">{{ asset.status | default('Unknown') }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{{ url_for('report_asset_specific', asset_id=asset.id) }}" class="btn btn-sm btn-outline-warning p-1" title="Report Issue with this Asset">
+                                        <i class="bi bi-exclamation-triangle-fill fs-6"></i> Report
+                                    </a>
+                                    {# Teachers typically don't edit assets directly, but HR/CEO can #}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center text-muted p-5 content-placeholder">
+            <i class="bi bi-box-fill display-3 mb-3"></i>
+            <h4 class="font-heading">No Equipment Listed</h4>
+            <p>There is currently no equipment listed for your assigned lab: <strong>{{ lab_name }}</strong>.</p>
+            <p>You can <a href="{{ url_for('add_asset') }}">request new equipment</a> if needed.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

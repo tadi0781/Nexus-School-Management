@@ -1,0 +1,79 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Report Issue: {{ asset.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>Report Issue for Asset
+        </h1>
+        <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Cancel & Go Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning-subtle text-warning-emphasis">
+                    <h5 class="mb-0 font-heading">Reporting Issue for: <strong>{{ asset.name }}</strong> (ID: {{ asset.id }})</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted">
+                        Please provide details about the damage or issue you observed with this asset.
+                        Your report will be reviewed by an administrator.
+                    </p>
+
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('report_asset_specific', asset_id=asset.id) }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.damage_description.label(class="form-label fw-medium") }}
+                            {{ form.damage_description(class="form-control" + (" is-invalid" if form.damage_description.errors else ""), rows="5", placeholder="Describe the issue in detail...") }}
+                            {% if form.damage_description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.damage_description.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.date_of_damage.label(class="form-label fw-medium") }}
+                                {{ form.date_of_damage(class="form-control flatpickr-date" + (" is-invalid" if form.date_of_damage.errors else ""), placeholder="YYYY-MM-DD (Optional)") }}
+                                {% if form.date_of_damage.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.date_of_damage.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.quantity_damaged.label(class="form-label fw-medium") }}
+                                {{ form.quantity_damaged(class="form-control" + (" is-invalid" if form.quantity_damaged.errors else ""), type="number", min="1") }}
+                                 <small class="form-text text-muted">Quantity of this specific asset affected.</small>
+                                {% if form.quantity_damaged.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.quantity_damaged.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end">
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-warning px-4", value="Submit Report") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

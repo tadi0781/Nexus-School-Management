@@ -1,0 +1,124 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Discover Channels{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-compass-fill me-2 text-primary"></i>Discover Channels
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('social_channel_list') }}" class="btn btn-sm btn-outline-secondary me-2">
+                <i class="bi bi-view-list me-1"></i> My Channels
+            </a>
+             {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+            <a href="{{ url_for('create_social_channel') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create New Channel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Filter and Search Bar #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light-subtle p-3">
+            <form method="GET" action="{{ url_for('social_channel_discover') }}" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="channelSearchInput" class="form-label fw-medium text-muted small">Search Channels:</label>
+                    <input type="text" name="search_query" id="channelSearchInput" class="form-control form-control-sm" value="{{ search_query or '' }}" placeholder="Search by name or bio...">
+                </div>
+                <div class="col-md-5">
+                    <label for="categoryFilter" class="form-label fw-medium text-muted small">Filter by Category:</label>
+                    <select name="category_id" id="categoryFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="" {% if not selected_category_id %}selected{% endif %}>All Categories</option>
+                        {% for category in all_social_categories %}
+                            <option value="{{ category.id }}" {% if selected_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Channel Listing #}
+    {% if discoverable_channels and discoverable_channels | length > 0 %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4" id="discoverChannelsContainer">
+            {% for channel in discoverable_channels %}
+                 {# Pass subscription status to the card if available #}
+                 {% set is_subscribed = channel_statuses.get(channel.id, {}).get('is_subscribed', False) %}
+                 {% set is_owner = channel_statuses.get(channel.id, {}).get('is_owner', False) %}
+                 {% include 'partials/_channel_card_item.html' %}
+            {% endfor %}
+        </div>
+        {# Optional: Pagination for discoverable_channels #}
+        {% if pagination %}
+            <nav aria-label="Channel discovery pagination" class="mt-5 d-flex justify-content-center">
+                <ul class="pagination shadow-sm">
+                    <li class="page-item {{ 'disabled' if not pagination.has_prev else '' }}">
+                        <a class="page-link" href="{{ url_for('social_channel_discover', page=pagination.prev_num, search_query=search_query, category_id=selected_category_id) if pagination.has_prev else '#' }}">«</a>
+                    </li>
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                                <a class="page-link" href="{{ url_for('social_channel_discover', page=page_num, search_query=search_query, category_id=selected_category_id) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {{ 'disabled' if not pagination.has_next else '' }}">
+                        <a class="page-link" href="{{ url_for('social_channel_discover', page=pagination.next_num, search_query=search_query, category_id=selected_category_id) if pagination.has_next else '#' }}">»</a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+
+    {% else %}
+        <div class="text-center text-muted p-5 content-placeholder">
+            <i class="bi bi- binoculars-fill display-3 mb-3"></i>
+            <h4 class="font-heading">No Channels Found</h4>
+            <p>No public channels match your current search or filter criteria. Why not create one?</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for category filter
+        const categoryFilterSelect = document.getElementById('categoryFilter');
+        if (categoryFilterSelect) {
+            new TomSelect(categoryFilterSelect, { create: false, placeholder: 'Select a category...' });
+        }
+
+        // Live search input (optional, AJAX based search is better)
+        const channelSearchInput = document.getElementById('channelSearchInput');
+        if (channelSearchInput && !document.getElementById('discoverChannelsContainer').children.length < 20) { // Simple disable if many items (server search better)
+            // Basic live search example (can be improved with AJAX)
+            // channelSearchInput.addEventListener('keyup', debounce(function() {
+            //     const searchTerm = this.value.toLowerCase();
+            //     document.querySelectorAll('#discoverChannelsContainer .channel-card').forEach(card => {
+            //         const channelName = card.querySelector('.card-title a').textContent.toLowerCase();
+            //         const channelBio = card.querySelector('.card-text').textContent.toLowerCase();
+            //         if (channelName.includes(searchTerm) || channelBio.includes(searchTerm)) {
+            //             card.parentElement.style.display = ''; // Show column
+            //         } else {
+            //             card.parentElement.style.display = 'none'; // Hide column
+            //         }
+            //     });
+            // }, 300));
+        }
+        console.log('Discover Channels page JS loaded.');
+    });
+</script>
+{% endblock %}

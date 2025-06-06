@@ -1,0 +1,40 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Access Denied (403){% endblock %}
+
+{% block content %}
+{% set no_sidebar = True if not current_user or not current_user.is_authenticated else False %} {# Show sidebar if user is logged in #}
+
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <i class="bi bi-shield-lock-fill text-danger display-1 mb-4"></i>
+            <h1 class="display-4 font-heading text-danger">Access Denied</h1>
+            <p class="lead text-muted">
+                Oops! It seems you don't have permission to access this page or resource.
+            </p>
+            <hr class="my-4">
+            <p class="mb-1">
+                If you believe you should have access, please contact the system administrator or your designated superior.
+            </p>
+            <p class="text-muted small">
+                (Error Code: 403 Forbidden)
+            </p>
+            <div class="mt-4">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('role_redirect') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-house-door-fill me-2"></i>Go to Dashboard
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                    </a>
+                {% endif %}
+                <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-arrow-left-circle-fill me-2"></i>Go Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

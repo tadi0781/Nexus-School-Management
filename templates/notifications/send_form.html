@@ -1,0 +1,65 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Send Notification to {{ receiver.full_name or receiver.username }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-send-fill me-2 text-primary"></i>Compose Notification
+        </h1>
+        <a href="{{ url_for('notification_contacts_for_sending') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Select Recipient
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">To:
+                        <span class="fw-bold">{{ receiver.full_name or receiver.username }}</span>
+                        <small class="text-muted">({{ receiver.role.name.replace('_', ' ') | title if receiver.role }})</small>
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('send_notification_to_user', receiver_id=receiver.id) }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label fw-medium") }}
+                            {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows="6", placeholder="Type your notification message here...") }}
+                            <small class="form-text text-muted">Max 1000 characters.</small>
+                            {% if form.content.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.content.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {# Optional: Link URL field if added to NotificationForm
+                        {% if form.link_url %}
+                        <div class="mb-3">
+                            {{ form.link_url.label(class="form-label fw-medium") }}
+                            {{ form.link_url(class="form-control" + (" is-invalid" if form.link_url.errors else ""), placeholder="https://example.com/relevant-page (Optional)") }}
+                            {% if form.link_url.errors %}<div class="invalid-feedback">{% for e in form.link_url.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        {% endif %} #}
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('notification_contacts_for_sending') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Send Notification") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

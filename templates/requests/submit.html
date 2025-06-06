@@ -1,0 +1,69 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Submit New Request{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-file-earmark-plus-fill me-2 text-primary"></i>Submit New Request
+        </h1>
+        <a href="{{ request.referrer or url_for('my_requests') if current_user.is_authenticated else url_for('home') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Cancel & Go Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-md-11">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Request Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <p class="text-muted mb-4">
+                        Please fill out the form below to submit your request. It will be routed to the appropriate department for review.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('submit_request') }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label fw-medium") }}
+                            {{ form.title(class="form-control form-control-lg" + (" is-invalid" if form.title.errors else ""), placeholder="E.g., New Projector for Room 101, Repair Leaky Faucet in Staff Lounge") }}
+                            {% if form.title.errors %}<div class="invalid-feedback">{% for e in form.title.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label fw-medium") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="6", placeholder="Provide a detailed description of your request, including justification, specific needs, location (if applicable), and any other relevant information.") }}
+                            {% if form.description.errors %}<div class="invalid-feedback">{% for e in form.description.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.request_type.label(class="form-label fw-medium") }}
+                                {{ form.request_type(class="form-select" + (" is-invalid" if form.request_type.errors else "")) }}
+                                {% if form.request_type.errors %}<div class="invalid-feedback">{% for e in form.request_type.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.urgency.label(class="form-label fw-medium") }}
+                                {{ form.urgency(class="form-select" + (" is-invalid" if form.urgency.errors else "")) }}
+                                {% if form.urgency.errors %}<div class="invalid-feedback">{% for e in form.urgency.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ request.referrer or url_for('my_requests') if current_user.is_authenticated else url_for('home') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4 btn-lg", value="Submit Request") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

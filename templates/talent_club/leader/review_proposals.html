@@ -1,0 +1,43 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Review Club Proposals{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-journal-check me-2 text-primary"></i>Review Talent Club Proposals
+        </h1>
+        <a href="{{ url_for('talent_club_dashboard') }}" class="btn btn-sm btn-outline-secondary"> {# Or TC Leader specific dashboard #}
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Dashboard
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Proposals Awaiting Your Review</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if pending_proposals and pending_proposals | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for proposal in pending_proposals %}
+                        {# Reusing _tc_proposal_item.html with context for TC Leader #}
+                        {% include 'partials/_tc_proposal_item.html' with {'proposal': proposal, 'current_user': current_user, 'accepted_count': accepted_counts.get(proposal.id, 0) } %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-clipboard-check-fill display-3 mb-3 text-success"></i>
+                    <h4 class="font-heading">All Caught Up!</h4>
+                    <p>There are no new club proposals currently awaiting your review.</p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination if list is long #}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}{{ club.name }} - Feed{% endblock %}
+
+{% block content_header %}
+    <div class="channel-header pt-3 pb-2 mb-3 border-bottom bg-light-subtle position-relative"> {# Reusing .channel-header styling for consistency #}
+        <div class="container-fluid">
+            <div class="d-flex flex-column flex-md-row align-items-md-center">
+                <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
+                    {% set club_avatar_view = url_for('static', filename=(club.profile_photo_url if club.profile_photo_url else 'img/placeholders/tc_club_default_avatar.png')) %}
+                    <img src="{{ club_avatar_view }}" alt="{{ club.name }} Profile Photo" class="rounded-circle shadow-sm" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid var(--nexus-content-bg);">
+                </a>
+                <div class="flex-grow-1 text-center text-md-start">
+                    <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="text-decoration-none">
+                        <h1 class="page-title font-heading mb-0 fs-4 text-dark">{{ club.name }} Feed</h1>
+                    </a>
+                    <p class="text-muted mb-1 small">
+                        <i class="bi bi-award-fill me-1"></i>Level {{ club.level }}
+                        <span class="mx-1 text-muted">|</span>
+                        <i class="bi bi-tag-fill me-1"></i>{{ club.social_category.name if club.social_category else 'N/A' }}
+                    </p>
+                </div>
+                <div class="mt-2 mt-md-0 ms-md-auto">
+                     <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="btn btn-sm btn-outline-secondary me-2">
+                        <i class="bi bi-person-badge-fill me-1"></i> Club Profile
+                    </a>
+                    {% if is_club_manager %} {# is_club_manager: owner or club admin #}
+                        <a href="{{ url_for('edit_talent_club_profile', club_id=club.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-pencil-square me-1"></i> Edit Club
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row g-4 justify-content-center">
+        <div class="col-lg-9 col-xl-8"> {# Main feed column #}
+            {% include 'layout/_flash_messages.html' %}
+
+            {% if can_post_in_feed %}
+                <div class="mb-4">
+                     {# Reusing _social_content_form.html for TC feed posts #}
+                    {% include 'partials/_social_content_form.html' with {
+                        'post_form': post_form,
+                        'submit_url': url_for('create_talent_club_feed_post', club_id=club.id), {# Ensure this route exists #}
+                        'submit_button_text': 'Post to Club Feed',
+                        'parent_id': club.feed.id if club.feed else club.id
+                    } %}
+                </div>
+            {% endif %}
+
+            <h4 class="font-heading mb-3"><i class="bi bi-newspaper me-2"></i>Club Feed Posts</h4>
+            <div class="social-feed-container tc-feed-container" id="tcFeedContainer-{{ club.id }}">
+                {% if posts and posts | length > 0 %}
+                    {% for post in posts %}
+                        {% include 'partials/_tc_feed_post_item.html' with {'club': club} %} {# Pass club for context to partial #}
+                    {% endfor %}
+                    {# Placeholder for "Load More" button or infinite scroll trigger #}
+                    {% if pagination and pagination.has_next %}
+                    <div class="text-center my-4" id="loadMoreTcPostsTrigger-{{ club.id }}">
+                        <button class="btn btn-outline-primary load-more-tc-posts-btn" data-club-id="{{ club.id }}" data-current-page="{{ pagination.page }}">
+                            <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                            Load More Posts
+                        </button>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center text-muted p-5 content-placeholder">
+                        <i class="bi bi-mic-mute-fill display-3 mb-3"></i>
+                        <h4 class="font-heading">This Club Feed is Empty</h4>
+                        {% if can_post_in_feed %}
+                        <p>Be the first to share an update, achievement, or idea!</p>
+                        {% else %}
+                        <p>Check back later for new posts.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+{# Lightbox JS if used for image previews in _tc_feed_post_item.html #}
+{# <script src="https://cdn.jsdelivr.net/npm/bs5-lightbox@1.8.3/dist/bs5-lightbox.bundle.min.js"></script> #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const clubId = {{ club.id | tojson }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        // Initialize TC feed interactions (posts, comments, reactions)
+        if (typeof initializeTCFeed === 'function') { // This function would be in talent_club.js
+            initializeTCFeed(clubId, currentUserId);
+        } else {
+            console.error('initializeTCFeed function not found in talent_club.js');
+            // Fallback: generic social.js handlers might work for some parts if class names are similar
+            // and backend responses are consistent.
+        }
+         console.log('Talent Club Feed page JS loaded.');
+    });
+</script>
+{% endblock %}

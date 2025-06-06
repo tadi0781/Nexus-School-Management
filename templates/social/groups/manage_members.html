@@ -1,0 +1,109 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Members: {{ group.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-people-fill me-2 text-primary"></i>Manage Group Members
+        </h1>
+        <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Group: {{ group.name | truncate(30) }}
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Members of "{{ group.name }}"</h5>
+            {# Optional: Add User to Group Button (for owner/admin) - Requires user search modal/flow #}
+            {# <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMemberModal"><i class="bi bi-person-plus-fill me-1"></i> Add Member</button> #}
+        </div>
+        <div class="card-body p-0">
+            {% if members and members | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;">Avatar</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Global Role</th>
+                                <th scope="col">Group Role</th>
+                                <th scope="col">Joined On</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member_entry in members %}
+                                {% set user = member_entry.user %}
+                                <tr id="member-row-{{ user.id }}">
+                                    <td>
+                                        {% set member_avatar = url_for('static', filename=(user.profile_photo_url if user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                        <img src="{{ member_avatar }}" alt="{{ user.username }}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;">
+                                    </td>
+                                    <td class="fw-medium">
+                                        {{ user.full_name or user.username }}
+                                        {% if user.id == group.owner_id %}<span class="badge bg-primary-subtle text-primary-emphasis ms-1 small">Owner</span>{% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ user.role.name.replace('_',' ') | title if user.role else 'N/A' }}</small></td>
+                                    <td>
+                                        {% if user.id == group.owner_id %}
+                                            <span class="badge bg-primary-subtle text-primary-emphasis p-2">{{ member_entry.role | title }}</span>
+                                        {% elif user_group_role in ['owner'] or (user_group_role == 'admin' and member_entry.role != 'owner') %}
+                                            <select class="form-select form-select-sm change-group-role-select" 
+                                                    data-group-id="{{ group.id }}" data-member-id="{{ user.id }}"
+                                                    {% if user.id == current_user.id %}disabled title="Cannot change your own role here"{% endif %}>
+                                                <option value="member" {% if member_entry.role == 'member' %}selected{% endif %}>Member</option>
+                                                <option value="admin" {% if member_entry.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                {# Only group owner can assign 'owner' role, usually via a separate "Transfer Ownership" action #}
+                                            </select>
+                                        {% else %}
+                                             <span class="badge bg-secondary-subtle text-secondary-emphasis p-2">{{ member_entry.role | title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ member_entry.joined_at | dateformat }}</small></td>
+                                    <td class="text-center">
+                                        {% if user.id != group.owner_id and user.id != current_user.id %} {# Cannot remove owner or self #}
+                                         {% if user_group_role in ['owner'] or (user_group_role == 'admin' and member_entry.role == 'member') %}
+                                            <button class="btn btn-sm btn-outline-danger p-1 remove-group-member-btn"
+                                                    data-group-id="{{ group.id }}" data-member-id="{{ user.id }}"
+                                                    data-member-name="{{ user.full_name or user.username }}"
+                                                    title="Remove Member">
+                                                <i class="bi bi-person-x-fill fs-6"></i>
+                                            </button>
+                                         {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-plus-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Members Yet</h4>
+                    <p>This group currently has no members other than potentially the owner. You can add members if you are an admin.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.change-group-role-select').forEach(selectEl => {
+            selectEl.addEventListener('change', handleGroupRoleChange);
+        });
+        // Remove buttons are handled by event delegation in social.js via .remove-group-member-btn
+        console.log('Manage Group Members JS loaded.');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Assignments for: " + (task.title if task else "N/A") %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0 text-truncate" style="max-width: 70%;">
+            <i class="bi bi-people-fill me-2 text-primary"></i>{{ page_title }}
+        </h1>
+        <a href="{{ url_for('my_assigned_tasks') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to My Created Tasks
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Task Summary Card #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Task Overview</h5>
+        </div>
+        <div class="card-body">
+             <dl class="row mb-0">
+                <dt class="col-sm-3">Title:</dt>
+                <dd class="col-sm-9">{{ task.title }}</dd>
+
+                <dt class="col-sm-3">Description:</dt>
+                <dd class="col-sm-9" style="white-space: pre-wrap;">{{ task.description }}</dd>
+
+                <dt class="col-sm-3">Urgency:</dt>
+                <dd class="col-sm-9">
+                     {% if task.urgency == 'Critical' %}<span class="badge bg-danger text-white rounded-pill px-2">{{ task.urgency }}</span>
+                     {% elif task.urgency == 'High' %}<span class="badge bg-warning text-dark rounded-pill px-2">{{ task.urgency }}</span>
+                     {% else %}<span class="badge bg-info text-white rounded-pill px-2">{{ task.urgency }}</span>
+                     {% endif %}
+                </dd>
+
+                <dt class="col-sm-3">Due Date:</dt>
+                <dd class="col-sm-9">
+                    {% if task.due_date %}{{ task.due_date | dateformat }}
+                        {% if task.due_date < now.date() %} <span class="badge bg-danger-subtle text-danger-emphasis ms-1">OVERDUE</span>{% endif %}
+                    {% else %} N/A {% endif %}
+                </dd>
+                 <dt class="col-sm-3">Total Assignments:</dt>
+                <dd class="col-sm-9">{{ user_assignments | length }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    {# Assignments List Card #}
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Individual Assignments & Progress</h5>
+            {# Optional: Filters for assignment status #}
+        </div>
+        <div class="card-body p-0">
+             {% if user_assignments and user_assignments | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for assignment in user_assignments %}
+                        {# Use the _user_task_assignment_item.html partial #}
+                        {% include 'partials/_user_task_assignment_item.html' with {'user_assignment': assignment, 'task': task, 'current_user': current_user} %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-fill-x display-3 mb-3"></i>
+                    <h4 class="font-heading">No Users Assigned</h4>
+                    <p>This task has not been assigned to any users yet, or assignments were removed.</p>
+                    {# TODO: Add button to "Add/Edit Assignees" for this task #}
+                </div>
+            {% endif %}
+        </div>
+         {# Optional: Pagination if many assignees #}
+    </div>
+</div>
+{% endblock %}

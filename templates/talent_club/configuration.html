@@ -1,0 +1,96 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Talent Club Configuration{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-sliders me-2 text-primary"></i>Talent Club Configuration
+        </h1>
+        <a href="{{ url_for('talent_club_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Dashboard
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <p class="lead text-muted mb-4">Manage your Talent Club involvement, propose new clubs, and view system-wide TC information.</p>
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {# My Club Management #}
+        <div class="col">
+            <div class="card h-100 shadow-sm feature-card-hover">
+                <div class="card-body text-center p-4">
+                    <i class="bi bi-joystick display-3 text-primary mb-3"></i>
+                    <h5 class="card-title font-heading">My Club Involvement</h5>
+                    <p class="card-text text-muted small">View clubs you own or are a member of. Manage content and members for clubs you administer.</p>
+                    <a href="{{ url_for('my_talent_club_management') }}" class="btn btn-primary stretched-link">Go to My Clubs</a>
+                </div>
+            </div>
+        </div>
+
+        {# Propose New Club #}
+        <div class="col">
+            <div class="card h-100 shadow-sm feature-card-hover">
+                <div class="card-body text-center p-4">
+                    <i class="bi bi-lightbulb-fill display-3 text-success mb-3"></i>
+                    <h5 class="card-title font-heading">Propose a New Club</h5>
+                    <p class="card-text text-muted small">Have a great idea for a new Talent Club? Submit your proposal for review.</p>
+                    <a href="{{ url_for('create_talent_club_proposal') }}" class="btn btn-success stretched-link">Submit Proposal</a>
+                </div>
+            </div>
+        </div>
+
+        {# My Submitted Proposals #}
+        <div class="col">
+            <div class="card h-100 shadow-sm feature-card-hover">
+                <div class="card-body text-center p-4">
+                    <i class="bi bi-file-earmark-text-fill display-3 text-info mb-3"></i>
+                    <h5 class="card-title font-heading">My Proposals</h5>
+                    <p class="card-text text-muted small">Track the status of your submitted club proposals and responses from mentioned members.</p>
+                    <a href="{{ url_for('my_talent_club_proposals') }}" class="btn btn-info text-white stretched-link">View My Proposals</a>
+                </div>
+            </div>
+        </div>
+        
+        {# Current TC Leader & Elections #}
+        <div class="col">
+            <div class="card h-100 shadow-sm feature-card-hover">
+                <div class="card-body text-center p-4">
+                    <i class="bi bi-person-check-fill display-3 text-warning mb-3"></i>
+                    <h5 class="card-title font-heading">TC Leadership</h5>
+                    <p class="card-text text-muted small">View the current system-wide Talent Club Leader and participate in active elections.</p>
+                    <a href="{{ url_for('view_current_tc_leader') }}" class="btn btn-warning stretched-link">View Leader Info</a>
+                </div>
+            </div>
+        </div>
+
+        {# Talent Club Leaderboard #}
+         <div class="col">
+            <div class="card h-100 shadow-sm feature-card-hover">
+                <div class="card-body text-center p-4">
+                    <i class="bi bi-bar-chart-line-fill display-3 text-danger mb-3"></i>
+                    <h5 class="card-title font-heading">Club Leaderboard</h5>
+                    <p class="card-text text-muted small">See how different Talent Clubs are performing based on level and engagement.</p>
+                    <a href="{{ url_for('talent_club_leaderboard') }}" class="btn btn-danger stretched-link">View Leaderboard</a>
+                </div>
+            </div>
+        </div>
+
+        {# TC Community Group #}
+        <div class="col">
+            <div class="card h-100 shadow-sm feature-card-hover">
+                <div class="card-body text-center p-4">
+                    <i class="bi bi-people-fill display-3 text-secondary mb-3"></i>
+                    <h5 class="card-title font-heading">TC Community</h5>
+                    <p class="card-text text-muted small">Connect with all Talent Club members in the official community group.</p>
+                    <a href="{{ url_for('talent_club_community_group') }}" class="btn btn-secondary stretched-link">Join Community Chat</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

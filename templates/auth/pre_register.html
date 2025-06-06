@@ -1,0 +1,49 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Pre-Register{% endblock %}
+
+{% block content %}
+{% set no_sidebar = True %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8 col-sm-10">
+            <div class="auth-form-container card shadow-lg border-0 mt-4">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <img src="{{ url_for('static', filename='img/logo_light.png') }}" alt="Nexus Logo" class="auth-form-logo navbar-brand-img-light">
+                        <img src="{{ url_for('static', filename='img/logo_dark.png') }}" alt="Nexus Logo Dark" class="auth-form-logo navbar-brand-img-dark" style="display: none;">
+                        <h2 class="card-title font-heading mt-3">Begin Registration</h2>
+                        <p class="text-muted">Please enter your provided registration code to start.</p>
+                    </div>
+
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('pre_register') }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF token #}
+
+                        <div class="mb-3">
+                            {{ form.code.label(class="form-label") }}
+                            {{ form.code(class="form-control form-control-lg" + (" is-invalid" if form.code.errors else ""), placeholder="Enter Registration Code") }}
+                            {% if form.code.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.code.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid mb-3">
+                            {{ form.submit(class="btn btn-primary btn-lg w-100", value="Verify Code") }}
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-4">
+                        <p class="text-muted">
+                            Already have an account? <a href="{{ url_for('login') }}" class="text-decoration-none fw-medium">Login here</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

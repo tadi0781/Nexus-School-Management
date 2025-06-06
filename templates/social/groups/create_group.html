@@ -1,0 +1,78 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Create New Social Group{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-plus-circle-fill me-2 text-primary"></i>Create New Social Group
+        </h1>
+        <a href="{{ request.referrer or url_for('social_group_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Cancel & Go Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Group Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('create_social_group') }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter a unique group name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {# form.bio is the field name from CreateGroupForm, corresponds to 'description' in model #}
+                            {{ form.bio.label(text="Description (Optional)", class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Briefly describe your group's purpose") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Optional. Max 2MB. JPG, PNG, GIF, WEBP.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {# Add other group settings if they exist on CreateGroupForm, e.g., public/private type #}
+                        {# <div class="mb-3">
+                            <label for="groupType" class="form-label fw-medium">Group Type:</label>
+                            <select name="group_type" id="groupType" class="form-select">
+                                <option value="private" selected>Private (Invite Only)</option>
+                                <option value="public">Public (Discoverable)</option>
+                            </select>
+                        </div> #}
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ request.referrer or url_for('social_group_list') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Create Group") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // JS for profile photo preview if desired, similar to settings page
+        console.log('Create Group page JS loaded.');
+    });
+</script>
+{% endblock %}

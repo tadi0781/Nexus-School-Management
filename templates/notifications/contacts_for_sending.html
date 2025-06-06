@@ -1,0 +1,58 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Send Notification - Select Recipient{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-people-fill me-2 text-primary"></i>Select Notification Recipient
+        </h1>
+        <a href="{{ url_for('view_notifications') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to My Notifications
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Users You Can Notify</h5>
+            {# Add search/filter form if contact list is very long #}
+        </div>
+        <div class="card-body p-0">
+            {% if contacts and contacts | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for contact in contacts %}
+                        <a href="{{ url_for('send_notification_to_user', receiver_id=contact.id) }}" class="list-group-item list-group-item-action contact-list-item-clickable">
+                            <div class="d-flex align-items-center">
+                                {% if contact.profile_photo_url %}
+                                    <img src="{{ url_for('static', filename=contact.profile_photo_url) }}" alt="{{ contact.username }}" class="rounded-circle me-3 shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">
+                                {% else %}
+                                    <i class="bi bi-person-circle fs-2 me-3 text-muted"></i>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 font-heading">{{ contact.full_name or contact.username }}</h6>
+                                    <small class="text-muted">
+                                        {{ contact.role.name.replace('_', ' ') | title if contact.role else 'N/A' }}
+                                        {% if contact.grade and contact.section %} (G:{{ contact.grade }}-S:{{ contact.section }}){% endif %}
+                                    </small>
+                                </div>
+                                <i class="bi bi-send-plus-fill fs-4 text-primary opacity-75"></i>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-x-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Contacts Available</h4>
+                    <p>There are currently no users you are permitted to send notifications to, or no users match the criteria.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

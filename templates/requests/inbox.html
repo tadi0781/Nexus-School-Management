@@ -1,0 +1,50 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Requests Inbox{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-inbox-fill me-2 text-primary"></i>Requests Awaiting My Review
+        </h1>
+        {% if current_user.role.name == 'hr_ceo' %}
+            <a href="{{ url_for('hr_ceo_initiate_request') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-send-plus-fill me-1"></i> Initiate Request (Tier 2)
+            </a>
+        {% elif current_user.role.name == 'school_executive' %}
+            <a href="{{ url_for('school_exec_initiate_request') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-send-plus-fill me-1"></i> Initiate Request (Tier 3)
+            </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Requests Assigned to You (Tier {{ inbox_requests[0].tier if inbox_requests else 'N/A' }})</h5>
+            {# Optional: Filters for urgency, request type, date received #}
+        </div>
+        <div class="card-body p-0">
+            {% if inbox_requests and inbox_requests | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for request_obj in inbox_requests %}
+                        {# Reusing _request_list_item.html - it highlights pending for current handler #}
+                        {% include 'partials/_request_list_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-check2-square display-3 mb-3 text-success"></i>
+                    <h4 class="font-heading">Inbox Clear!</h4>
+                    <p>There are no requests currently awaiting your review.</p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination if inbox list is very long #}
+    </div>
+</div>
+{% endblock %}

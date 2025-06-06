@@ -1,0 +1,117 @@
+{# templates/layout/_navbar.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase A.2 #}
+{# MODIFIED FOR COLLAPSIBLE SIDEBAR #}
+
+<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark nexus-navbar shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
+            {# Logos for light/dark theme - visibility controlled by CSS #}
+            <img src="{{ url_for('static', filename='img/logo_light.png') }}" alt="Nexus Logo" class="navbar-brand-img-light me-2" style="height: 35px;">
+            <img src="{{ url_for('static', filename='img/logo_dark.png') }}" alt="Nexus Logo Dark" class="navbar-brand-img-dark me-2" style="height: 35px; display: none;">
+            <span class="fw-bold">Nexus</span>
+        </a>
+
+        {# Sidebar Toggle Button (shows if sidebar exists for the page/user) #}
+        {% if current_user.is_authenticated and not no_sidebar %}
+        <button class="navbar-toggler" id="sidebarToggle" type="button" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle sidebar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        {% endif %}
+
+        <div class="collapse navbar-collapse" id="navbarMainCollapse">
+            <ul class="navbar-nav ms-auto mb-2 mb-md-0 align-items-center">
+                {% if current_user.is_authenticated %}
+                    {# Notifications Dropdown - Placeholder, will be dynamic with AJAX later #}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link position-relative" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                            <i class="bi bi-bell-fill fs-5"></i>
+                            {% if unread_notifications_count and unread_notifications_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{ unread_notifications_count }}
+                                    <span class="visually-hidden">unread notifications</span>
+                                </span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-2" aria-labelledby="notificationsDropdown" style="min-width: 300px;">
+                            <li><h6 class="dropdown-header">Notifications</h6></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {# Placeholder for actual notifications - will be populated dynamically #}
+                            <li id="notification-items-container">
+                                <a class="dropdown-item text-wrap" href="#">
+                                    <small class="d-block text-muted">No new notifications</small>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-center" href="{{ url_for('view_notifications') }}">View All Notifications</a></li>
+                        </ul>
+                    </li>
+
+                    {# Messages Dropdown - Placeholder #}
+                     <li class="nav-item dropdown ms-md-2">
+                        <a class="nav-link position-relative" href="#" id="messagesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Messages">
+                            <i class="bi bi-chat-left-text-fill fs-5"></i>
+                             {% if unread_messages_count and unread_messages_count > 0 %}
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    {{ unread_messages_count }}
+                                    <span class="visually-hidden">unread messages</span>
+                                </span>
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-2" aria-labelledby="messagesDropdown" style="min-width: 300px;">
+                            <li><h6 class="dropdown-header">Recent Messages</h6></li>
+                            <li><hr class="dropdown-divider"></li>
+                            {# Placeholder for actual messages #}
+                            <li id="message-items-container">
+                                <a class="dropdown-item text-wrap" href="#">
+                                    <small class="d-block text-muted">No new messages</small>
+                                </a>
+                            </li>
+                             <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-center" href="{{ url_for('contacts_list') }}">View All Chats</a></li>
+                        </ul>
+                    </li>
+
+                    {# User Profile Dropdown #}
+                    <li class="nav-item dropdown ms-md-2">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {% if current_user.profile_photo_url %}
+                                <img src="{{ url_for('static', filename=current_user.profile_photo_url) }}" alt="{{ current_user.username }}" class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;">
+                            {% else %}
+                                <i class="bi bi-person-circle fs-4 me-2"></i>
+                            {% endif %}
+                            <span class="d-none d-md-inline">{{ current_user.username }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg mt-2" aria-labelledby="userDropdown">
+                            <li><h6 class="dropdown-header">Hi, {{ current_user.full_name or current_user.username }}!</h6></li>
+                            <li><p class="dropdown-item-text px-3 mb-0"><small>{{ current_user.role.name.replace('_', ' ') | title if current_user.role else 'No Role' }}</small></p></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('role_redirect') }}"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('settings') }}"><i class="bi bi-gear-fill me-2"></i>Settings</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('change_password') }}"><i class="bi bi-shield-lock-fill me-2"></i>Change Password</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{{ url_for('logout') }}" method="GET" class="d-inline w-100"> {# GET for simplicity, POST is more secure #}
+                                    <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right me-2"></i>Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'login' else '' }}" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'pre_register' else '' }}" href="{{ url_for('pre_register') }}">Register</a>
+                    </li>
+                {% endif %}
+
+                 {# Theme Switcher Button #}
+                <li class="nav-item ms-md-2">
+                    <button class="btn btn-outline-secondary btn-sm" id="themeSwitcher" type="button" title="Toggle theme">
+                        <i class="bi bi-moon-stars-fill"></i> {# Icon will be updated by JS #}
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

@@ -1,0 +1,120 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}{{ community_group.name if community_group else "Talent Club Community" }}{% endblock %}
+
+{% block head_css %}
+<style>
+    .tc-community-chat-window {
+        height: calc(100vh - 56px - 56px - 70px - 3rem - 70px); /* Adjust for header and input */
+        min-height: 400px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse; /* Newest messages at the bottom */
+        padding: 1rem;
+        background-color: var(--nexus-body-bg);
+    }
+    .tc-community-input-area {
+        border-top: 1px solid var(--nexus-border-color);
+        background-color: var(--nexus-content-bg);
+    }
+    .tc-community-header {
+        background-color: var(--nexus-content-bg);
+        border-bottom: 1px solid var(--nexus-border-color);
+    }
+</style>
+{% endblock %}
+
+{% block content_header %}
+    <div class="tc-community-header pt-3 pb-2 mb-0 sticky-top shadow-sm" style="top: 56px; z-index: 1010;">
+        <div class="container-fluid">
+            <div class="d-flex flex-column flex-md-row align-items-md-center">
+                <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
+                    {# Placeholder for a TC Community Group Icon/Logo #}
+                    <span class="fa-stack fa-2x d-inline-block me-md-2" style="font-size: 2.5rem;">
+                        <i class="bi bi-shield-fill fs-1 text-primary"></i>
+                        <i class="bi bi-stars fs-4 text-warning position-absolute" style="top: 2px; left: 1px; opacity: 0.9;"></i>
+                    </span>
+                </div>
+                <div class="flex-grow-1 text-center text-md-start">
+                    <h1 class="page-title font-heading mb-0 fs-4">{{ community_group.name if community_group else "Talent Club Community" }}</h1>
+                    <p class="text-muted mb-1 small">
+                        <i class="bi bi-people-fill me-1"></i> <span id="tcCommunityMemberCount">{{ community_group.members.count() if community_group else 'N/A' }}</span> Active Member{{ 's' if (community_group and community_group.members.count() != 1) else '' }}
+                    </p>
+                </div>
+                <div class="mt-2 mt-md-0 ms-md-auto">
+                    <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-gear-fill me-1"></i> TC Config
+                    </a>
+                    {# Optional: Link to view members if a dedicated page exists #}
+                </div>
+            </div>
+             {% if community_group and community_group.description %}
+                <p class="text-muted small mb-2 mt-2 text-center text-md-start">{{ community_group.description }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+{% set no_sidebar = True %} {# Full focus on community chat #}
+
+<div class="container-fluid px-0 h-100 d-flex flex-column">
+    <div class="tc-community-chat-window flex-grow-1" id="tcCommunityChatWindowMessages-{{ community_group.id if community_group else '0' }}">
+        {% if messages and messages | length > 0 %}
+            {% for message_loop_var in messages %} {# Changed loop variable name #}
+                {# Set the context variables needed by the partial #}
+                {% set message = message_loop_var %}
+                {% set current_user_id = current_user.id %} {# Explicitly set for the partial #}
+                
+                {# Call include in its simplest form #}
+                {% include 'partials/_chat_message_item.html' %}
+            {% endfor %}
+        {% else %}
+            <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
+                <div>
+                    <i class="bi bi- megaphone-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">Welcome to the {{ community_group.name if community_group else "Community" }}!</h4>
+                    <p>Start a discussion, share an announcement, or ask a question.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="tc-community-input-area p-3">
+        {% if can_post_in_community %} {# Backend variable: True if user not muted in TC #}
+            {# Reusing _social_content_form.html for message input UI consistency #}
+            {# Set variables with names expected by _social_content_form.html #}
+            {% set post_form_for_partial = post_form %} {# Use a distinct name if 'post_form' is already used, or ensure it's correctly scoped #}
+            {% set submit_url = url_for('create_tc_community_message') %}
+            {% set submit_button_text = 'Send Message' %}
+            {% set parent_id = community_group.id if community_group else '0' %}
+
+            {# Call include in its simplest form #}
+            {% include 'partials/_social_content_form.html' %}
+        {% else %}
+            <div class="alert alert-warning text-center" role="alert">
+                <i class="bi bi-mic-mute-fill me-1"></i> You are currently muted and cannot send messages in the TC Community.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const communityGroupId = {{ community_group.id | tojson if community_group else 'null' }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        if (communityGroupId && typeof initializeTCCommunityChat === 'function') {
+            initializeTCCommunityChat(communityGroupId, currentUserId);
+        } else if(communityGroupId) {
+            console.warn('initializeTCCommunityChat function not found in talent_club.js. TC Community chat may not be fully dynamic.');
+            // Basic form submission will still work if the form action in _social_content_form.html is correct.
+            // The generic social.js post handler might pick it up if class names match and form action is correct.
+        }
+        console.log('TC Community Group page JS loaded.');
+    });
+</script>
+{% endblock %}

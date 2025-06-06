@@ -1,0 +1,161 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Resolve Report ID: " + (report.id | string) %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-check-circle-fill text-success me-2"></i>{{ page_title }}
+        </h1>
+        <a href="{{ url_for('list_asset_reports') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to All Reports
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-md-11">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading">Report Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">Report ID:</dt>
+                        <dd class="col-sm-9">{{ report.id }}</dd>
+
+                        <dt class="col-sm-3">Asset Reported:</dt>
+                        <dd class="col-sm-9">
+                            {% if report.asset %}
+                                <a href="{{ url_for('edit_asset', asset_id=report.asset.id) }}" class="text-decoration-none">{{ report.asset.name }} (ID: {{ report.asset.id }})</a>
+                            {% else %}
+                                <span class="fst-italic text-muted">General Report (Not linked to a specific asset)</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-3">Reported By:</dt>
+                        <dd class="col-sm-9">{{ report.reporter.full_name or report.reporter.username if report.reporter else 'N/A' }}</dd>
+
+                        <dt class="col-sm-3">Report Date:</dt>
+                        <dd class="col-sm-9">{{ report.report_date | datetimeformat }}</dd>
+
+                        <dt class="col-sm-3">Issue Description:</dt>
+                        <dd class="col-sm-9">{{ report.damage_description }}</dd>
+
+                        {% if report.date_of_damage %}
+                        <dt class="col-sm-3">Date of Damage:</dt>
+                        <dd class="col-sm-9">{{ report.date_of_damage | dateformat }}</dd>
+                        {% endif %}
+
+                        <dt class="col-sm-3">Quantity Damaged:</dt>
+                        <dd class="col-sm-9">{{ report.quantity_damaged }}</dd>
+
+                        <dt class="col-sm-3">Current Status:</dt>
+                        <dd class="col-sm-9">
+                             {% if report.status == 'Pending' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+                            {% elif report.status == 'In Progress' %}
+                                <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+                            {% elif report.status == 'Resolved' %}
+                                <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+                            {% elif report.status == 'Rejected' %}
+                                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2 py-1">{{ report.status }}</span>
+                            {% endif %}
+                        </dd>
+
+                        {% if report.resolver %}
+                        <dt class="col-sm-3">Resolved/Rejected By:</dt>
+                        <dd class="col-sm-9">{{ report.resolver.full_name or report.resolver.username }}</dd>
+                        {% endif %}
+                        {% if report.resolved_date %}
+                        <dt class="col-sm-3">Resolved/Rejected Date:</dt>
+                        <dd class="col-sm-9">{{ report.resolved_date | datetimeformat }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            {% if report.status not in ['Resolved', 'Rejected'] %}
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-pencil-fill me-2"></i>Update Report Status & Resolution</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+                    <form method="POST" action="{{ url_for('resolve_asset_report', report_id=report.id) }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.status.label(class="form-label fw-medium") }}
+                            {{ form.status(class="form-select" + (" is-invalid" if form.status.errors else "")) }}
+                            {% if form.status.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.status.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.resolution_notes.label(class="form-label fw-medium") }}
+                            {{ form.resolution_notes(class="form-control" + (" is-invalid" if form.resolution_notes.errors else ""), rows="4", placeholder="Enter notes regarding the resolution, actions taken, or reasons for rejection...") }}
+                            {% if form.resolution_notes.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.resolution_notes.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {# Optional: Field to link a general report to an asset - More complex UI needed #}
+                        {# {% if not report.asset_id and form.link_to_asset_id %}
+                        <div class="mb-3">
+                            {{ form.link_to_asset_id.label(class="form-label fw-medium") }}
+                            {{ form.link_to_asset_id(class="form-select tom-select" + (" is-invalid" if form.link_to_asset_id.errors else "")) }}
+                            <small class="form-text text-muted">If this general report pertains to a specific asset, link it here.</small>
+                            {% if form.link_to_asset_id.errors %}<div class="invalid-feedback">{% for e in form.link_to_asset_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        {% endif %} #}
+
+                        <hr class="my-4">
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('list_asset_reports') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Update Report") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% elif report.resolution_notes %} {# Show notes if already resolved/rejected #}
+             <div class="card shadow-sm">
+                <div class="card-header bg-light-subtle">
+                     <h5 class="mb-0 font-heading"><i class="bi bi-card-text me-2"></i>Resolution Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="fst-italic">{{ report.resolution_notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect if link_to_asset_id field is present and needs it
+        // const assetLinkSelect = document.getElementById('{{ form.link_to_asset_id.id if form.link_to_asset_id else '' }}');
+        // if (assetLinkSelect) {
+        //     new TomSelect(assetLinkSelect, {
+        //         create: false,
+        //         placeholder: 'Search and select an asset...'
+        //         // Add remote loading options if needed for asset search
+        //     });
+        // }
+        console.log('Resolve Asset Report page JS loaded.');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,68 @@
+{# templates/partials/_book_checkout_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase C.4 #}
+{#
+    Reusable item for displaying a book checkout record.
+    Expects a `checkout` object (BookCheckout instance) in the context.
+    - checkout.asset (the book Asset object)
+    - checkout.user (the User who borrowed the book)
+#}
+<div class="list-group-item list-group-item-action flex-column align-items-start book-checkout-item py-3 px-3 mb-2 shadow-sm border rounded
+    {% if not checkout.returned and checkout.due_date < now.date() %} border-danger-subtle border-start-danger border-start-3 {% elif not checkout.returned and (checkout.due_date - now.date()).days <= 2 %} border-warning-subtle border-start-warning border-start-3 {% elif checkout.returned %} border-success-subtle {% else %} border-light-subtle {% endif %}">
+    <div class="d-flex w-100 justify-content-between mb-2">
+        <h6 class="mb-1 font-heading">
+            <i class="bi {{ 'bi-journal-bookmark-fill text-primary' if checkout.asset else 'bi-question-diamond-fill text-muted' }} me-2"></i>
+            {{ checkout.asset.name | truncate(40) if checkout.asset else 'Unknown Book' }}
+            <small class="text-muted fw-normal">(ID: {{ checkout.asset.id if checkout.asset else 'N/A' }})</small>
+        </h6>
+        <small class="text-muted" title="Checkout ID: {{ checkout.id }}">
+            Checked Out: {{ checkout.checkout_date | dateformat }}
+        </small>
+    </div>
+
+    <div class="row gx-3 gy-1 small align-items-center mb-2">
+        <div class="col-md-auto">
+            <strong class="text-dark">Borrower:</strong>
+            <a href="{{ url_for('librarian_student_profile', user_id=checkout.user.id) if current_user.role.name == 'librarian' else '#' }}"
+               class="text-decoration-none {% if current_user.role.name != 'librarian' %} pe-none text-dark {% endif %}">
+                {{ checkout.user.full_name or checkout.user.username if checkout.user else 'N/A' }}
+            </a>
+            {% if checkout.user and checkout.user.grade and checkout.user.section %}
+                <span class="text-muted"> (G:{{ checkout.user.grade }}-S:{{ checkout.user.section }})</span>
+            {% endif %}
+        </div>
+        <div class="col-md-auto">
+            <strong class="text-dark">Due Date:</strong>
+            <span class="{{ 'text-danger fw-bold' if not checkout.returned and checkout.due_date < now.date() else ('text-warning fw-medium' if not checkout.returned and (checkout.due_date - now.date()).days <= 2 else 'text-muted') }}">
+                {{ checkout.due_date | dateformat }}
+            </span>
+        </div>
+        <div class="col-md-auto">
+            <strong class="text-dark">Status:</strong>
+            {% if checkout.returned %}
+                <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2 py-1">
+                    <i class="bi bi-check-lg me-1"></i>Returned on {{ checkout.return_date | dateformat }}
+                </span>
+            {% elif checkout.due_date < now.date() %}
+                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2 py-1">
+                    <i class="bi bi-hourglass-split me-1"></i>Overdue
+                </span>
+            {% else %}
+                <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1">
+                    <i class="bi bi-clock-fill me-1"></i>Checked Out
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Action button for Librarian to mark as returned #}
+    {% if current_user.role.name == 'librarian' and not checkout.returned %}
+        <div class="mt-2 text-end">
+            <form action="{{ url_for('return_book', checkout_id=checkout.id) }}" method="POST" class="d-inline">
+                {{ csrf_token() if csrf_token else '' }}
+                <button type="submit" class="btn btn-sm btn-success">
+                    <i class="bi bi-check2-square me-1"></i> Mark as Returned
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>

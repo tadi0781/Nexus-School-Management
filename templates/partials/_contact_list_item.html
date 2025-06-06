@@ -1,0 +1,43 @@
+{# templates/partials/_contact_list_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase D.2 #}
+{#
+    Reusable item for displaying a contact in a list.
+    Expects a `contact` object (User instance) and `current_user_id` in the context.
+    Optionally `unread_count` for this contact.
+#}
+{% set contact_avatar = url_for('static', filename=(contact.profile_photo_url if contact.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+{% set target_url = url_for(target_route | default('universal_chat'), target_user_id=contact.id) %} {# target_route can be 'universal_chat' or 'send_notification_to_user' #}
+
+<a href="{{ target_url }}"
+   class="list-group-item list-group-item-action contact-list-item-clickable p-3">
+    <div class="d-flex align-items-center">
+        <div class="position-relative me-3">
+            <img src="{{ contact_avatar }}" alt="{{ contact.full_name or contact.username }}" class="rounded-circle shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
+            {# Online status indicator (placeholder logic) - Future enhancement #}
+            {# {% if contact.is_online %}
+            <span class="position-absolute bottom-0 end-0 p-1 bg-success border border-light rounded-circle" title="Online">
+                <span class="visually-hidden">Online</span>
+            </span>
+            {% endif %} #}
+        </div>
+        <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 font-heading contact-name">{{ contact.full_name or contact.username }}</h6>
+                {# Placeholder for last message timestamp - Future enhancement #}
+                {# <small class="text-muted contact-last-active">10m ago</small> #}
+            </div>
+            <small class="text-muted d-block contact-role">
+                {{ contact.role.name.replace('_', ' ') | title if contact.role else 'N/A' }}
+                {% if contact.grade and contact.section %} (G:{{ contact.grade }}-S:{{ contact.section }}){% endif %}
+            </small>
+            {# Placeholder for last message snippet - Future enhancement #}
+            {# <p class="text-muted small mb-0 contact-last-message-snippet text-truncate">
+                You: Ok, see you then!
+            </p> #}
+        </div>
+        {% if unread_count and unread_count > 0 %}
+            <span class="badge bg-danger rounded-pill ms-2">{{ unread_count }}</span>
+        {% endif %}
+         <i class="bi {{ 'bi-chat-dots-fill' if target_route == 'universal_chat' else 'bi-send-plus-fill' }} fs-4 text-primary opacity-50 ms-2 contact-action-icon"></i>
+    </div>
+</a>

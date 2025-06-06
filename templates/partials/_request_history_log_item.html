@@ -1,0 +1,38 @@
+{# templates/partials/_request_history_log_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase H.1 #}
+{#
+    Reusable item for displaying a single request history entry.
+    Expects a `history_item` object (RequestHistory instance) in the context.
+    - history_item.changed_by (User object)
+    - history_item.timestamp
+    - history_item.action
+    - history_item.old_status
+    - history_item.new_status
+    - history_item.notes
+#}
+<li class="list-group-item request-history-item py-2 px-3">
+    <div class="d-flex w-100 justify-content-between">
+        <small class="text-muted history-timestamp" title="{{ history_item.timestamp | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+            <i class="bi bi-stopwatch-fill me-1"></i>{{ history_item.timestamp | humanize_time_diff }}
+        </small>
+        <small class="text-muted history-actor">
+            By: {{ history_item.changed_by.full_name or history_item.changed_by.username if history_item.changed_by else 'System' }}
+        </small>
+    </div>
+    <p class="mb-1 history-action- GGGGGGGGGGG">
+        <strong class="font-heading">{{ history_item.action | title }}:</strong>
+        {% if history_item.action == 'Submitted' %}
+            Request submitted and status set to <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-1">{{ history_item.new_status }}</span>.
+        {% elif history_item.old_status %}
+            Status changed from <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-1">{{ history_item.old_status }}</span>
+            to <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-1">{{ history_item.new_status }}</span>.
+        {% else %}
+            Status set to <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill px-1">{{ history_item.new_status }}</span>.
+        {% endif %}
+    </p>
+    {% if history_item.notes %}
+        <small class="d-block text-muted fst-italic history-notes ps-3 border-start border-secondary border-2" style="white-space: pre-wrap;">
+            <i class="bi bi-blockquote-left me-1"></i> {{ history_item.notes | safe }} {# Safe if notes can contain simple HTML for formatting #}
+        </small>
+    {% endif %}
+</li>

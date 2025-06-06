@@ -1,0 +1,161 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Welcome to Nexus - Kechene Debre Selam G.S.S.{% endblock %}
+
+{% block content %}
+{% set no_sidebar = True %} {# No sidebar for the public landing page #}
+
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, var(--nexus-primary) 0%, var(--nexus-secondary) 100%);
+        color: var(--nexus-light);
+        padding: 6rem 1.5rem;
+        text-align: center;
+        border-bottom-left-radius: 50% 20%;
+        border-bottom-right-radius: 50% 20%;
+        margin-bottom: -1px; /* To overlap slight rendering gaps with cards */
+    }
+    .hero-section h1 {
+        font-size: 2.8rem;
+        font-weight: 700; /* Poppins Bold */
+        color: #fff; /* Ensure high contrast on gradient */
+        margin-bottom: 0.5rem;
+    }
+    .hero-section .lead {
+        font-size: 1.3rem;
+        font-weight: 300; /* Poppins Light */
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 2rem;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .hero-section .btn-lg {
+        padding: 0.8rem 2rem;
+        font-size: 1.1rem;
+    }
+    .features-section {
+        padding: 4rem 1.5rem;
+    }
+    .feature-icon {
+        font-size: 3rem;
+        color: var(--nexus-primary);
+        margin-bottom: 1rem;
+        display: inline-block;
+        padding: 1rem;
+        background-color: rgba(var(--nexus-primary-rgb), 0.1); /* Assuming --nexus-primary-rgb is defined or use lighten */
+        border-radius: 50%;
+    }
+     .login-form-section {
+        padding: 3rem 1.5rem;
+        background-color: var(--nexus-body-bg); /* Match body background */
+    }
+    .login-form-section .card {
+        border: none; /* Remove card border for seamless look */
+    }
+</style>
+
+{# Hero Section #}
+<div class="hero-section">
+    <div class="container">
+        <img src="{{ url_for('static', filename='img/logo_light.png') }}" alt="Kechene Debre Selam G.S.S. Logo" class="mb-4" style="max-height: 80px;">
+        <h1 class="display-4 font-heading">Welcome to Kechene Debre Selam G.S.S.</h1>
+        <p class="lead">Powered by <strong>Nexus School Management</strong> - Your integrated platform for seamless school operations and enhanced learning experiences.</p>
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="{{ url_for('login') }}" class="btn btn-light btn-lg px-4 gap-3"><i class="bi bi-box-arrow-in-right me-2"></i>Login</a>
+            <a href="{{ url_for('pre_register') }}" class="btn btn-outline-light btn-lg px-4"><i class="bi bi-person-plus-fill me-2"></i>Register</a>
+        </div>
+    </div>
+</div>
+
+{# Login Form Section - Placed prominently after hero for easy access #}
+<section class="login-form-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-5 col-md-7">
+                 <div class="card shadow-lg">
+                    <div class="card-body p-4 p-md-5">
+                        <h3 class="card-title text-center font-heading mb-4">Secure Login</h3>
+                        {% include 'layout/_flash_messages.html' %} {# Include flash messages here too #}
+                        <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}" novalidate>
+                            {{ form.hidden_tag() if form.hidden_tag }}
+                            <div class="mb-3">
+                                {{ form.username.label(class="form-label") }}
+                                {{ form.username(class="form-control form-control-lg" + (" is-invalid" if form.username.errors else ""), placeholder="Username") }}
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.username.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.password.label(class="form-label") }}
+                                {{ form.password(class="form-control form-control-lg" + (" is-invalid" if form.password.errors else ""), placeholder="Password") }}
+                                {% if form.password.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.password.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid">
+                                {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+                            </div>
+                            <div class="text-center mt-3">
+                                <small><a href="{{ url_for('pre_register') }}" class="text-muted">Need an account? Register</a></small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+{# Features Section - Optional, can be expanded or removed #}
+<section class="features-section text-center">
+    <div class="container">
+        <h2 class="mb-5 font-heading">Why Choose Nexus?</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="p-3">
+                    <span class="feature-icon"><i class="bi bi-people-fill"></i></span>
+                    <h4 class="font-heading mt-3">Centralized Management</h4>
+                    <p class="text-muted">Streamline all administrative, academic, and communication tasks in one powerful platform.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                 <div class="p-3">
+                    <span class="feature-icon"><i class="bi bi-bar-chart-line-fill"></i></span>
+                    <h4 class="font-heading mt-3">Data-Driven Insights</h4>
+                    <p class="text-muted">Access real-time analytics to monitor progress, identify trends, and make informed decisions.</p>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                 <div class="p-3">
+                    <span class="feature-icon"><i class="bi bi-shield-check"></i></span>
+                    <h4 class="font-heading mt-3">Secure & Reliable</h4>
+                    <p class="text-muted">Built with security at its core to protect your data and ensure dependable performance.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# Call to Action / Contact Section - Optional #}
+{# <section class="py-5 bg-light">
+    <div class="container text-center">
+        <h3 class="font-heading">Ready to Transform Your School?</h3>
+        <p class="lead text-muted">Contact us today to learn more about Nexus for Kechene Debre Selam G.S.S.</p>
+        <a href="#" class="btn btn-info btn-lg mt-3">Get in Touch</a> {# Placeholder link #}
+    {# </div>
+</section> #}
+
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    // Any page-specific JavaScript for index.html can go here.
+    // For instance, animations or interactive elements for the hero/features.
+</script>
+{% endblock %}

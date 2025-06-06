@@ -1,0 +1,172 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Propose New Talent Club{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-lightbulb-fill me-2 text-primary"></i>Propose a New Talent Club
+        </h1>
+        <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Configuration
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-md-11">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">New Club Proposal Form</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <p class="text-muted mb-4">
+                        Excited about a new club idea? Fill out the details below. Your proposal will be reviewed by the Talent Club Leader.
+                        You need at least <strong>5 other active TC members</strong> to accept their mention in your proposal before the TC Leader can approve it.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('create_talent_club_proposal') }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="E.g., Robotics Club, Debate Society") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.social_category_id.label(text="Club Category", class="form-label fw-medium") }}
+                            {{ form.social_category_id(class="form-select tom-select" + (" is-invalid" if form.social_category_id.errors else ""), placeholder="Select a primary category...") }}
+                            {% if form.social_category_id.errors %}<div class="invalid-feedback">{% for e in form.social_category_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label fw-medium") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="5", placeholder="Describe the club's mission, activities, and goals...") }}
+                            {% if form.description.errors %}<div class="invalid-feedback">{% for e in form.description.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="mentioned_member_ids_picker" class="form-label fw-medium">Mention Initial Members (Min. 5, excluding yourself)</label>
+                            <select id="mentioned_member_ids_picker" class="form-control tom-select-members" multiple placeholder="Search and select TC members...">
+                                {# Options will be populated by JS via AJAX for TomSelect #}
+                            </select>
+                            {# Hidden input to store the comma-separated list of selected member IDs for form submission #}
+                            <input type="hidden" name="mentioned_member_ids" id="mentioned_member_ids_hidden">
+                            <small class="form-text text-muted">These members will be notified to accept or decline being part of your initial group.</small>
+                            {# Placeholder for JS validation errors related to member selection #}
+                            <div class="invalid-feedback d-none" id="mentionedMembersError"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.proposal_file.label(text="Proposal Document (Optional PDF, DOC, TXT)",class="form-label fw-medium") }}
+                            {{ form.proposal_file(class="form-control filepond-input" + (" is-invalid" if form.proposal_file.errors else "")) }} {# Use filepond-input class #}
+                             <small class="form-text text-muted">Attach a detailed proposal document if you have one.</small>
+                            {% if form.proposal_file.errors %}<div class="invalid-feedback">{% for e in form.proposal_file.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Submit Proposal for Review") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/utils.js') }}?v={{ range(1, 100000) | random }}"></script> {# Ensure utils.js (with getData) is loaded BEFORE this script #}
+<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for category
+        const categorySelect = document.getElementById('{{ form.social_category_id.id }}');
+        if (categorySelect) {
+            try { // Add try-catch for robustness
+                new TomSelect(categorySelect, { create: false, placeholder: 'Select a category...' });
+                console.log('TomSelect for CATEGORY initialized successfully.');
+            } catch (e) {
+                console.error('Error initializing TomSelect for category:', e);
+            }
+        } else {
+            console.warn('Category select element not found for TomSelect init.');
+        }
+
+        // Initialize TomSelect for mentioning members
+        const memberPicker = document.getElementById('mentioned_member_ids_picker');
+        const hiddenMemberInput = document.getElementById('mentioned_member_ids_hidden');
+
+        if (memberPicker && hiddenMemberInput) {
+            try { // Add try-catch for robustness
+                const memberTomSelect = new TomSelect(memberPicker, { // Store instance in a variable
+                    valueField: 'id',
+                    labelField: 'text',
+                    searchField: ['text'],
+                    plugins: ['remove_button'],
+                    maxItems: 10,
+                    placeholder: 'Search and select TC members...',
+                    create: false,
+                    load: function(query, callback) {
+                        console.log('[MEMBER PICKER] TomSelect load triggered. Query:', query); // LOG 1
+                        if (!query || query.length < 2) {
+                            console.log('[MEMBER PICKER] Query too short, returning.'); // LOG 2
+                            return callback(); // Important to call callback even if no search
+                        }
+                        console.log('[MEMBER PICKER] Query is sufficient, attempting getData for:', query); // LOG 3
+                        getData(`/talent_club/api/members/search?q=${encodeURIComponent(query)}`)
+                            .then(response => {
+                                console.log('[MEMBER PICKER] Received from API:', response); // LOG 4
+                                callback(response);
+                            })
+                            .catch((error) => {
+                                console.error('[MEMBER PICKER] TomSelect load error during getData:', error); // LOG 5
+                                callback(); // Call callback even on error
+                            });
+                    },
+                    onChange: function(value) {
+                        console.log('[MEMBER PICKER] onChange triggered. Value:', value); // LOG 6
+                        hiddenMemberInput.value = value.join(',');
+                        // ... (your existing errorDiv logic for min members if needed) ...
+                    },
+                    onLoad: function() {
+                        console.log('[MEMBER PICKER] TomSelect options loaded (onLoad event).'); // LOG 7 (if options were pre-loaded, not via AJAX load)
+                    },
+                    onFocus: function() {
+                        console.log('[MEMBER PICKER] TomSelect focused.'); // LOG 8
+                    },
+                    onType: function(str) {
+                        console.log('[MEMBER PICKER] TomSelect typed:', str); // LOG 9
+                    },
+                    render: {
+                        option: function(data, escape) {
+                            return `<div class="d-flex align-items-center">
+                                        <div>
+                                            <div class="text-dark">${escape(data.text)}</div>
+                                            ${data.role ? `<small class="text-muted">${escape(data.role.replace('_',' ').title())}</small>` : ''}
+                                        </div>
+                                    </div>`;
+                        },
+                        item: function(data, escape) {
+                            return `<div class="text-dark">${escape(data.text)}</div>`;
+                        }
+                    }
+                });
+                console.log('TomSelect for MEMBER PICKER initialized successfully. Instance:', memberTomSelect); // LOG 10
+            } catch (e) {
+                console.error('Error initializing TomSelect for MEMBER PICKER:', e); // LOG 11
+            }
+        } else {
+            console.warn('Member picker or hidden input element not found for TomSelect init.'); // LOG 12
+        }
+        
+        console.log('Propose New Club page JS loaded.');
+    });
+</script>
+{% endblock %}

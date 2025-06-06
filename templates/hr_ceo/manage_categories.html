@@ -1,0 +1,169 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Asset Categories{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-tags-fill me-2 text-primary"></i>Manage Asset Categories
+        </h1>
+        <a href="{{ url_for('hr_ceo_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="row g-4">
+        {# Left Column: List Existing Categories #}
+        <div class="col-lg-7 col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading">Existing Asset Categories</h5>
+                </div>
+                <div class="card-body p-0"> {# No padding for full-width table #}
+                    {% if categories and categories | length > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">ID</th>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col" class="text-center">Assets Linked</th>
+                                        <th scope="col" class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for category in categories %}
+                                    <tr>
+                                        <td>{{ category.id }}</td>
+                                        <td class="fw-medium">{{ category.name }}</td>
+                                        <td>{{ category.description | truncate(60) if category.description else '-' }}</td>
+                                        <td class="text-center">
+                                            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2">
+                                                {{ category.assets.count() }} {# Assuming 'assets' is a dynamic relationship #}
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{{ url_for('edit_asset_category', category_id=category.id) }}" class="btn btn-sm btn-outline-primary p-1 me-1" title="Edit Category">
+                                                <i class="bi bi-pencil-fill fs-6"></i>
+                                            </a>
+                                            {# Delete button triggers a modal confirmation #}
+                                            <button type="button" class="btn btn-sm btn-outline-danger p-1"
+                                                    data-bs-toggle="modal" data-bs-target="#deleteCategoryModal"
+                                                    data-category-id="{{ category.id }}" data-category-name="{{ category.name }}"
+                                                    title="Delete Category"
+                                                    {% if category.assets.count() > 0 %}disabled{% endif %}> {# MODIFIED: Removed 'or category.channels.count() > 0' #}
+                                                <i class="bi bi-trash-fill fs-6"></i>
+                                            </button>
+                                            {% if category.assets.count() > 0 %} {# MODIFIED: Removed 'or category.channels.count() > 0' #}
+                                                <small class="d-block text-muted" style="font-size: 0.7rem;">(Reassign assets to enable delete)</small> {# MODIFIED: Text updated #}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted p-5">
+                            <i class="bi bi-tag-fill display-3 mb-3"></i>
+                            <h4 class="font-heading">No Categories Found</h4>
+                            <p>Start by adding a new asset category using the form.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# Right Column: Add New Category Form #}
+        <div class="col-lg-5 col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success-subtle text-success-emphasis">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-plus-circle-dotted me-2"></i>Add New Category</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('add_asset_category') }}" novalidate>
+                        {{ add_form.hidden_tag() if add_form.hidden_tag }} {# CSRF Token for add_form #}
+
+                        <div class="mb-3">
+                            {{ add_form.name.label(class="form-label fw-medium") }}
+                            {{ add_form.name(class="form-control" + (" is-invalid" if add_form.name.errors else ""), placeholder="e.g., IT Hardware, Furniture") }}
+                            {% if add_form.name.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in add_form.name.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ add_form.description.label(class="form-label fw-medium") }}
+                            {{ add_form.description(class="form-control" + (" is-invalid" if add_form.description.errors else ""), rows="3", placeholder="Optional brief description") }}
+                            {% if add_form.description.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in add_form.description.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            {{ add_form.submit(class="btn btn-success", value="Add Category") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Delete Category Confirmation Modal #}
+    <div class="modal fade" id="deleteCategoryModal" tabindex="-1" aria-labelledby="deleteCategoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title font-heading" id="deleteCategoryModalLabel"><i class="bi bi-trash3-fill me-2"></i>Confirm Deletion</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the category: <strong id="categoryNameToDelete"></strong>?</p>
+                    <p class="text-danger"><small>This action cannot be undone. Ensure no assets are linked to this category.</small></p> {# MODIFIED: Text updated #}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteCategoryForm" method="POST" action=""> {# Action will be set by JS #}
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                        <button type="submit" class="btn btn-danger">Yes, Delete Category</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const deleteCategoryModal = document.getElementById('deleteCategoryModal');
+        if (deleteCategoryModal) {
+            deleteCategoryModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget; // Button that triggered the modal
+                const categoryId = button.getAttribute('data-category-id');
+                const categoryName = button.getAttribute('data-category-name');
+
+                const modalTitle = deleteCategoryModal.querySelector('.modal-title');
+                const categoryNameSpan = deleteCategoryModal.querySelector('#categoryNameToDelete');
+                const deleteForm = deleteCategoryModal.querySelector('#deleteCategoryForm');
+
+                categoryNameSpan.textContent = categoryName;
+                // Dynamically set the form action URL for deletion
+                deleteForm.action = `/hr_ceo/asset_category/${categoryId}/delete`; // Matches your Flask route
+            });
+        }
+        console.log('Manage Asset Categories JS loaded.');
+    });
+</script>
+{% endblock %}

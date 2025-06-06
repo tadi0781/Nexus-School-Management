@@ -1,0 +1,79 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Notifications{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-bell-fill me-2 text-primary"></i>My Notifications
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <button class="btn btn-sm btn-outline-primary me-2" id="markAllReadBtn" {% if not notifications or not (notifications | selectattr('is_read', 'equalto', false) | list | length > 0) %}disabled{% endif %}>
+                <i class="bi bi-check2-all me-1"></i> Mark All as Read
+            </button>
+            <a href="{{ url_for('notification_contacts_for_sending') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-send-plus-fill me-1"></i> Send Notification
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Notification History</h5>
+            {# Optional: Filter controls for notifications #}
+            {# <div>
+                <select class="form-select form-select-sm" id="notificationFilterStatus">
+                    <option value="all" selected>All</option>
+                    <option value="unread">Unread Only</option>
+                    <option value="read">Read Only</option>
+                </select>
+            </div> #}
+        </div>
+        <div class="card-body p-0">
+            {% if notifications and notifications | length > 0 %}
+                <div class="list-group list-group-flush notification-list-full">
+                    {% for notification in notifications %}
+                        {% include 'partials/_notification_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-envelope-open-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">All Caught Up!</h4>
+                    <p>You have no new notifications at this time.</p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination if notification list is very long #}
+        {# <div class="card-footer">
+            <nav aria-label="Notification pagination"> ... </nav>
+        </div> #}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+{# Ensure notifications.js is loaded after main.js/utils.js in base.html if it depends on them #}
+<script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Specific JS for this page, if any, beyond what's in notifications.js
+        console.log('View Notifications page JS context loaded.');
+
+        // Example: Initialize notification item click handlers if not done globally in notifications.js
+        // This is just a placeholder; actual logic will be in notifications.js
+        // document.querySelectorAll('.notification-item.unread-notification').forEach(item => {
+        //     item.addEventListener('click', function(e) {
+        //         // Basic: Prevent default if link_url is '#' or for AJAX marking
+        //         // if (this.getAttribute('href') === '#') e.preventDefault();
+        //         // markNotificationAsRead(this.dataset.notificationId); // Assumes function in notifications.js
+        //     });
+        // });
+    });
+</script>
+{% endblock %}

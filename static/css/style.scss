@@ -1,0 +1,1567 @@
+@use "sass:color"; // Import the sass:color module
+@use "sass:list";  // Import the sass:list module
+
+// Nexus School Management System - style.scss
+
+// --- SCSS Helper Variables for Color Calculations ---
+// These store the literal color values from your theme to be used by sass:color functions
+
+// Light Theme Base Values
+$nexus-primary-light-value: #0D47A1;
+$nexus-primary-rgb-light-tuple: (13, 71, 161);
+$nexus-border-color-light-value: #e0e5ec;
+// (Add other base color literal values here if they are directly manipulated by sass:color for light theme)
+
+// Dark Theme Base Values
+$nexus-primary-dark-value: #4dabf7;
+$nexus-primary-rgb-dark-tuple: (77, 171, 247);
+$nexus-border-color-dark-value: #495057;
+// (Add other base color literal values here if they are directly manipulated by sass:color for dark theme)
+// --- End SCSS Helper Variables ---
+
+
+// 0. Configuration & Utilities
+// ---------------------------------------------------------
+// Google Fonts are imported in base.html
+
+// 1. Theme Variables (CSS Custom Properties)
+// ---------------------------------------------------------
+:root {
+    // Core Palette
+    --nexus-primary: #{$nexus-primary-light-value};
+    --nexus-primary-rgb: #{list.nth($nexus-primary-rgb-light-tuple, 1)}, #{list.nth($nexus-primary-rgb-light-tuple, 2)}, #{list.nth($nexus-primary-rgb-light-tuple, 3)};
+    --nexus-secondary: #1976D2;       // Medium Blue
+    --nexus-secondary-rgb: 25, 118, 210;
+    --nexus-success: #198754;
+    --nexus-success-rgb: 25, 135, 84;
+    --nexus-info: #00796B;            // Teal
+    --nexus-info-rgb: 0, 121, 107;
+    --nexus-warning: #ffc107;
+    --nexus-warning-rgb: 255, 193, 7;
+    --nexus-danger: #dc3545;
+    --nexus-danger-rgb: 220, 53, 69;
+    --nexus-light: #f8f9fa;
+    --nexus-dark: #212529;
+    --nexus-body-bg: #f4f7fc;         // Light, slightly bluish-gray
+    --nexus-content-bg: #ffffff;
+    --nexus-text-primary: #212529;
+    --nexus-text-secondary: #5a6268; // Slightly darker for better readability
+    --nexus-border-color: #{$nexus-border-color-light-value}; // Softer border
+    --nexus-accent: var(--nexus-warning);
+
+    // Derived Colors (Calculated by Sass for Light Theme)
+    --nexus-primary-text-hover: #{color.adjust($nexus-primary-light-value, $lightness: -10%)};
+    --nexus-primary-bg-darken-7: #{color.adjust($nexus-primary-light-value, $lightness: -7%)};
+    --nexus-primary-border-darken-9: #{color.adjust($nexus-primary-light-value, $lightness: -9%)};
+    --nexus-border-color-darken-7: #{color.adjust($nexus-border-color-light-value, $lightness: -7%)};
+
+    // For dashboard-stat-card .card-footer:hover background
+    // Original light theme: var(--nexus-sidebar-link-hover-bg) is rgba(var(--nexus-primary-rgb), 0.05)
+    // darken(rgba(13, 71, 161, 0.05), 3%) -> rgb part gets darker, alpha stays
+    --dashboard-stat-card-footer-hover-bg: #{rgba(color.adjust(rgb(list.nth($nexus-primary-rgb-light-tuple,1),list.nth($nexus-primary-rgb-light-tuple,2),list.nth($nexus-primary-rgb-light-tuple,3)), $lightness: -3%), 0.05)};
+
+    // Typography
+    --nexus-font-sans-serif: 'Open Sans', sans-serif;
+    --nexus-font-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --nexus-font-heading: 'Poppins', sans-serif;
+
+    // Sizes & Spacing
+    --nexus-border-radius: 0.375rem; // Bootstrap's default
+    --nexus-border-radius-lg: 0.5rem;
+    --nexus-font-size-base: 1rem;    // 16px
+    --nexus-line-height-base: 1.65;  // Increased for readability
+
+    // Sidebar
+    --nexus-sidebar-width: 260px;
+    --nexus-sidebar-bg: var(--nexus-content-bg);
+    --nexus-sidebar-border-color: var(--nexus-border-color);
+    --nexus-sidebar-link-color: #343a40;
+    --nexus-sidebar-link-hover-bg: rgba(var(--nexus-primary-rgb), 0.05);
+    --nexus-sidebar-link-hover-color: var(--nexus-primary);
+    --nexus-sidebar-link-active-bg: var(--nexus-primary);
+    --nexus-sidebar-link-active-color: #ffffff;
+    --nexus-sidebar-icon-color: #6c757d;
+    --nexus-sidebar-active-icon-color: #ffffff;
+    --nexus-sidebar-heading-color: var(--nexus-text-secondary);
+
+    // Shadows for depth
+    --nexus-shadow-sm: 0 .125rem .25rem rgba(0,0,0, .075);
+    --nexus-shadow: 0 .5rem 1rem rgba(0,0,0, .15);
+    --nexus-shadow-lg: 0 1rem 3rem rgba(0,0,0, .175);
+
+    // Transitions
+    --nexus-transition-base: all .2s ease-in-out;
+}
+
+// Dark Theme Variables
+[data-bs-theme="dark"] {
+    --nexus-primary: #{$nexus-primary-dark-value};
+    --nexus-primary-rgb: #{list.nth($nexus-primary-rgb-dark-tuple, 1)}, #{list.nth($nexus-primary-rgb-dark-tuple, 2)}, #{list.nth($nexus-primary-rgb-dark-tuple, 3)};
+    --nexus-secondary: #74c0fc;
+    --nexus-secondary-rgb: 116, 192, 252;
+    --nexus-success: #40c057;
+    --nexus-info: #3bc9db;
+    --nexus-warning: #fcc419;
+    --nexus-danger: #fa5252;
+    --nexus-light: #343a40;
+    --nexus-dark: #e9ecef;
+    --nexus-body-bg: #1a1d20; // Darker body
+    --nexus-content-bg: #212529; // Standard Bootstrap dark
+    --nexus-text-primary: #f1f3f5;
+    --nexus-text-secondary: #adb5bd;
+    --nexus-border-color: #{$nexus-border-color-dark-value};
+
+    // Derived Colors (Calculated by Sass for Dark Theme)
+    --nexus-primary-text-hover: #{color.adjust($nexus-primary-dark-value, $lightness: 10%)}; // Was lighten
+    --nexus-primary-bg-darken-7: #{color.adjust($nexus-primary-dark-value, $lightness: -7%)}; // Still darken for button consistency
+    --nexus-primary-border-darken-9: #{color.adjust($nexus-primary-dark-value, $lightness: -9%)}; // Still darken
+    --nexus-border-color-darken-7: #{color.adjust($nexus-border-color-dark-value, $lightness: -7%)}; // Still darken
+
+    // For dashboard-stat-card .card-footer:hover background
+    // Original dark theme: var(--nexus-sidebar-link-hover-bg) is rgba(var(--nexus-primary-rgb), 0.15)
+    // darken(rgba(77, 171, 247, 0.15), 3%)
+    --dashboard-stat-card-footer-hover-bg: #{rgba(color.adjust(rgb(list.nth($nexus-primary-rgb-dark-tuple,1),list.nth($nexus-primary-rgb-dark-tuple,2),list.nth($nexus-primary-rgb-dark-tuple,3)), $lightness: -3%), 0.15)};
+
+    --nexus-sidebar-bg: var(--nexus-content-bg);
+    --nexus-sidebar-border-color: #373b3e;
+    --nexus-sidebar-link-color: var(--nexus-text-secondary);
+    --nexus-sidebar-link-hover-bg: rgba(var(--nexus-primary-rgb), 0.15);
+    --nexus-sidebar-link-hover-color: var(--nexus-primary);
+    --nexus-sidebar-link-active-bg: var(--nexus-primary);
+    --nexus-sidebar-link-active-color: var(--nexus-dark); // Text on active link
+    --nexus-sidebar-icon-color: var(--nexus-text-secondary);
+    --nexus-sidebar-active-icon-color: var(--nexus-dark);
+    --nexus-sidebar-heading-color: var(--nexus-text-secondary);
+
+    .navbar-brand-img-light { display: none; }
+    .navbar-brand-img-dark { display: inline-block !important; }
+
+    .card, .modal-content { // Ensure cards and modals pick up dark theme bg
+        background-color: var(--nexus-content-bg);
+        border-color: var(--nexus-border-color);
+    }
+    .table {
+        --bs-table-bg: var(--nexus-content-bg);
+        --bs-table-border-color: var(--nexus-border-color);
+        --bs-table-color: var(--nexus-text-primary);
+        --bs-table-striped-bg: rgba(255,255,255,0.03);
+        --bs-table-hover-bg: rgba(255,255,255,0.04);
+    }
+}
+
+[data-bs-theme="light"] {
+    .navbar-brand-img-light { display: inline-block !important; }
+    .navbar-brand-img-dark { display: none; }
+}
+
+
+// 2. Base Styles & Resets
+// ---------------------------------------------------------
+.nexus-body {
+    font-family: var(--nexus-font-sans-serif);
+    color: var(--nexus-text-primary);
+    background-color: var(--nexus-body-bg);
+    line-height: var(--nexus-line-height-base);
+    font-size: var(--nexus-font-size-base);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    font-family: var(--nexus-font-heading);
+    font-weight: 600;
+    color: var(--nexus-text-primary);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+}
+.page-title {
+    font-size: 1.875rem; // ~30px
+    margin-bottom: 1.75rem;
+    font-weight: 500;
+    color: var(--nexus-text-primary);
+}
+
+a {
+    color: var(--nexus-primary);
+    text-decoration: none;
+    transition: var(--nexus-transition-base);
+    &:hover {
+        color: var(--nexus-primary-text-hover); // Use derived CSS variable
+    }
+}
+
+.main-container { padding-top: 0; }
+
+// 3. Layout Components
+// ---------------------------------------------------------
+.nexus-navbar {
+    background-color: var(--nexus-content-bg) !important;
+    border-bottom: 1px solid var(--nexus-border-color);
+    box-shadow: var(--nexus-shadow-sm);
+    .navbar-brand {
+        font-family: var(--nexus-font-heading);
+        font-weight: 700;
+        font-size: 1.5rem;
+        color: var(--nexus-text-primary) !important;
+    }
+    .nav-link {
+        color: var(--nexus-text-secondary) !important;
+        &:hover, &:focus {
+            color: var(--nexus-text-primary) !important;
+        }
+        &.active {
+            color: var(--nexus-primary) !important;
+            font-weight: 500;
+        }
+    }
+    .dropdown-menu {
+        background-color: var(--nexus-content-bg);
+        border-color: var(--nexus-border-color);
+        box-shadow: var(--nexus-shadow);
+        .dropdown-header {
+            color: var(--nexus-text-secondary);
+            font-weight: 600;
+        }
+        .dropdown-item {
+            color: var(--nexus-text-primary);
+            &:hover, &:focus {
+                background-color: rgba(var(--nexus-primary-rgb), 0.1);
+                color: var(--nexus-primary);
+            }
+            &:active {
+                 background-color: var(--nexus-primary);
+                 color: #fff;
+            }
+        }
+        .dropdown-divider {
+            border-top-color: var(--nexus-border-color);
+        }
+    }
+     #themeSwitcher {
+        color: var(--nexus-text-secondary);
+        border-color: var(--nexus-border-color);
+        &:hover {
+            background-color: rgba(var(--nexus-primary-rgb), 0.1);
+            color: var(--nexus-primary);
+            border-color: var(--nexus-primary);
+        }
+    }
+}
+[data-bs-theme="dark"] .nexus-navbar {
+    background-color: var(--nexus-content-bg) !important;
+}
+
+
+.nexus-sidebar {
+    position: fixed; top: 0; bottom: 0; left: 0;
+    z-index: 1020;
+    padding: 0; padding-top: 56px;
+    background-color: var(--nexus-sidebar-bg);
+    border-right: 1px solid var(--nexus-sidebar-border-color);
+    width: var(--nexus-sidebar-width);
+    transition: var(--nexus-transition-base);
+    overflow-y: auto;
+
+    .sidebar-sticky { padding-top: 1rem; padding-bottom: 1rem; }
+    .nav-link {
+        font-weight: 500;
+        font-size: 0.95rem;
+        color: var(--nexus-sidebar-link-color);
+        padding: 0.75rem 1.5rem;
+        border-left: 4px solid transparent;
+        transition: var(--nexus-transition-base);
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        .bi {
+            margin-right: 0.875rem;
+            font-size: 1.2rem;
+            min-width: 24px;
+            color: var(--nexus-sidebar-icon-color);
+            transition: var(--nexus-transition-base);
+        }
+
+        &:hover {
+            background-color: var(--nexus-sidebar-link-hover-bg);
+            color: var(--nexus-sidebar-link-hover-color);
+            border-left-color: var(--nexus-sidebar-link-hover-color);
+            .bi { color: var(--nexus-sidebar-link-hover-color); }
+        }
+        &.active {
+            color: var(--nexus-sidebar-link-active-color);
+            background-color: var(--nexus-sidebar-link-active-bg);
+            border-left-color: var(--nexus-accent);
+            font-weight: 600;
+            .bi { color: var(--nexus-sidebar-active-icon-color); }
+        }
+    }
+    .sidebar-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 1.25rem 1.5rem 0.6rem;
+        color: var(--nexus-sidebar-heading-color);
+        font-weight: 700;
+    }
+}
+
+.nexus-main-content, .nexus-main-content-full {
+    background-color: var(--nexus-body-bg);
+    padding: 1.5rem;
+    min-height: calc(100vh - 56px - 56px);
+    flex-grow: 1;
+    transition: margin-left .3s ease-in-out;
+}
+@media (min-width: 768px) {
+    .nexus-main-content {
+        margin-left: var(--nexus-sidebar-width);
+    }
+}
+
+
+.footer {
+    background-color: var(--nexus-content-bg);
+    color: var(--nexus-text-secondary);
+    border-top: 1px solid var(--nexus-border-color);
+    font-size: 0.875rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    a {
+        color: var(--nexus-primary);
+        font-weight: 500;
+        &:hover { color: var(--nexus-primary-text-hover); } // Use derived CSS variable
+    }
+}
+[data-bs-theme="dark"] .footer {
+    background-color: var(--nexus-content-bg);
+    color: var(--nexus-text-secondary);
+     a { color: var(--nexus-primary);
+        &:hover { color: var(--nexus-primary-text-hover); } // Use derived CSS variable
+     }
+}
+
+
+// 4. UI Elements (Enhanced)
+// ---------------------------------------------------------
+.btn {
+    font-weight: 500;
+    border-radius: var(--nexus-border-radius);
+    padding: 0.6rem 1.2rem;
+    transition: var(--nexus-transition-base);
+    letter-spacing: 0.025em;
+    &:focus {
+        box-shadow: 0 0 0 0.2rem rgba(var(--nexus-primary-rgb), 0.35) !important;
+    }
+}
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+.btn-primary {
+    background-color: var(--nexus-primary);
+    border-color: var(--nexus-primary);
+    color: #fff;
+    &:hover, &:focus, &:active {
+        color: #fff;
+        background-color: var(--nexus-primary-bg-darken-7); // Use derived CSS variable
+        border-color: var(--nexus-primary-border-darken-9); // Use derived CSS variable
+    }
+}
+.btn-outline-primary {
+    color: var(--nexus-primary);
+    border-color: var(--nexus-primary);
+    &:hover, &:focus, &:active {
+        color: #fff;
+        background-color: var(--nexus-primary);
+        border-color: var(--nexus-primary);
+    }
+}
+.btn-subtle {
+    background-color: var(--nexus-content-bg);
+    border: 1px solid var(--nexus-border-color);
+    color: var(--nexus-text-secondary);
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        border-color: var(--nexus-border-color-darken-7); // Use derived CSS variable
+        color: var(--nexus-text-primary);
+    }
+}
+
+.card {
+    border: 1px solid var(--nexus-border-color);
+    border-radius: var(--nexus-border-radius-lg);
+    box-shadow: var(--nexus-shadow-sm);
+    margin-bottom: 1.75rem;
+    background-color: var(--nexus-content-bg);
+    overflow: hidden;
+}
+.card-header {
+    background-color: var(--nexus-content-bg);
+    border-bottom: 1px solid var(--nexus-border-color);
+    font-family: var(--nexus-font-heading);
+    font-weight: 500;
+    font-size: 1.1rem;
+    color: var(--nexus-text-primary);
+    padding: 0.85rem 1.25rem;
+    .bi { margin-right: 0.6rem; color: var(--nexus-primary); font-size: 1.2em; }
+}
+.card-footer {
+    background-color: var(--nexus-sidebar-link-hover-bg);
+    border-top: 1px solid var(--nexus-border-color);
+    padding: 0.75rem 1.25rem;
+    a:not(.btn) {
+        color: var(--nexus-text-secondary);
+        &:hover { color: var(--nexus-primary); }
+    }
+}
+
+.form-control, .form-select {
+    border-radius: var(--nexus-border-radius);
+    border-color: var(--nexus-border-color);
+    padding: 0.5rem 0.85rem;
+    transition: var(--nexus-transition-base);
+    background-color: var(--nexus-content-bg);
+    color: var(--nexus-text-primary);
+    &:focus {
+        border-color: var(--nexus-primary);
+        box-shadow: 0 0 0 0.2rem rgba(var(--nexus-primary-rgb), 0.25);
+        background-color: var(--nexus-content-bg);
+    }
+    &::placeholder {
+        color: var(--nexus-text-secondary);
+        opacity: 0.7;
+    }
+}
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+    color: var(--nexus-text-secondary);
+}
+.form-control-lg {
+    padding: 0.65rem 1rem;
+    font-size: 1.05rem;
+}
+
+// Tables
+.table {
+    border-color: var(--nexus-border-color);
+    th {
+        font-family: var(--nexus-font-heading);
+        font-weight: 500;
+        color: var(--nexus-text-primary);
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        border-bottom-width: 2px;
+    }
+    td, th {
+        vertical-align: middle;
+        padding: 0.85rem;
+    }
+    &.table-hover > tbody > tr:hover > * {
+      --bs-table-accent-bg: rgba(var(--nexus-primary-rgb), 0.075);
+    }
+}
+
+// SweetAlert2 Customizations
+.nexus-swal-popup {
+    border-radius: var(--nexus-border-radius-lg) !important;
+    background-color: var(--nexus-content-bg) !important;
+    border: 1px solid var(--nexus-border-color) !important;
+    box-shadow: var(--nexus-shadow-lg) !important;
+}
+.nexus-swal-title {
+    font-family: var(--nexus-font-heading) !important;
+    color: var(--nexus-text-primary) !important;
+    font-weight: 600 !important;
+}
+.nexus-swal-html-container {
+    color: var(--nexus-text-secondary) !important;
+    font-family: var(--nexus-font-sans-serif) !important;
+}
+.nexus-swal-button.btn-primary {
+    background-color: var(--nexus-primary) !important;
+    border-color: var(--nexus-primary) !important;
+    &:hover, &:focus {
+        background-color: var(--nexus-primary-bg-darken-7) !important; // Use derived CSS variable
+        border-color: var(--nexus-primary-border-darken-9) !important; // Use derived CSS variable
+    }
+}
+
+
+// 5. Dashboard Specific Styles
+// ---------------------------------------------------------
+.dashboard-stat-card {
+    transition: var(--nexus-transition-base);
+    &:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--nexus-shadow);
+    }
+    .stat-icon {}
+    .stat-content {
+        .card-subtitle {
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+        .card-text {
+            color: var(--nexus-text-primary);
+        }
+    }
+    .card-footer {
+        font-size: 0.85rem;
+        transition: var(--nexus-transition-base);
+        &:hover {
+            background-color: var(--dashboard-stat-card-footer-hover-bg) !important; // Use derived CSS variable
+            color: var(--nexus-primary) !important;
+        }
+    }
+}
+
+.dashboard-quick-links {
+    .list-group-item {
+        background-color: transparent;
+        border-color: var(--nexus-border-color);
+        color: var(--nexus-text-secondary);
+        transition: var(--nexus-transition-base);
+        padding: 0.85rem 1.25rem;
+        &:hover {
+            background-color: rgba(var(--nexus-primary-rgb), 0.05);
+            color: var(--nexus-primary);
+            border-left: 3px solid var(--nexus-primary);
+            padding-left: calc(1.25rem - 3px);
+        }
+        .bi {
+            margin-right: 0.75rem;
+            color: var(--nexus-primary);
+        }
+    }
+}
+
+// Chart container placeholder styles
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    background-color: var(--nexus-sidebar-link-hover-bg);
+    border-radius: var(--nexus-border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--nexus-text-secondary);
+    border: 1px dashed var(--nexus-border-color);
+}
+
+
+// 6. Utility Classes & Helpers
+// ---------------------------------------------------------
+.cursor-pointer { cursor: pointer; }
+.text-small { font-size: 0.875em; }
+.font-heading { font-family: var(--nexus-font-heading); }
+.font-body { font-family: var(--nexus-font-sans-serif); }
+.icon-lg { font-size: 1.5rem; }
+.icon-xl { font-size: 2rem; }
+.hover-bg-light:hover {
+    background-color: var(--nexus-sidebar-link-hover-bg) !important;
+}
+
+
+// Auth form specific styling
+.auth-form-container {
+    max-width: 480px;
+    margin: 3rem auto;
+    .card {
+        border: none;
+        box-shadow: var(--nexus-shadow-lg) !important;
+    }
+    .card-body { padding: 2rem 2.5rem; }
+    .auth-form-logo { max-width: 120px; margin-bottom: 1.5rem; }
+}
+
+
+// Responsive adjustments
+@media (max-width: 767.98px) {
+    .nexus-sidebar {
+        padding-top: 56px;
+    }
+    .nexus-main-content, .nexus-main-content-full {
+        padding: 1rem;
+    }
+    .page-title {
+        font-size: 1.5rem;
+    }
+    .display-4 { font-size: 2.5rem; }
+    .display-6 { font-size: 1.75rem; }
+}
+
+
+// 5. UI Elements (Continued - specific for Assets)
+// ---------------------------------------------------------
+
+.asset-card {
+    display: flex;
+    flex-direction: column;
+    transition: var(--nexus-transition-base);
+    border-radius: var(--nexus-border-radius-lg);
+
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--nexus-shadow);
+    }
+
+    .asset-card-img-placeholder {
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        .bi {
+            opacity: 0.6;
+        }
+    }
+
+    .card-title a {
+        color: var(--nexus-text-primary);
+        &:hover {
+            color: var(--nexus-primary);
+        }
+    }
+     .card-title a.pe-none {
+        color: var(--nexus-text-primary) !important;
+        cursor: default;
+        &:hover {
+            text-decoration: none !important;
+        }
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    .fs-08rem {
+        font-size: 0.8rem;
+    }
+
+    .card-footer {
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+        .asset-actions .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+            line-height: 1;
+             .bi {
+                vertical-align: middle;
+            }
+        }
+    }
+}
+
+// Asset Filter Bar
+#assetFilters .form-label {
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+}
+#assetFilters .form-select-sm, #assetFilters .form-control-sm {
+    font-size: 0.875rem;
+}
+
+
+// 6. Page-Specific Styling (Continued)
+// ---------------------------------------------------------
+// assets/all_assets.html specific
+.page-item.active .page-link {
+    background-color: var(--nexus-primary);
+    border-color: var(--nexus-primary);
+}
+.page-link {
+    color: var(--nexus-primary);
+    &:hover {
+        color: var(--nexus-primary-text-hover); // Use derived CSS variable
+    }
+    &:focus {
+        box-shadow: none;
+    }
+}
+[data-bs-theme="dark"] {
+    .page-item.active .page-link {
+        background-color: var(--nexus-primary);
+        border-color: var(--nexus-primary);
+    }
+    .page-link {
+        background-color: var(--nexus-content-bg);
+        border-color: var(--nexus-border-color);
+        color: var(--nexus-primary);
+        &:hover {
+            background-color: var(--nexus-sidebar-link-hover-bg);
+            color: var(--nexus-primary-text-hover); // Use derived CSS variable
+        }
+    }
+     .page-item.disabled .page-link {
+        background-color: var(--nexus-content-bg);
+        border-color: var(--nexus-border-color);
+        color: var(--nexus-text-secondary);
+    }
+}
+
+
+// 5. UI Elements (Continued - specific for Asset Reports)
+// ---------------------------------------------------------
+
+.asset-report-item {
+    transition: var(--nexus-transition-base);
+    border-left-width: 4px;
+    border-left-color: var(--nexus-border-color);
+
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+    }
+
+    &.status-pending { border-left-color: var(--nexus-warning); }
+    &.status-in-progress { border-left-color: var(--nexus-info); }
+    &.status-resolved { border-left-color: var(--nexus-success); }
+    &.status-rejected { border-left-color: var(--nexus-danger); }
+
+    .font-heading {
+        font-family: var(--nexus-font-heading);
+    }
+    .badge {
+        font-size: 0.85rem;
+    }
+}
+
+// 5. UI Elements (Continued - specific for Notifications & Chat)
+// ---------------------------------------------------------
+
+.notification-item {
+    border-left-width: 4px;
+    border-left-color: transparent;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+
+    .notification-icon {
+        .badge {
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+
+    .notification-title {
+        font-weight: 500;
+        color: var(--nexus-text-primary);
+    }
+    .notification-timestamp {
+        font-size: 0.8em;
+    }
+    .notification-text {
+        font-size: 0.9em;
+        color: var(--nexus-text-secondary);
+        line-height: 1.4;
+    }
+
+    &.unread-notification, &.list-group-item-primary {
+        border-left-color: var(--nexus-primary) !important;
+        .notification-title {
+            font-weight: 600;
+        }
+    }
+
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg) !important;
+    }
+}
+
+.notification-list-full {
+    .notification-item {
+        margin-bottom: 0.5rem;
+        border-radius: var(--nexus-border-radius);
+        &:last-child {
+            margin-bottom: 0;
+            border-bottom: 0 !important;
+        }
+    }
+}
+
+.contact-list-item-clickable {
+    transition: var(--nexus-transition-base);
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        .font-heading {
+            color: var(--nexus-primary);
+        }
+        .bi-send-plus-fill, .bi-chat-fill {
+            transform: scale(1.1);
+            opacity: 1;
+        }
+    }
+     .bi-send-plus-fill, .bi-chat-fill {
+        transition: var(--nexus-transition-base);
+    }
+}
+
+// 5. UI Elements (Continued - specific for Chat)
+// ---------------------------------------------------------
+
+.chat-message {
+    .message-bubble {
+        border-radius: 1.25rem;
+        word-wrap: break-word;
+        max-width: 100%;
+        font-size: 0.95rem;
+        line-height: 1.5;
+
+        p:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    &.sent {
+        .message-bubble {
+            background-color: var(--nexus-primary);
+            color: #fff;
+            border-bottom-right-radius: 0.5rem;
+        }
+    }
+    &.received {
+        .message-bubble {
+            background-color: var(--nexus-content-bg);
+            color: var(--nexus-text-primary);
+            border: 1px solid var(--nexus-border-color);
+            border-bottom-left-radius: 0.5rem;
+        }
+        [data-bs-theme="dark"] & .message-bubble {
+             background-color: var(--nexus-light);
+             color: var(--nexus-text-primary);
+             border-color: var(--nexus-border-color);
+        }
+    }
+    .message-timestamp {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+}
+
+.chat-input-area {
+    textarea#chatMessageInput {
+        max-height: 120px;
+        overflow-y: auto;
+    }
+    .btn-primary i.bi-send-fill {
+        font-size: 1.1rem;
+    }
+    #typingIndicator {
+        font-size: 0.8rem;
+        font-style: italic;
+        color: var(--nexus-text-secondary);
+        min-height: 1.2em;
+        transition: opacity 0.3s ease-in-out;
+    }
+}
+
+.contact-list-item-clickable {
+    .contact-name {
+        font-weight: 500;
+    }
+    .contact-role, .contact-last-active, .contact-last-message-snippet {
+        font-size: 0.85rem;
+    }
+    .contact-action-icon {
+        transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    }
+}
+
+.sticky-top {
+    background-color: var(--nexus-content-bg) !important;
+    [data-bs-theme="dark"] & {
+        background-color: var(--nexus-content-bg) !important;
+    }
+}
+
+// 5. UI Elements (Continued - specific for Social Features)
+// ---------------------------------------------------------
+
+.social-post-item {
+    .card-header {
+        background-color: var(--nexus-content-bg) !important;
+        border-bottom: 1px solid var(--nexus-border-color) !important;
+    }
+
+    .post-content-text {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: var(--nexus-text-primary);
+        white-space: pre-wrap;
+    }
+    .post-attachment {
+        img, video {
+            border: 1px solid var(--nexus-border-color);
+        }
+        .d-flex.align-items-center.p-2 {
+            border: 1px solid var(--nexus-border-color);
+            border-radius: var(--nexus-border-radius);
+            background-color: var(--nexus-sidebar-link-hover-bg);
+            a {
+                font-weight: 500;
+            }
+        }
+    }
+
+    .post-actions {
+        .btn.reaction-btn {
+            padding: 0.25rem 0.6rem;
+            font-size: 0.85rem;
+            color: var(--nexus-text-secondary);
+            border-color: var(--nexus-border-color);
+            &:hover, &.active {
+                color: var(--nexus-primary);
+                border-color: var(--nexus-primary);
+                background-color: rgba(var(--nexus-primary-rgb), 0.1);
+            }
+            &.active {
+                 color: var(--nexus-primary);
+                 font-weight: 600;
+                 i.bi {
+                     color: var(--nexus-primary) !important;
+                 }
+            }
+            i.bi {
+                vertical-align: text-bottom;
+                margin-right: 0.25rem;
+                font-size: 1em;
+            }
+            .reaction-count {
+                font-size: 0.9em;
+                margin-left: 0.2rem;
+            }
+        }
+        .comment-toggle-btn {
+             color: var(--nexus-text-secondary);
+             border-color: var(--nexus-border-color);
+             &:hover {
+                color: var(--nexus-primary);
+                border-color: var(--nexus-primary);
+                background-color: rgba(var(--nexus-primary-rgb), 0.1);
+             }
+        }
+    }
+
+    .comments-section {
+        background-color: var(--nexus-body-bg);
+        padding-top: 0.5rem;
+        .comment-form {
+            textarea.comment-input {
+                font-size: 0.9rem;
+                border-top-right-radius: 0;
+                border-bottom-right-radius: 0;
+            }
+            .comment-submit-btn {
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+            }
+        }
+    }
+}
+
+.social-comment-item {
+    .comment-bubble {
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+    .comment-actions .btn-link {
+        color: var(--nexus-text-secondary);
+        &:hover { color: var(--nexus-primary); }
+    }
+    .comment-timestamp {
+        font-size: 0.75rem;
+    }
+     .comment-content-text {
+        white-space: pre-wrap;
+    }
+}
+
+.social-content-form-card {
+    .card-body {
+        padding: 1rem;
+    }
+    .post-content-textarea {
+        min-height: 80px;
+        font-size: 1rem;
+        line-height: 1.5;
+        resize: vertical;
+    }
+    .post-attachment-area {
+        .form-control-sm {
+            font-size: 0.875rem;
+        }
+    }
+    .post-submit-btn {
+        font-weight: 500;
+    }
+}
+
+// 5. UI Elements (Continued - specific for Social Channels)
+// ---------------------------------------------------------
+
+.channel-card {
+    transition: var(--nexus-transition-base);
+    border-radius: var(--nexus-border-radius-lg);
+
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--nexus-shadow);
+    }
+    .channel-card-image-link {
+        display: block;
+    }
+    .channel-card-img-placeholder {
+        border-top-left-radius: var(--nexus-border-radius-lg);
+        border-top-right-radius: var(--nexus-border-radius-lg);
+        .bi {
+            opacity: 0.6;
+        }
+    }
+    img.img-fluid {
+        border-top-left-radius: var(--nexus-border-radius-lg);
+        border-top-right-radius: var(--nexus-border-radius-lg);
+    }
+
+    .card-body {
+        padding: 1rem 1.25rem;
+        .card-title a {
+            color: var(--nexus-text-primary);
+            &:hover { color: var(--nexus-primary); }
+        }
+    }
+
+    .card-footer {
+        font-size: 0.85rem;
+        .channel-action-btn {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
+        }
+    }
+}
+
+.nav-tabs {
+    border-bottom-color: var(--nexus-border-color);
+    .nav-link {
+        color: var(--nexus-text-secondary);
+        font-weight: 500;
+        border-bottom-width: 2px;
+        padding: 0.75rem 1.25rem;
+        &:hover {
+            border-color: var(--nexus-sidebar-link-hover-bg) var(--nexus-sidebar-link-hover-bg) var(--nexus-border-color);
+            color: var(--nexus-primary);
+        }
+        &.active {
+            color: var(--nexus-primary);
+            background-color: var(--nexus-content-bg);
+            border-color: var(--nexus-border-color) var(--nexus-border-color) var(--nexus-content-bg);
+            font-weight: 600;
+        }
+    }
+}
+[data-bs-theme="dark"] .nav-tabs {
+     .nav-link {
+        color: var(--nexus-text-secondary);
+        &:hover {
+             border-color: var(--nexus-sidebar-link-hover-bg) var(--nexus-sidebar-link-hover-bg) var(--nexus-border-color);
+             color: var(--nexus-primary);
+        }
+         &.active {
+            color: var(--nexus-primary);
+            background-color: var(--nexus-content-bg);
+            border-color: var(--nexus-border-color) var(--nexus-border-color) var(--nexus-content-bg);
+        }
+     }
+}
+
+// 5. UI Elements (Continued - specific for Social Channels View/Create)
+// ---------------------------------------------------------
+.channel-header {}
+.channel-sidebar {
+    .card {}
+}
+.social-feed-container {}
+
+
+// 5. UI Elements (Continued - specific for Social Groups)
+// ---------------------------------------------------------
+
+.group-card {
+    transition: var(--nexus-transition-base);
+    border-radius: var(--nexus-border-radius-lg);
+
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--nexus-shadow);
+    }
+    .group-card-img-placeholder {
+        border-top-left-radius: var(--nexus-border-radius-lg);
+        border-top-right-radius: var(--nexus-border-radius-lg);
+        .bi { opacity: 0.6; }
+    }
+    img.img-fluid {
+        border-top-left-radius: var(--nexus-border-radius-lg);
+        border-top-right-radius: var(--nexus-border-radius-lg);
+    }
+    .card-title a {
+        color: var(--nexus-text-primary);
+        &:hover { color: var(--nexus-primary); }
+    }
+    .card-footer {
+        font-size: 0.85rem;
+        .group-action-btn {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
+        }
+    }
+}
+
+.group-header {}
+.group-chat-window {}
+.group-chat-input-area {
+    .social-content-form-card {
+        margin-bottom: 0 !important;
+        border: none;
+        box-shadow: none;
+    }
+}
+
+// 5. UI Elements (Continued - specific for Social Management)
+// ---------------------------------------------------------
+.table {
+    .form-select-sm {
+        min-width: 120px;
+        font-size: 0.85rem;
+    }
+}
+
+// 5. UI Elements (Continued - FilePond Integration)
+// ---------------------------------------------------------
+.filepond--root {
+    font-family: var(--nexus-font-sans-serif);
+    border-radius: var(--nexus-border-radius);
+    margin-bottom: 0.5rem;
+}
+.filepond--panel-root {
+    background-color: var(--nexus-sidebar-link-hover-bg);
+    border: 1px dashed var(--nexus-border-color);
+    [data-bs-theme="dark"] & {
+        background-color: var(--nexus-light);
+        border: 1px dashed var(--nexus-border-color);
+    }
+}
+.filepond--drop-label {
+    color: var(--nexus-text-secondary);
+    label {
+        font-size: 0.95rem;
+    }
+}
+.filepond--label-action {
+    color: var(--nexus-primary);
+    font-weight: 500;
+    text-decoration-color: var(--nexus-primary);
+}
+.filepond-errors span {
+    font-size: 0.875em;
+    color: var(--nexus-danger);
+}
+
+// 5. UI Elements (Continued - specific for Talent Club)
+// ---------------------------------------------------------
+.talent-club-card {
+    transition: var(--nexus-transition-base);
+    border-radius: var(--nexus-border-radius-lg);
+    border-left: 4px solid transparent;
+
+    &.status-active { border-left-color: var(--nexus-success); }
+    &.status-pending-review { border-left-color: var(--nexus-warning); }
+
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--nexus-shadow);
+        border-left-color: var(--nexus-primary);
+    }
+    .tc-club-card-image-link { display: block; }
+    .tc-club-card-img-placeholder {
+        border-top-left-radius: calc(var(--nexus-border-radius-lg) - 1px);
+        border-top-right-radius: calc(var(--nexus-border-radius-lg) - 1px);
+        .bi { opacity: 0.65; }
+    }
+    img.img-fluid {
+        border-top-left-radius: calc(var(--nexus-border-radius-lg) - 1px);
+        border-top-right-radius: calc(var(--nexus-border-radius-lg) - 1px);
+    }
+
+    .card-title a {
+        color: var(--nexus-text-primary);
+        font-weight: 600;
+        &:hover { color: var(--nexus-primary); }
+    }
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .card-footer {
+        font-size: 0.85rem;
+        .tc-action-btn {
+            font-size: 0.8rem;
+            padding: 0.35rem 0.7rem;
+        }
+    }
+}
+
+// 5. UI Elements (Continued - specific for Talent Club Feeds)
+// ---------------------------------------------------------
+.tc-feed-post-item {
+    .card-header {}
+}
+.tc-feed-container {}
+.tc-feed-post-item .comments-section {}
+.tc-comment-form {}
+
+// 5. UI Elements (Continued - specific for Talent Club Proposals)
+// ---------------------------------------------------------
+.tc-proposal-item {
+    transition: var(--nexus-transition-base);
+    border-left-width: 4px;
+    border-left-color: var(--nexus-border-color);
+
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        border-left-color: var(--nexus-primary);
+    }
+    .font-heading {
+        font-family: var(--nexus-font-heading);
+    }
+    .badge {
+        font-size: 0.8rem;
+    }
+}
+
+.feature-card-hover {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--nexus-shadow);
+    }
+    .card-body .bi {
+        transition: transform 0.3s ease-out;
+    }
+    &:hover .card-body .bi {
+        transform: scale(1.1);
+    }
+}
+
+
+// 5. UI Elements (Continued - specific for TC Community Group)
+// ---------------------------------------------------------
+.tc-community-header {}
+.tc-community-chat-window {}
+.tc-community-input-area {
+    .social-content-form-card {
+        margin-bottom: 0 !important;
+        border: none;
+        box-shadow: none;
+    }
+}
+
+// 5. UI Elements (Continued - specific for TC Leader Admin Views)
+// ---------------------------------------------------------
+.tc-proposal-item {
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+    }
+}
+
+#reviewProposalForm {
+    .card-header {}
+    dl.row dt {
+        font-weight: 500;
+        color: var(--nexus-text-secondary);
+    }
+    dl.row dd {
+        margin-bottom: 0.75rem;
+    }
+    .blockquote {
+        font-size: 0.95rem;
+        border-left: 3px solid var(--nexus-border-color);
+    }
+    .list-group-item {
+        img { margin-right: 0.75rem; }
+    }
+    @media (min-width: 992px) {
+        .sticky-lg-top {
+           top: calc(56px + 1.5rem);
+        }
+    }
+}
+
+// 5. UI Elements (Continued - specific for TC Leader Admin Tables)
+// ---------------------------------------------------------
+.tc-club-management-table, .tc-member-management-table {
+    th, td {
+        font-size: 0.9rem;
+    }
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .btn-sm i.fs-6 {
+        vertical-align: -0.1em;
+    }
+    .form-select-sm {
+        min-width: 120px;
+        font-size: 0.85rem;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+}
+
+// 5. UI Elements (Continued - specific for TC Leader/Election Management)
+// ---------------------------------------------------------
+.list-group-item-light {
+    font-size: 0.9rem;
+    img {
+        border: 1px solid var(--nexus-border-color);
+    }
+}
+#tcLeaderVoteForm {
+    .form-select {}
+}
+
+// 5. UI Elements (Continued - specific for Task System Views)
+// ---------------------------------------------------------
+.task-list-item {
+    transition: var(--nexus-transition-base);
+    border-left-width: 4px;
+    border-left-color: var(--nexus-border-color);
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        border-left-color: var(--nexus-primary);
+    }
+    .task-title {
+        font-weight: 500;
+        color: var(--nexus-text-primary);
+    }
+    .task-description {
+        color: var(--nexus-text-secondary);
+    }
+    .task-due-date, .task-creator {
+        font-size: 0.85rem;
+    }
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.3em 0.6em;
+    }
+}
+
+#userTaskDetailContainer {
+    .dl-row dt {
+        font-weight: 500;
+        color: var(--nexus-text-secondary);
+    }
+    .dl-row dd {
+        margin-bottom: 0.85rem;
+    }
+    .card-header h5.font-heading {
+        font-size: 1.15rem;
+    }
+}
+
+.task-history-entry {
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--nexus-border-color);
+    &:last-child {
+        border-bottom: none;
+    }
+    .history-timestamp, .history-actor {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    .history-action {
+        .badge {
+            font-size: 0.75rem;
+            padding: .2em .5em;
+            vertical-align: middle;
+        }
+    }
+    .history-notes {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        padding: 0.3rem 0.5rem;
+        border-radius: var(--nexus-border-radius);
+        font-size: 0.85rem;
+        color: var(--nexus-text-secondary);
+    }
+}
+
+// 5. UI Elements (Continued - specific for Task Creator Views)
+// ---------------------------------------------------------
+.task-creator-view-item {
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+}
+.user-task-assignment-item {
+    .assignee-name {
+        font-weight: 500;
+    }
+    .assignment-notes {
+        font-size: 0.85rem;
+        strong { font-weight: 600; }
+    }
+    .badge.fs-08rem {
+        font-size: 0.8rem;
+    }
+}
+
+// 5. UI Elements (Continued - specific for Request System)
+// ---------------------------------------------------------
+.request-list-item {
+    transition: var(--nexus-transition-base);
+    border-left-width: 4px;
+    border-left-color: var(--nexus-border-color);
+    &:hover {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        border-left-color: var(--nexus-primary);
+    }
+    .request-title {
+        font-weight: 500;
+        color: var(--nexus-text-primary);
+    }
+    .request-last-updated, .request-meta, .request-status, .request-description {
+        font-size: 0.875rem;
+    }
+    .request-meta .badge, .request-status .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+}
+
+.request-detail-view {
+    dl.row dt {
+        font-weight: 500;
+        color: var(--nexus-text-secondary);
+    }
+    dl.row dd {
+        margin-bottom: 0.85rem;
+        color: var(--nexus-text-primary);
+    }
+    .blockquote {
+        font-size: 0.95rem;
+        border-left: 3px solid var(--nexus-border-color);
+    }
+}
+
+.request-history-item {
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--nexus-border-color);
+    &:last-child {
+        border-bottom: none;
+    }
+    .history-timestamp, .history-actor {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+    .history-action .badge {
+        font-size: 0.75rem;
+        padding: .2em .5em;
+        vertical-align: middle;
+    }
+    .history-notes {
+        background-color: var(--nexus-sidebar-link-hover-bg);
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--nexus-border-radius);
+        font-size: 0.875rem;
+        color: var(--nexus-text-secondary);
+        white-space: pre-wrap;
+        border-left-width: 3px !important;
+    }
+}
+
+// 5. UI Elements (Continued)
+// ---------------------------------------------------------
+.assignment-section-sub {
+    border-left: 3px solid var(--nexus-info);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: rgba(var(--nexus-info-rgb), 0.05);
+    border-radius: var(--nexus-border-radius);
+}
+[data-bs-theme="dark"] .assignment-section-sub {
+    background-color: rgba(var(--nexus-info-rgb), 0.1);
+    border-left-color: var(--nexus-info);
+}
+
+// 5. UI Elements (Continued - specific for Student DB & Behavior)
+// ---------------------------------------------------------
+.list-group-item-action {
+    h5.font-heading {
+        color: var(--nexus-primary);
+        transition: var(--nexus-transition-base);
+    }
+    &:hover h5.font-heading {
+        color: var(--nexus-primary-text-hover); // Use derived CSS variable
+    }
+    .bi-chevron-right {
+        transition: transform 0.2s ease-in-out;
+    }
+    &:hover .bi-chevron-right {
+        transform: translateX(3px);
+    }
+}
+
+.student-roster-table {
+    th, td {
+        font-size: 0.9rem;
+    }
+    .btn-sm i.fs-6 {
+        vertical-align: -0.1em;
+    }
+    td a {
+        font-weight: 500;
+    }
+    .bi-star-fill, .bi-trophy-fill {
+        font-size: 1.1em;
+    }
+}
+
+// 7. Analytics & Charts section
+// ---------------------------------------------------------
+.chart-container {
+    position: relative;
+    min-height: 250px;
+    height: 300px;
+    width: 100%;
+    background-color: var(--nexus-sidebar-link-hover-bg);
+    border-radius: var(--nexus-border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--nexus-border-color);
+    padding: 0.5rem;
+    canvas {
+        max-width: 100%;
+        max-height: 100%;
+    }
+    .content-placeholder {
+        border: none;
+        background-color: transparent;
+        padding: 1rem;
+    }
+}
+
+[data-bs-theme="dark"] .chart-container {
+    background-color: var(--nexus-light);
+    border-color: var(--nexus-border-color);
+}

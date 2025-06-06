@@ -1,0 +1,143 @@
+{# templates/partials/_tc_feed_post_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase F.2 #}
+{#
+    Reusable item for displaying a single Talent Club feed post.
+    Expects a `post` object (TalentClubFeedPost instance) and `current_user` in the context.
+    Also expects `club` (the TalentClub instance the feed belongs to).
+    - post.author (User object)
+    - post.content (text content)
+    - post.file (File object, optional)
+    - post.timestamp
+    - post.id
+    - post.comments (relationship to TalentClubFeedComment)
+    - post.reactions (relationship to TalentClubFeedReaction)
+    - club.feed (TalentClubFeed object, to check allow_comments/reactions settings)
+#}
+
+{% set author_name = post.author.full_name or post.author.username if post.author else "Anonymous" %}
+{% set author_avatar = url_for('static', filename=(post.author.profile_photo_url if post.author and post.author.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+
+<div class="card shadow-sm tc-feed-post-item mb-4" id="tc_feed_post-{{ post.id }}">
+    <div class="card-header bg-transparent border-bottom-0 pt-3 pb-2">
+        <div class="d-flex align-items-center">
+            <a href="#" class="text-decoration-none"> {# Link to author's TC profile or general profile #}
+                <img src="{{ author_avatar }}" alt="{{ author_name }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">
+            </a>
+            <div>
+                <a href="#" class="text-decoration-none">
+                    <h6 class="mb-0 font-heading text-dark">{{ author_name }}</h6>
+                </a>
+                <small class="text-muted" title="{{ post.timestamp | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+                    {{ post.timestamp | humanize_time_diff }}
+                    {% if post.is_edited %} <span class="fst-italic">(edited)</span>{% endif %}
+                </small>
+            </div>
+            {# Post Actions Dropdown (Edit, Delete - for author or club owner/admin) #}
+            {% set user_is_post_author = post.author_id == current_user.id %}
+            {% set user_is_club_owner_or_admin = (club and club.owner_id == current_user.id) or (current_user.get_tc_club_membership_role(club) == 'admin') %} {# get_tc_club_membership_role is hypothetical helper #}
+
+            {% if user_is_post_author or user_is_club_owner_or_admin %}
+            <div class="ms-auto">
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% if user_is_post_author %}
+                        <li><a class="dropdown-item edit-tc-feed-post-btn" href="#" data-post-id="{{ post.id }}"><i class="bi bi-pencil-square me-2"></i>Edit Post</a></li>
+                        {% endif %}
+                        <li>
+                            <button class="dropdown-item text-danger delete-tc-feed-post-btn" data-post-id="{{ post.id }}">
+                                <i class="bi bi-trash-fill me-2"></i>Delete Post
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-body pt-2">
+        {% if post.content %}
+            <p class="card-text post-content-text mb-2" id="tc-post-content-{{ post.id }}">{{ post.content | nl2br | safe }}</p>
+        {% endif %}
+
+        {% if post.file %}
+            <div class="post-attachment mt-2 mb-2 p-2 border rounded bg-light-subtle">
+                {# File display logic similar to _social_post_item.html #}
+                {% if post.file.mimetype and post.file.mimetype.startswith('image/') %}
+                    <a href="{{ url_for('download_social_file', file_id=post.file.id) }}" data-bs-toggle="lightbox" data-gallery="tc-post-{{post.id}}-gallery">
+                        <img src="{{ url_for('download_social_file', file_id=post.file.id) }}" class="img-fluid rounded" alt="{{ post.file.original_filename }}" style="max-height: 400px;">
+                    </a>
+                {% elif post.file.mimetype and post.file.mimetype.startswith('video/') %}
+                    <video controls class="img-fluid rounded" style="max-height: 400px;">
+                        <source src="{{ url_for('download_social_file', file_id=post.file.id) }}" type="{{ post.file.mimetype }}">
+                        Your browser does not support the video tag.
+                    </video>
+                {% elif post.file.mimetype and post.file.mimetype.startswith('audio/') %}
+                     <audio controls class="w-100 mt-2">
+                        <source src="{{ url_for('download_social_file', file_id=post.file.id) }}" type="{{ post.file.mimetype }}">
+                        Your browser does not support the audio element.
+                    </audio>
+                {% else %}
+                    <div class="d-flex align-items-center p-2">
+                        <i class="bi bi-file-earmark-text-fill fs-2 text-secondary me-2"></i>
+                        <div>
+                            <a href="{{ url_for('download_social_file', file_id=post.file.id) }}" class="fw-medium text-decoration-none stretched-link" download="{{ post.file.original_filename }}">
+                                {{ post.file.original_filename }}
+                            </a>
+                            <small class="d-block text-muted">({{ (post.file.size / 1024 / 1024) | round(2) if post.file.size else '0' }} MB)</small>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="card-footer bg-transparent pt-2 pb-2">
+        <div class="d-flex justify-content-start align-items-center post-actions">
+            {% if club.feed and club.feed.allow_reactions %}
+                <button class="btn btn-sm btn-outline-secondary tc-reaction-btn me-2" data-post-id="{{ post.id }}" data-reaction-emoji="👍" title="Like">
+                    <i class="bi bi-hand-thumbs-up"></i> <span class="reaction-count" data-emoji="👍">{{ post.reactions.filter_by(emoji="👍").count() }}</span>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary tc-reaction-btn me-2" data-post-id="{{ post.id }}" data-reaction-emoji="❤️" title="Love">
+                    <i class="bi bi-heart"></i> <span class="reaction-count" data-emoji="❤️">{{ post.reactions.filter_by(emoji="❤️").count() }}</span>
+                </button>
+                {# Add more reaction buttons if desired #}
+            {% endif %}
+
+            {% if club.feed and club.feed.allow_comments %}
+            <button class="btn btn-sm btn-outline-secondary comment-toggle-btn ms-auto" data-bs-toggle="collapse" href="#tcCommentsCollapse-{{ post.id }}" role="button" aria-expanded="false" aria-controls="tcCommentsCollapse-{{ post.id }}">
+                <i class="bi bi-chat-square-text me-1"></i> Comments <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">{{ post.comments | length if post.comments else 0 }}</span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Collapsible Comments Section for TC Feed Posts #}
+    {% if club.feed and club.feed.allow_comments %}
+    <div class="collapse comments-section border-top" id="tcCommentsCollapse-{{ post.id }}">
+        <div class="p-3">
+            <div class="existing-comments mb-3" id="tc-comments-list-{{ post.id }}" style="max-height: 300px; overflow-y: auto;">
+                {% if post.comments and post.comments | length > 0 %}
+                    {% for comment in post.comments | sort(attribute='timestamp') %}
+                        {# Reusing _social_comment_item.html, ensure it adapts or create _tc_comment_item.html #}
+                        {% include 'partials/_social_comment_item.html' with {'comment': comment, 'current_user': current_user, 'post': post, 'context_type': 'tc_feed'} %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small text-center no-comments-yet">No comments yet. Be the first!</p>
+                {% endif %}
+            </div>
+            <form class="tc-comment-form" data-post-id="{{ post.id }}" method="POST"> {# Action handled by JS #}
+                <div class="input-group">
+                    <textarea class="form-control form-control-sm comment-input" name="content" rows="1" placeholder="Write a comment..." aria-label="Write a comment"></textarea>
+                    <button class="btn btn-sm btn-primary tc-comment-submit-btn" type="submit">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>

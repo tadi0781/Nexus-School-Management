@@ -1,0 +1,29 @@
+{# templates/partials/_dashboard_quick_links.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase B.1 #}
+{#
+    Reusable dashboard quick links section.
+    Expects `quick_links` in the context: a list of dictionaries, where each dict has:
+    - 'url': (String) The URL for the link.
+    - 'text': (String) The display text for the link.
+    - 'icon': (String) Bootstrap Icon class (e.g., "bi-calendar-event").
+    - 'color_class': (String, optional) Bootstrap text color class for the icon (e.g., "text-success").
+#}
+{% if quick_links and quick_links | length > 0 %}
+<div class="card shadow-sm dashboard-quick-links-card">
+    <div class="card-header">
+        <h5 class="mb-0 font-heading"><i class="bi bi-lightning-charge-fill me-2"></i>Quick Actions</h5>
+    </div>
+    <div class="list-group list-group-flush">
+        {% for link in quick_links %}
+            <a href="{{ link.url | default('#') }}" class="list-group-item list-group-item-action d-flex align-items-center py-3">
+                <i class="bi {{ link.icon | default('bi-link-45deg') }} fs-5 me-3 {{ link.color_class | default('text-primary') }}" style="min-width: 24px;"></i>
+                <span class="fw-medium">{{ link.text | default('Link') }}</span>
+                <i class="bi bi-chevron-right ms-auto text-muted small"></i>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<!-- Optional: Placeholder if no quick links are provided -->
+<!-- <p class="text-muted">No quick actions available at this time.</p> -->
+{% endif %}

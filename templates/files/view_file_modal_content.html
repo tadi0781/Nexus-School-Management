@@ -1,0 +1,29 @@
+{# templates/files/view_file_modal_content.html (Conceptual) #}
+{# Expects `file_to_preview` (File object) #}
+<div class="modal-header">
+    <h5 class="modal-title font-heading" id="filePreviewModalLabel">{{ file_to_preview.original_filename }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+<div class="modal-body text-center">
+    {% if file_to_preview.mimetype and file_to_preview.mimetype.startswith('image/') %}
+        <img src="{{ url_for('download_social_file', file_id=file_to_preview.id) }}" class="img-fluid rounded" alt="Preview">
+    {% elif file_to_preview.mimetype and file_to_preview.mimetype.startswith('video/') %}
+        <video controls class="img-fluid rounded" style="max-height: 70vh;">
+            <source src="{{ url_for('download_social_file', file_id=file_to_preview.id) }}" type="{{ file_to_preview.mimetype }}">
+            Your browser does not support the video tag.
+        </video>
+    {% elif file_to_preview.mimetype == 'application/pdf' %}
+        <object data="{{ url_for('download_social_file', file_id=file_to_preview.id) }}" type="application/pdf" width="100%" height="500px">
+            <p>PDF preview not available. <a href="{{ url_for('download_social_file', file_id=file_to_preview.id) }}">Download PDF</a>.</p>
+        </object>
+    {% else %}
+        <i class="bi bi-file-earmark-text-fill display-1 text-secondary mb-3"></i>
+        <p>No preview available for this file type.</p>
+    {% endif %}
+</div>
+<div class="modal-footer">
+    <a href="{{ url_for('download_social_file', file_id=file_to_preview.id) }}" class="btn btn-primary" download="{{ file_to_preview.original_filename }}">
+        <i class="bi bi-download me-2"></i>Download ({{ (file_to_preview.size / 1024 / 1024) | round(2) }} MB)
+    </a>
+    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+</div>

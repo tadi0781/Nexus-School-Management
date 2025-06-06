@@ -1,0 +1,43 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Server Error (500){% endblock %}
+
+{% block content %}
+{% set no_sidebar = True if not current_user or not current_user.is_authenticated else False %} {# Show sidebar if user is logged in #}
+
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <i class="bi bi-exclamation-octagon-fill text-danger display-1 mb-4"></i>
+            <h1 class="display-4 font-heading text-danger">Internal Server Error</h1>
+            <p class="lead text-muted">
+                We apologize for the inconvenience. Something went wrong on our end.
+            </p>
+            <p class="text-muted">
+                Our team has been notified and we are working to resolve the issue as soon as possible.
+            </p>
+            <hr class="my-4">
+            <p class="mb-1">
+                Please try again later. If the problem persists, you can contact support.
+            </p>
+            <p class="text-muted small">
+                (Error Code: 500 Internal Server Error)
+            </p>
+            <div class="mt-4">
+                 {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('role_redirect') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-house-door-fill me-2"></i>Go to Dashboard
+                    </a>
+                {% else %}
+                     <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-house-door-fill me-2"></i>Go to Homepage
+                    </a>
+                {% endif %}
+                <a href="javascript:location.reload();" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

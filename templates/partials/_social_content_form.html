@@ -1,0 +1,55 @@
+{# templates/partials/_social_content_form.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase E.5 (FilePond Integration) #}
+{#
+    Reusable form for creating social content (posts in channels, groups, TC feeds).
+    Expects `post_form` (instance of PostContentForm) in the context.
+    Also expects `submit_url` and `submit_button_text`.
+    Optionally, `parent_id` (e.g., channel_id, group_id, feed_id).
+#}
+<div class="card shadow-sm social-content-form-card mb-3">
+    <div class="card-body p-3">
+        <form class="social-post-creation-form" method="POST" action="{{ submit_url }}" enctype="multipart/form-data" data-parent-id="{{ parent_id | default('') }}">
+            {{ post_form.hidden_tag() if post_form.hidden_tag }} {# CSRF for WTForms #}
+            
+            <div class="mb-2">
+                {{ post_form.content.label(class="form-label visually-hidden") }}
+                {{ post_form.content(class="form-control post-content-textarea" + (" is-invalid" if post_form.content.errors else ""), rows="3", placeholder="Share what's new...", aria_label="Post content") }}
+                {% if post_form.content.errors %}
+                    <div class="invalid-feedback d-block">
+                        {% for error in post_form.content.errors %}<span>{{ error }}</span><br>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            {# FilePond enabled input #}
+            <div class="mb-2 post-attachment-area">
+                {{ post_form.attached_file.label(class="form-label visually-hidden") }}
+                {# This input will be targeted by FilePond JS. Keep the name attribute. #}
+                <input type="file" 
+                       class="filepond-input {{ 'is-invalid' if post_form.attached_file.errors else '' }}"
+                       name="{{ post_form.attached_file.name }}" 
+                       id="{{ post_form.attached_file.id if post_form.attached_file.id else 'socialFilepondInput' }}"
+                       data-max-file-size="16MB"
+                       data-accepted-file-types="['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'audio/mpeg', 'audio/wav', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'text/plain', 'application/zip', 'application/x-rar-compressed']">
+                {# FilePond will replace this with its UI.
+                   Error display for file input might need adjustment if FilePond handles it internally. #}
+                {% if post_form.attached_file.errors %}
+                    <div class="invalid-feedback d-block filepond-errors"> {# Add a class for potential JS targeting if needed #}
+                        {% for error in post_form.attached_file.errors %}<span>{{ error }}</span><br>{% endfor %}
+                    </div>
+                {% endif %}
+                 <small class="form-text text-muted d-block mt-1">Max file size: 16MB. Images, videos, docs, archives supported.</small>
+            </div>
+            
+            {% if post_form.errors and (post_form.content.errors or post_form.attached_file.errors) and not (post_form.content.data or request.files.get(post_form.attached_file.name)) %}
+                 <div class="alert alert-danger alert-sm py-1 px-2 mt-2" role="alert">
+                    <small><i class="bi bi-exclamation-circle-fill me-1"></i> Message content or a file must be provided.</small>
+                </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-end align-items-center mt-2">
+                {{ post_form.submit(class="btn btn-primary btn-sm post-submit-btn", value=(submit_button_text | default("Post"))) }}
+            </div>
+        </form>
+    </div>
+</div>

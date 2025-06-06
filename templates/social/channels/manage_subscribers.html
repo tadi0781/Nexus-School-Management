@@ -1,0 +1,122 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Subscribers: {{ channel.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-gear me-2 text-primary"></i>Manage Subscribers
+        </h1>
+        <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Channel: {{ channel.name | truncate(30) }}
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Subscribers of "{{ channel.name }}"</h5>
+            {# Optional: Add User to Channel Button (for owner/admin) #}
+            {# <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addSubscriberModal"><i class="bi bi-person-plus-fill me-1"></i> Add Subscriber</button> #}
+        </div>
+        <div class="card-body p-0">
+            {% if subscribers and subscribers | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;">Avatar</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Global Role</th>
+                                <th scope="col">Channel Role</th>
+                                <th scope="col">Subscribed On</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub_entry in subscribers %}
+                                {% set user = sub_entry.user %}
+                                <tr id="subscriber-row-{{ user.id }}">
+                                    <td>
+                                        {% set sub_avatar = url_for('static', filename=(user.profile_photo_url if user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                        <img src="{{ sub_avatar }}" alt="{{ user.username }}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;">
+                                    </td>
+                                    <td class="fw-medium">
+                                        {{ user.full_name or user.username }}
+                                        {% if user.id == channel.owner_id %}<span class="badge bg-primary-subtle text-primary-emphasis ms-1 small">Owner</span>{% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ user.role.name.replace('_',' ') | title if user.role else 'N/A' }}</small></td>
+                                    <td>
+                                        {% if user.id == channel.owner_id %}
+                                            <span class="badge bg-primary-subtle text-primary-emphasis p-2">{{ sub_entry.role | title }}</span>
+                                        {% elif user_channel_role in ['owner'] or (user_channel_role == 'admin' and sub_entry.role != 'owner') %} {# Owner can edit all, Admin can edit non-owners #}
+                                            <select class="form-select form-select-sm change-channel-role-select" 
+                                                    data-channel-id="{{ channel.id }}" data-subscriber-id="{{ user.id }}"
+                                                    {% if user.id == current_user.id %}disabled title="Cannot change your own role here"{% endif %}>
+                                                <option value="subscriber" {% if sub_entry.role == 'subscriber' %}selected{% endif %}>Subscriber</option>
+                                                <option value="admin" {% if sub_entry.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                {% if user_channel_role == 'owner' %} {# Only owner can make other owners #}
+                                                {# <option value="owner" {% if sub_entry.role == 'owner' %}selected{% endif %}>Owner</option> #}
+                                                {# Transfer ownership is a more complex action, typically separate #}
+                                                {% endif %}
+                                            </select>
+                                        {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary-emphasis p-2">{{ sub_entry.role | title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ sub_entry.subscribed_at | dateformat }}</small></td>
+                                    <td class="text-center">
+                                        {% if user.id != channel.owner_id and user.id != current_user.id %} {# Cannot remove owner or self here #}
+                                         {% if user_channel_role in ['owner'] or (user_channel_role == 'admin' and sub_entry.role == 'subscriber') %}
+                                            <button class="btn btn-sm btn-outline-danger p-1 remove-channel-subscriber-btn"
+                                                    data-channel-id="{{ channel.id }}" data-subscriber-id="{{ user.id }}"
+                                                    data-subscriber-name="{{ user.full_name or user.username }}"
+                                                    title="Remove Subscriber">
+                                                <i class="bi bi-person-x-fill fs-6"></i>
+                                            </button>
+                                         {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-plus-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Subscribers Yet</h4>
+                    <p>This channel currently has no subscribers other than potentially the owner.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Modal for adding subscriber - placeholder for future implementation if direct add is desired
+<div class="modal fade" id="addSubscriberModal" tabindex="-1" aria-labelledby="addSubscriberModalLabel" aria-hidden="true"> ... </div>
+#}
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    // JavaScript for handling role changes and removals will be in social.js
+    // This script block can initialize any page-specific listeners or TomSelect if needed.
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for role dropdowns if they aren't too numerous.
+        // For larger lists, direct select might be fine.
+        document.querySelectorAll('.change-channel-role-select').forEach(selectEl => {
+            // new TomSelect(selectEl, {create: false}); // If TomSelect is desired
+            selectEl.addEventListener('change', handleChannelRoleChange);
+        });
+
+        // Remove buttons are handled by event delegation in social.js via .remove-channel-subscriber-btn
+        console.log('Manage Channel Subscribers JS loaded.');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "layout/base.html" %}
+{% block page_title %}My Borrowed Books{% endblock %}
+{% block content_header %}
+    <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0"><i class="bi bi-book-half me-2 text-primary"></i>My Borrowed Books</h1>
+        <a href="{{ url_for('student_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+        </a>
+    </div>
+{% endblock %}
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            {% if checkouts and checkouts | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for checkout in checkouts %}
+                        {% include 'partials/_book_checkout_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-journal-x display-3 mb-3"></i>
+                    <h4 class="font-heading">No Books Borrowed</h4>
+                    <p>You currently have no books checked out. <a href="{{ url_for('list_all_assets', category='Books') }}">Browse available books?</a></p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

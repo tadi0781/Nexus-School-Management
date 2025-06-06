@@ -1,0 +1,52 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Talent Club Proposals{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-file-earmark-check-fill me-2 text-primary"></i>My Submitted Proposals
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('create_talent_club_proposal') }}" class="btn btn-sm btn-success me-2">
+                <i class="bi bi-plus-circle-fill me-1"></i> Submit New Proposal
+            </a>
+            <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Configuration
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Your Club Proposals</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if proposals and proposals | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for proposal_loop_var in proposals %} {# Changed loop variable name for clarity to avoid collision if 'proposal' is set outside #}
+                        {# Set the context variables needed by the partial #}
+                        {% set proposal = proposal_loop_var %}
+                        {% set accepted_count = accepted_counts.get(proposal_loop_var.id, 0) %}
+                        
+                        {# Call include in its simplest form #}
+                        {% include 'partials/_tc_proposal_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-journal-richtext display-3 mb-3"></i>
+                    <h4 class="font-heading">No Proposals Submitted Yet</h4>
+                    <p>Ready to share your vision? <a href="{{ url_for('create_talent_club_proposal') }}">Propose a new Talent Club!</a></p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination if proposal list can be very long #}
+    </div>
+</div>
+{% endblock %}

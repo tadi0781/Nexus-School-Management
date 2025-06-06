@@ -1,0 +1,98 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Tasks I Assigned{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-card-checklist me-2 text-primary"></i>Tasks I Created & Assigned
+        </h1>
+        <a href="{{ url_for('create_task') }}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus-circle-fill me-1"></i> Create New Task
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Filters - Placeholder for future (e.g., filter by task status, urgency, due date range) #}
+    {# <div class="card shadow-sm mb-3">
+        <div class="card-body bg-light-subtle py-2 px-3">
+            <small class="text-muted">Filters: (Coming soon)</small>
+        </div>
+    </div> #}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Overview of Tasks You Created</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if my_created_tasks and my_created_tasks | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for task in my_created_tasks %}
+                        <div class="list-group-item task-creator-view-item py-3 px-3 mb-2 shadow-sm border rounded">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1 font-heading">
+                                    <a href="{{ url_for('view_assigned_task_detail', task_id=task.id) }}" class="text-decoration-none">
+                                        <i class="bi bi-journal-text me-1"></i> {{ task.title | truncate(60) }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">Created: {{ task.created_at | dateformat }}</small>
+                            </div>
+                            <p class="mb-2 text-muted small">{{ task.description | truncate(100) }}</p>
+                            <div class="d-flex justify-content-between align-items-center small">
+                                <div>
+                                    <span class="me-2" title="Urgency"><strong>Urgency:</strong>
+                                        {% if task.urgency == 'Critical' %}<span class="badge bg-danger text-white rounded-pill">{{ task.urgency }}</span>
+                                        {% elif task.urgency == 'High' %}<span class="badge bg-warning text-dark rounded-pill">{{ task.urgency }}</span>
+                                        {% else %}<span class="badge bg-info text-white rounded-pill">{{ task.urgency }}</span>{% endif %}
+                                    </span>
+                                    {% if task.due_date %}
+                                    <span title="Due Date"><strong>Due:</strong> {{ task.due_date | dateformat }}
+                                        {% if task.due_date < now.date() %}<span class="badge bg-danger-subtle text-danger-emphasis ms-1">OVERDUE</span>{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <a href="{{ url_for('view_assigned_task_detail', task_id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                                    View Assignments ({{ task.user_assignments.count() if task.user_assignments else 0 }}) <i class="bi bi-arrow-right-short"></i>
+                                </a>
+                            </div>
+                            {# Assignment Status Summary #}
+                            {% set counts = task_status_counts.get(task.id, {}) %}
+                            {% if counts %}
+                            <div class="mt-2 pt-2 border-top border-light-subtle">
+                                <small class="text-muted fw-medium">Assignment Statuses:</small>
+                                <div class="d-flex flex-wrap gap-2 mt-1">
+                                    {% for status, count in counts.items() %}
+                                        {% if count > 0 %}
+                                        <span class="badge rounded-pill px-2 py-1 fs-08rem
+                                            {% if status == 'Open' %} bg-info-subtle text-info-emphasis
+                                            {% elif status == 'In Progress' %} bg-primary-subtle text-primary-emphasis
+                                            {% elif status.endswith('(Pending Review)') %} bg-warning-subtle text-warning-emphasis
+                                            {% elif status == 'Accepted' %} bg-success-subtle text-success-emphasis
+                                            {% elif status == 'Review Rejected' %} bg-danger-subtle text-danger-emphasis
+                                            {% else %} bg-secondary-subtle text-secondary-emphasis {% endif %}">
+                                            {{ status | replace(' (Pending Review)', '') }}: {{ count }}
+                                        </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-journal-plus display-3 mb-3"></i>
+                    <h4 class="font-heading">No Tasks Created Yet</h4>
+                    <p>You haven't created and assigned any tasks. <a href="{{ url_for('create_task') }}">Create one now!</a></p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination #}
+    </div>
+</div>
+{% endblock %}

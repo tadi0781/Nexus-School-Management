@@ -1,0 +1,102 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Channels{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-broadcast-pin me-2 text-primary"></i>My Channels
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('social_channel_discover') }}" class="btn btn-sm btn-outline-info me-2">
+                <i class="bi bi-compass-fill me-1"></i> Discover Channels
+            </a>
+            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %} {# Role check for create button #}
+            <a href="{{ url_for('create_social_channel') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create New Channel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <ul class="nav nav-tabs mb-4" id="myChannelsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="subscribed-tab" data-bs-toggle="tab" data-bs-target="#subscribed-channels-pane" type="button" role="tab" aria-controls="subscribed-channels-pane" aria-selected="true">
+                <i class="bi bi-bell-fill me-1"></i> Subscribed Channels ({{ my_subscribed_channels | length if my_subscribed_channels else 0 }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="owned-tab" data-bs-toggle="tab" data-bs-target="#owned-channels-pane" type="button" role="tab" aria-controls="owned-channels-pane" aria-selected="false">
+                 <i class="bi bi-person-video3 me-1"></i> Owned Channels ({{ my_owned_channels | length if my_owned_channels else 0 }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myChannelsTabContent">
+        <div class="tab-pane fade show active" id="subscribed-channels-pane" role="tabpanel" aria-labelledby="subscribed-tab" tabindex="0">
+            {% if my_subscribed_channels and my_subscribed_channels | length > 0 %}
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                    {% for subscription in my_subscribed_channels %}
+                        {% set channel = subscription.channel %}
+                        {# Variables needed by _channel_card_item.html must be set before include #}
+                        {# current_user is assumed to be globally available from Flask-Login #}
+                        {% set is_subscribed = True %}
+                        {% set is_owner = (channel.owner_id == current_user.id) %}
+                        
+                        {# Call include in its simplest form #}
+                        {% include 'partials/_channel_card_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-broadcast display-3 mb-3"></i>
+                    <h4 class="font-heading">No Subscribed Channels Yet</h4>
+                    <p>You haven't subscribed to any channels. Why not <a href="{{ url_for('social_channel_discover') }}">discover some</a>?</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="tab-pane fade" id="owned-channels-pane" role="tabpanel" aria-labelledby="owned-tab" tabindex="0">
+            {% if my_owned_channels and my_owned_channels | length > 0 %}
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                    {% for channel in my_owned_channels %}
+                         {# Variables needed by _channel_card_item.html must be set before include #}
+                         {# 'channel' is the loop variable, 'current_user' is global #}
+                         {% set is_subscribed = True %} {# Owner is always subscribed conceptually #}
+                         {% set is_owner = True %}
+
+                         {# Call include in its simplest form #}
+                         {% include 'partials/_channel_card_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-plus-square-dotted display-3 mb-3"></i>
+                    <h4 class="font-heading">You Don't Own Any Channels</h4>
+                     {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+                    <p>Ready to start one? <a href="{{ url_for('create_social_channel') }}">Create a new channel</a>.</p>
+                    {% else %}
+                    <p>Users with creator permissions can start new channels.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // JS for handling channel subscribe/unsubscribe buttons if they are on this page
+        // and not just on the discover page. The logic would be in social.js
+        console.log('My Channels page JS loaded.');
+    });
+</script>
+{% endblock %}

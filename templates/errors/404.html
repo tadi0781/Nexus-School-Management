@@ -1,0 +1,43 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Page Not Found (404){% endblock %}
+
+{% block content %}
+{% set no_sidebar = True if not current_user or not current_user.is_authenticated else False %} {# Show sidebar if user is logged in #}
+
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <i class="bi bi-compass-fill text-warning display-1 mb-4"></i>
+            <h1 class="display-4 font-heading text-warning">Page Not Found</h1>
+            <p class="lead text-muted">
+                We're sorry, but the page you were looking for could not be found.
+            </p>
+            <p class="text-muted">
+                It might have been removed, had its name changed, or is temporarily unavailable.
+            </p>
+            <hr class="my-4">
+            <p class="mb-1">
+                Please check the URL for any typos, or try navigating from the main dashboard.
+            </p>
+            <p class="text-muted small">
+                (Error Code: 404 Not Found)
+            </p>
+            <div class="mt-4">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('role_redirect') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-house-door-fill me-2"></i>Go to Dashboard
+                    </a>
+                {% else %}
+                     <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg me-2">
+                        <i class="bi bi-house-door-fill me-2"></i>Go to Homepage
+                    </a>
+                {% endif %}
+                <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg">
+                    <i class="bi bi-arrow-left-circle-fill me-2"></i>Go Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

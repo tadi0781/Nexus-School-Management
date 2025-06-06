@@ -1,0 +1,123 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}All Book Checkouts{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-journals me-2 text-primary"></i>Manage Book Checkouts
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('checkout_book') }}" class="btn btn-sm btn-success me-2">
+                <i class="bi bi-journal-plus me-1"></i> New Checkout
+            </a>
+            <a href="{{ url_for('librarian_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                 <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Filters and Search Section #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light-subtle">
+            <form method="GET" action="{{ url_for('list_checkouts') }}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="statusFilter" class="form-label fw-medium text-muted small">Status:</label>
+                    <select name="status" id="statusFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Checkouts</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active (Not Returned)</option>
+                        <option value="overdue" {% if status_filter == 'overdue' %}selected{% endif %}>Active & Overdue</option>
+                        <option value="returned" {% if status_filter == 'returned' %}selected{% endif %}>Returned</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="searchFilter" class="form-label fw-medium text-muted small">Search (Book/User):</label>
+                    <input type="text" name="search" id="searchFilter" class="form-control form-control-sm" value="{{ search_query or '' }}" placeholder="Book title, borrower name/username...">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Checkout Listing #}
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">
+                {% if status_filter == 'active' %}Active Checkouts
+                {% elif status_filter == 'overdue' %}Overdue Checkouts
+                {% elif status_filter == 'returned' %}Returned Books
+                {% else %}All Checkouts{% endif %}
+            </h5>
+        </div>
+        <div class="card-body p-0"> {# No padding for full-width list group #}
+            {% if checkouts_paginated and checkouts_paginated.items %}
+                <div class="list-group list-group-flush">
+                    {% for checkout in checkouts_paginated.items %}
+                        {# Use the _book_checkout_item.html partial #}
+                        {% include 'partials/_book_checkout_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-journal-richtext display-3 mb-3"></i>
+                    <h4 class="font-heading">No Checkouts Found</h4>
+                    <p>There are no book checkouts matching your current filter criteria.</p>
+                     <a href="{{ url_for('list_checkouts') }}" class="btn btn-outline-primary mt-2"><i class="bi bi-arrow-counterclockwise me-1"></i>Clear Filters</a>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Pagination #}
+        {% if checkouts_paginated and (checkouts_paginated.has_prev or checkouts_paginated.has_next) %}
+            <div class="card-footer bg-light-subtle">
+                <nav aria-label="Checkout pagination" class="d-flex justify-content-center">
+                    <ul class="pagination shadow-sm mb-0">
+                        <li class="page-item {{ 'disabled' if not checkouts_paginated.has_prev else '' }}">
+                            <a class="page-link" href="{{ url_for('list_checkouts', page=checkouts_paginated.prev_num, status=status_filter, search=search_query) if checkouts_paginated.has_prev else '#' }}" aria-label="Previous">
+                                <span aria-hidden="true">«</span>
+                            </a>
+                        </li>
+                        {% for page_num in checkouts_paginated.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                            {% if page_num %}
+                                <li class="page-item {{ 'active' if page_num == checkouts_paginated.page else '' }}">
+                                    <a class="page-link" href="{{ url_for('list_checkouts', page=page_num, status=status_filter, search=search_query) }}">{{ page_num }}</a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                        {% endfor %}
+                        <li class="page-item {{ 'disabled' if not checkouts_paginated.has_next else '' }}">
+                            <a class="page-link" href="{{ url_for('list_checkouts', page=checkouts_paginated.next_num, status=status_filter, search=search_query) if checkouts_paginated.has_next else '#' }}" aria-label="Next">
+                                <span aria-hidden="true">»</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for the status filter dropdown
+        const statusFilterSelect = document.getElementById('statusFilter');
+        if (statusFilterSelect) {
+            new TomSelect(statusFilterSelect, {
+                create: false,
+                allowEmptyOption: false // "All Checkouts" is a valid selection
+            });
+        }
+        console.log('List Checkouts page JS loaded.');
+    });
+</script>
+{% endblock %}

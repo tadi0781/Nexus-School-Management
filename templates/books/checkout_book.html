@@ -1,0 +1,122 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Checkout Book{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-journal-arrow-up me-2 text-primary"></i>Checkout Book/Asset
+        </h1>
+        <a href="{{ url_for('librarian_dashboard') if current_user.role.name == 'librarian' else url_for('student_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Dashboard
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Book Checkout Form</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('checkout_book') }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.asset_id.label(class="form-label fw-medium") }}
+                            {{ form.asset_id(class="form-select tom-select-book" + (" is-invalid" if form.asset_id.errors else ""), placeholder="Search and select a book...") }}
+                            {% if form.asset_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.asset_id.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% elif not form.asset_id.choices or (form.asset_id.choices | length == 1 and form.asset_id.choices[0][0] == '') %}
+                                <div class="alert alert-warning mt-2" role="alert">
+                                  <i class="bi bi-exclamation-triangle-fill me-2"></i> No books are currently available for checkout.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {# Conditional User Selection for Librarians #}
+                        {% if is_librarian %}
+                            <div class="mb-3">
+                                {{ form.user_id.label(class="form-label fw-medium") }}
+                                {{ form.user_id(class="form-select tom-select-user" + (" is-invalid" if form.user_id.errors else ""), placeholder="Search and select a user...") }}
+                                {% if form.user_id.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.user_id.errors %}<span>{{ error }}</span>{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.due_date.label(class="form-label fw-medium") }}
+                            {{ form.due_date(class="form-control flatpickr-date" + (" is-invalid" if form.due_date.errors else ""), placeholder="Select due date") }}
+                            {% if form.due_date.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.due_date.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end">
+                             <a href="{{ url_for('librarian_dashboard') if current_user.role.name == 'librarian' else url_for('student_dashboard') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Checkout Book") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for Book selection
+        const bookSelect = document.getElementById('{{ form.asset_id.id }}');
+        if (bookSelect) {
+            new TomSelect(bookSelect, {
+                create: false,
+                placeholder: 'Search or select a book...',
+                // Add remote loading options here if book list is very large
+                // and backend provides an AJAX search endpoint for books
+                // render: {
+                //     option: function(data, escape) {
+                //         return `<div><span class="title">${escape(data.text)}</span></div>`;
+                //     },
+                //     item: function(data, escape) {
+                //         return `<div>${escape(data.text)}</div>`;
+                //     }
+                // }
+            });
+        }
+
+        // Initialize TomSelect for User selection (Librarian only)
+        {% if is_librarian %}
+        const userSelect = document.getElementById('{{ form.user_id.id }}');
+        if (userSelect) {
+            new TomSelect(userSelect, {
+                create: false,
+                placeholder: 'Search or select a user...',
+                // Add remote loading options here if user list is very large
+                // and backend provides an AJAX search endpoint for users
+            });
+        }
+        {% endif %}
+
+        // Initialize Flatpickr for due date
+        // Already handled by global Flatpickr init in main.js for class "flatpickr-date"
+
+        console.log('Checkout Book page JS loaded.');
+    });
+</script>
+{% endblock %}

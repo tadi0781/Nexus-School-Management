@@ -1,0 +1,129 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Chat with {{ target_user.full_name or target_user.username }}{% endblock %}
+
+{% block head_css %}
+<style>
+    .chat-window {
+        height: calc(100vh - 56px - 56px - 70px - 3rem); /* Full height - navbar - footer - input_area - padding */
+        min-height: 400px; /* Minimum height for chat window */
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse; /* Newest messages at the bottom, auto-scroll */
+        padding: 1rem;
+        background-color: var(--nexus-body-bg); /* Match overall body bg */
+    }
+    .chat-input-area {
+        border-top: 1px solid var(--nexus-border-color);
+        background-color: var(--nexus-content-bg);
+    }
+    /* Message bubble styles will be in style.scss */
+</style>
+{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-0 border-bottom bg-light-subtle sticky-top shadow-sm" style="top: 56px; z-index: 1010;"> {# Sticky header for chat target #}
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('contacts_list') }}" class="btn btn-sm btn-outline-secondary me-3" title="Back to Contacts">
+                <i class="bi bi-arrow-left-circle"></i>
+            </a>
+            {% if target_user.profile_photo_url %}
+                <img src="{{ url_for('static', filename=target_user.profile_photo_url) }}" alt="{{ target_user.username }}" class="rounded-circle me-2 shadow-sm" style="width: 40px; height: 40px; object-fit: cover;">
+            {% else %}
+                <i class="bi bi-person-circle fs-2 me-2 text-muted"></i>
+            {% endif %}
+            <div>
+                <h1 class="page-title font-heading mb-0 fs-5">{{ target_user.full_name or target_user.username }}</h1>
+                <small class="text-muted">{{ target_user.role.name.replace('_', ' ') | title if target_user.role else 'N/A' }}</small>
+                {# Placeholder for online status / last seen #}
+            </div>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            {# Optional: More actions like call, video call, view profile #}
+            {# <button class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-telephone-fill"></i></button> #}
+            {# <a href="#" class="btn btn-sm btn-outline-secondary"><i class="bi bi-info-circle-fill"></i></a> #}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+{# No sidebar for chat view, full width focus #}
+{% set no_sidebar = True %}
+
+<div class="container-fluid px-0 h-100 d-flex flex-column">
+    {# Flash messages specific to chat operations could go here, but usually handled by JS alerts #}
+    {# {% include 'layout/_flash_messages.html' %} #}
+
+    <div class="chat-window flex-grow-1" id="chatWindowMessages">
+        {# Messages will be appended here by JS, newest at the bottom #}
+        {# Initial messages can be loaded from the backend if desired #}
+        {% if messages and messages | length > 0 %}
+            {% for message_loop_var in messages %} {# Changed loop variable #}
+                {# Set context for the partial #}
+                {% set message = message_loop_var %}
+                {% set current_user_id = current_user.id %}
+                {% include 'partials/_chat_message_item.html' %}
+            {% endfor %}
+        {% else %}
+            <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
+                <div>
+                    <i class="bi bi-chat-quote-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">Start the Conversation!</h4>
+                    <p>Send a message to {{ target_user.full_name or target_user.username }}.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="chat-input-area p-3">
+        <form id="chatMessageForm" method="POST" action="{{ url_for('universal_chat', target_user_id=target_user.id) }}" novalidate>
+            {{ csrf_token() if csrf_token else '' }} {# CSRF for AJAX if forms are used that way #}
+            <div class="input-group">
+                {# Optional: File attachment button - requires more backend/JS logic #}
+                {# <button class="btn btn-outline-secondary" type="button" id="chatAttachFileBtn" title="Attach file"><i class="bi bi-paperclip"></i></button> #}
+                <textarea class="form-control" id="chatMessageInput" name="message" rows="1" placeholder="Type your message..." aria-label="Message" style="resize: none;"></textarea>
+                <button class="btn btn-primary" type="submit" id="sendChatMessageBtn" title="Send message">
+                    <i class="bi bi-send-fill"></i>
+                    <span class="d-none d-sm-inline ms-1">Send</span>
+                </button>
+            </div>
+            {# <input type="file" id="chatActualFileInput" class="d-none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"> #}
+        </form>
+         <small class="text-muted d-block mt-1" id="typingIndicator" style="height: 1.2em;"></small> {# For "User is typing..." #}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+{# Ensure chat.js is loaded after main.js/utils.js in base.html #}
+<script src="{{ url_for('static', filename='js/chat.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Pass target_user_id to chat.js for its operations
+        const targetUserId = {{ target_user.id | tojson }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        if (typeof initializeChat === 'function') {
+            initializeChat(targetUserId, currentUserId);
+        } else {
+            console.error('initializeChat function not found in chat.js');
+        }
+
+        // Auto-resize textarea
+        const messageInput = document.getElementById('chatMessageInput');
+        if(messageInput) {
+            messageInput.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            // Allow Shift+Enter for new line, Enter to send
+            messageInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    document.getElementById('chatMessageForm').requestSubmit();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

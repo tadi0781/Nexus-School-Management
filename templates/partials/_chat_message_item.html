@@ -1,0 +1,33 @@
+{# templates/partials/_chat_message_item.html - Nexus School Management System #}
+{# Gemini 3 Pro Preview - Phase D.2 #}
+{#
+    Reusable item for displaying a single chat message.
+    Expects a `message` object (Message instance) and `current_user_id` in the context.
+    - message.sender (User object)
+    - message.content
+    - message.timestamp
+#}
+
+{% set is_sender = message.sender_id == current_user_id %}
+{% set sender_name = message.sender.full_name or message.sender.username if message.sender else "Unknown User" %}
+{% set sender_avatar = url_for('static', filename=(message.sender.profile_photo_url if message.sender and message.sender.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+
+<div class="chat-message-wrapper d-flex mb-3 {% if is_sender %} justify-content-end {% else %} justify-content-start {% endif %}">
+    <div class="chat-message d-flex flex-column {% if is_sender %} sent align-items-end {% else %} received align-items-start {% endif %}" style="max-width: 75%;">
+        <div class="d-flex align-items-end {% if is_sender %} flex-row-reverse {% endif %}">
+            {% if not is_sender %}
+            <img src="{{ sender_avatar }}" alt="{{ sender_name }}" class="rounded-circle me-2 shadow-sm" style="width: 30px; height: 30px; object-fit: cover;">
+            {% endif %}
+            <div class="message-bubble p-2 px-3 shadow-sm">
+                <p class="mb-0 message-content">{{ message.content | safe }}</p> {# Use safe if content can contain simple HTML like line breaks #}
+            </div>
+        </div>
+        <small class="message-timestamp text-muted mt-1 {% if is_sender %} me-1 {% else %} ms-1 {% endif %}"
+               title="{{ message.timestamp | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+            {% if not is_sender %}
+                <span class="fw-medium">{{ sender_name.split(' ')[0] }}</span> •
+            {% endif %}
+            {{ message.timestamp | humanize_time_diff }}
+        </small>
+    </div>
+</div>

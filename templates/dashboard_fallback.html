@@ -1,0 +1,91 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-container d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-title font-heading mb-0">Welcome, {{ current_user.full_name or current_user.username }}!</h1>
+            </div>
+
+            {% include 'layout/_flash_messages.html' %} {# Show any specific flash messages #}
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-info-circle-fill me-2"></i>Generic Dashboard</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead">
+                        This is a fallback dashboard. Your role-specific dashboard may not be fully configured yet.
+                    </p>
+                    <p>
+                        You can access common features like your settings, notifications, and chat via the navigation menus.
+                    </p>
+                    <hr>
+                    <p class="mb-0">
+                        If you believe you should have access to more specific features, please contact the system administrator.
+                    </p>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card dashboard-stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-icon text-primary">
+                                <i class="bi bi-bell-fill"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">
+                                    {{ unread_notifications_count if unread_notifications_count != "N/A" else 0 }}
+                                </div>
+                                <div class="stat-label">Unread Notifications</div>
+                            </div>
+                        </div>
+                         <a href="{{ url_for('view_notifications') }}" class="card-footer text-decoration-none text-muted small">
+                            View All <i class="bi bi-arrow-right-short"></i>
+                        </a>
+                    </div>
+                </div>
+                 <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card dashboard-stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-icon text-success">
+                                <i class="bi bi-chat-dots-fill"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">
+                                     {{ unread_messages_count if unread_messages_count != "N/A" else 0 }}
+                                </div>
+                                <div class="stat-label">Unread Messages</div>
+                            </div>
+                        </div>
+                         <a href="{{ url_for('contacts_list') }}" class="card-footer text-decoration-none text-muted small">
+                            Go to Chats <i class="bi bi-arrow-right-short"></i>
+                        </a>
+                    </div>
+                </div>
+                 <div class="col-md-12 col-lg-4 mb-3">
+                    <div class="card dashboard-stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-icon text-info">
+                                <i class="bi bi-gear-fill"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value" style="font-size: 1.5rem;">Profile & Settings</div>
+                                <div class="stat-label">Manage your account</div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('settings') }}" class="card-footer text-decoration-none text-muted small">
+                            Go to Settings <i class="bi bi-arrow-right-short"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
