@@ -1,0 +1,110 @@
+{% extends "layout/base.html" %}
+
+{# Define a reusable stat card macro for this page #}
+{% macro render_stat_card(title, value, icon, border_color='primary') %}
+<div class="col-xl-3 col-md-6 mb-4">
+    <div class="card border-start border-4 border-{{ border_color }} shadow-sm h-100">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col">
+                    <div class="text-xs fw-bold text-{{ border_color }} text-uppercase mb-1">{{ title }}</div>
+                    <div class="h5 mb-0 fw-bold text-gray-800">{{ value }}</div>
+                </div>
+                <div class="col-auto">
+                    <i class="bi {{ icon }} fs-2 text-gray-300"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% block title %}Library Attendance Dashboard{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading"><i class="bi bi-graph-up me-2 text-primary"></i>Library Attendance Dashboard</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row">
+        {{ render_stat_card('Students in Library', stats.current_occupancy, 'bi-people-fill', 'primary') }}
+        {{ render_stat_card('Total Visits Today', stats.total_visits_today, 'bi-door-open-fill', 'success') }}
+        {{ render_stat_card('Peak Hour Today', stats.peak_hour, 'bi-clock-history', 'info') }}
+        {{ render_stat_card('Avg. Visit Duration', stats.avg_duration_str, 'bi-hourglass-split', 'warning') }}
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading">Hourly Library Traffic (Today)</h5></div>
+                <div class="card-body">
+                    <div style="position: relative; height:300px;">
+                        <canvas id="hourlyTrafficChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading">Students Currently Present</h5></div>
+                <div class="card-body p-0" style="max-height: 350px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush">
+                        {% for log_entry in present_students %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-person-circle me-2 text-muted"></i>
+                                <strong>{{ log_entry.user.full_name or log_entry.user.username }}</strong>
+                            </div>
+                            <small class="text-muted">Since: {{ log_entry.check_in_time | humanize_time_diff }}</small>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted p-4">
+                            <i class="bi bi-moon-stars fs-1"></i>
+                            <p class="mt-2 mb-0">The library is currently empty.</p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<!-- Ensure Chart.js is loaded from base.html or here -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('hourlyTrafficChart');
+    if (ctx) {
+        // Safely parse the chart data passed from the backend
+        const chartData = JSON.parse('{{ chart_data | tojson | safe }}');
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartData.labels, // e.g., ["08:00", "09:00", ...]
+                datasets: [{
+                    label: "Students Checked In",
+                    data: chartData.data, // e.g., [5, 12, ...]
+                    backgroundColor: 'rgba(78, 115, 223, 0.2)',
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

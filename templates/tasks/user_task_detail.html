@@ -1,0 +1,178 @@
+{% extends "layout/base.html" %}
+
+{% set page_title = "Task: " + (task.title if task else "N/A") %}
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading text-truncate">
+        <i class="bi bi-clipboard-check-fill me-2 text-primary"></i>{{ page_title }}
+    </h1>
+    {# Correctly determines back link based on who is viewing #}
+    <a href="{{ url_for('my_tasks') if is_assigned_user else url_for('view_assigned_task_detail', task_id=task.id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i> 
+        Back to {{ "My Tasks" if is_assigned_user else "Task Assignments" }}
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="row g-4">
+        {# Left Column: Task Information & User's Assignment Details #}
+        <div class="col-lg-7">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light-subtle">
+                    <h5 class="mb-0 font-heading">Task Information</h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="font-heading mb-3">{{ task.title }}</h4>
+                    <dl class="row small">
+                        <dt class="col-sm-3">Created By</dt>
+                        <dd class="col-sm-9">{{ task.created_by.full_name or task.created_by.username }}</dd>
+
+                        <dt class="col-sm-3">Urgency</dt>
+                        <dd class="col-sm-9">
+                            {% if task.urgency == 'Critical' %}<span class="badge bg-danger-subtle text-danger-emphasis">{{ task.urgency }}</span>
+                            {% elif task.urgency == 'High' %}<span class="badge bg-warning-subtle text-warning-emphasis">{{ task.urgency }}</span>
+                            {% else %}<span class="badge bg-info-subtle text-info-emphasis">{{ task.urgency }}</span>{% endif %}
+                        </dd>
+
+                        <dt class="col-sm-3">Due Date</dt>
+                        <dd class="col-sm-9">
+                            {% if task.due_date %}
+                                {{ task.due_date | dateformat('%A, %B %d, %Y') }}
+                                {% if task.due_date < now.date() and user_task.status not in ['Accepted', 'Resolved'] %}
+                                    <span class="badge bg-danger-subtle text-danger-emphasis ms-2">OVERDUE</span>
+                                {% endif %}
+                            {% else %} N/A {% endif %}
+                        </dd>
+                    </dl>
+                    <hr>
+                    <h6 class="font-heading mt-3">Full Description:</h6>
+                    <div class="p-3 bg-light-subtle border rounded" style="white-space: pre-wrap;">
+                        {{ task.description }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light-subtle">
+                    <h5 class="mb-0 font-heading">Your Assignment Details (for {{ user_task.user.full_name or user_task.user.username }})</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row small">
+                        <dt class="col-sm-4">Current Status</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge fs-09rem px-2 py-1 rounded-pill 
+                                {% if user_task.status == 'Open' %} bg-info-subtle text-info-emphasis
+                                {% elif user_task.status == 'In Progress' %} bg-primary-subtle text-primary-emphasis
+                                {% elif user_task.status.endswith('(Pending Review)') %} bg-warning-subtle text-warning-emphasis
+                                {% elif user_task.status == 'Accepted' %} bg-success-subtle text-success-emphasis
+                                {% elif user_task.status == 'Review Rejected' %} bg-danger-subtle text-danger-emphasis
+                                {% else %} bg-secondary-subtle text-secondary-emphasis {% endif %}">
+                                {{ user_task.status }}
+                            </span>
+                        </dd>
+                        <dt class="col-sm-4">Assigned On</dt>
+                        <dd class="col-sm-8">{{ user_task.assigned_at | datetimeformat('%b %d, %Y at %I:%M %p') }}</dd>
+                    </dl>
+                    {% if user_task.completion_notes %}
+                        <h6 class="font-heading mt-3">Your Notes/Reason for Status:</h6>
+                        <blockquote class="blockquote bg-light-subtle border-start border-4 border-secondary-subtle p-3 rounded small">{{ user_task.completion_notes }}</blockquote>
+                    {% endif %}
+                    {% if user_task.reviewed_by %}
+                        <h6 class="font-heading mt-3">Reviewer Information:</h6>
+                        <blockquote class="blockquote bg-light-subtle border-start border-4 border-secondary-subtle p-3 rounded small">
+                            <strong>Reviewed By:</strong> {{ user_task.reviewed_by.full_name or user_task.reviewed_by.username }} on {{ user_task.reviewed_at | datetimeformat('%b %d, %Y') }}
+                            {% if user_task.reviewer_notes %}
+                                <hr class="my-2">
+                                {{ user_task.reviewer_notes }}
+                            {% endif %}
+                        </blockquote>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Action Forms - Conditionally rendered based on context from the backend #}
+            {% if can_update_status and update_form %}
+            <div class="card shadow-sm mb-4" id="updateStatusFormSection">
+                <div class="card-header bg-primary-subtle">
+                    <h5 class="mb-0 font-heading text-primary-emphasis"><i class="bi bi-pencil-square me-2"></i>Update Your Task Status</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('update_user_task_status', user_task_id=user_task.id) }}" id="updateUserTaskStatusForm" novalidate>
+                        {{ update_form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ update_form.status.label(class="form-label fw-bold") }}
+                            {{ update_form.status(class="form-select" + (" is-invalid" if update_form.status.errors else "")) }}
+                            {% if update_form.status.errors %}<div class="invalid-feedback">{{ update_form.status.errors[0] }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            {{ update_form.completion_notes.label(text="Notes / Reason for Status (Required for 'Delayed' or 'Cannot Complete'):", class="form-label fw-bold") }}
+                            {{ update_form.completion_notes(class="form-control" + (" is-invalid" if update_form.completion_notes.errors else ""), rows="4", placeholder="Provide details if completing, or a reason if you cannot...") }}
+                            {% if update_form.completion_notes.errors %}<div class="invalid-feedback">{{ update_form.completion_notes.errors[0] }}</div>{% endif %}
+                        </div>
+                        <div class="d-grid">
+                            {{ update_form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if can_review_status and review_form %}
+            <div class="card shadow-sm mb-4" id="reviewFormSection">
+                <div class="card-header bg-warning-subtle">
+                    <h5 class="mb-0 font-heading text-warning-emphasis"><i class="bi bi-check2-square me-2"></i>Review Assignee's Submission</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('review_user_task', user_task_id=user_task.id) }}" id="reviewUserTaskStatusForm" novalidate>
+                        {{ review_form.hidden_tag() }}
+                        <div class="alert alert-secondary small">
+                           Submission from {{ user_task.user.full_name }}: <strong>{{ user_task.status }}</strong><br>
+                           {% if user_task.completion_notes %}Notes: <em>{{ user_task.completion_notes | truncate(150) }}</em>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            {{ review_form.review_outcome.label(class="form-label fw-bold") }}
+                            {{ review_form.review_outcome(class="form-select" + (" is-invalid" if review_form.review_outcome.errors else "")) }}
+                            {% if review_form.review_outcome.errors %}<div class="invalid-feedback">{{ review_form.review_outcome.errors[0] }}</div>{% endif %}
+                        </div>
+                        <div class="mb-3">
+                            {{ review_form.reviewer_notes.label(text="Reviewer Notes (Required if rejecting):", class="form-label fw-bold") }}
+                            {{ review_form.reviewer_notes(class="form-control" + (" is-invalid" if review_form.reviewer_notes.errors else ""), rows="4", placeholder="Provide feedback or a reason for rejection...") }}
+                            {% if review_form.reviewer_notes.errors %}<div class="invalid-feedback">{{ review_form.reviewer_notes.errors[0] }}</div>{% endif %}
+                        </div>
+                        <div class="d-grid">
+                            {{ review_form.submit(class="btn btn-warning") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Right Column: Task History Log #}
+        <div class="col-lg-5">
+            <div class="card shadow-sm sticky-lg-top" style="top: 70px;">
+                <div class="card-header bg-light-subtle">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-list-ol me-2"></i>Assignment History</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 80vh; overflow-y: auto;">
+                    {% if history_records %}
+                        <ul class="list-group list-group-flush">
+                            {% for history_item in history_records %}
+                                {% include 'partials/_task_history_item.html' %}
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="p-4 text-muted text-center"><i class="bi bi-archive fs-2 d-block mb-2"></i>No history recorded yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,79 +1,70 @@
 {# templates/partials/_asset_card.html - Nexus School Management System #}
-{# Gemini 3 Pro Preview - Phase C.1 #}
 {#
     Reusable card for displaying a single asset.
-    Expects an `asset` object in the context.
+    Expects an `asset` object and `current_user` in the context.
     The parent template should wrap this in Bootstrap column classes (e.g., col-md-4, col-lg-3).
 #}
+
+{# Define a mapping for status badge classes and icons to clean up the template #}
+{% set status_map = {
+    'Available': ('success', 'bi-check-circle-fill'),
+    'Pending Review': ('warning', 'bi-hourglass-split'),
+    'CheckedOut': ('info', 'bi-arrow-up-right-circle-fill'),
+    'Under Maintenance': ('danger', 'bi-tools'),
+    'Needs Repair': ('danger', 'bi-tools'),
+    'Retired': ('dark', 'bi-slash-circle-fill'),
+    'Lost': ('dark', 'bi-slash-circle-fill')
+} %}
+{% set status_info = status_map.get(asset.status, ('secondary', 'bi-question-circle-fill')) %}
+{% set status_color = status_info[0] %}
+{% set status_icon = status_info[1] %}
+{% set can_edit = current_user.role.name in ['hr_ceo', 'system_admin'] %}
+
 <div class="card asset-card h-100 shadow-sm">
-    {# Placeholder for Asset Image - Future enhancement #}
     <div class="asset-card-img-placeholder bg-light-subtle text-center py-4 border-bottom">
-        <i class="bi {{ asset.category.icon_class if asset.category and asset.category.icon_class else 'bi-box-seam' }} display-4 text-muted"></i>
-        {# Fallback if category has no icon_class or category is None.
-           `asset.category.icon_class` is a hypothetical field you might add to AssetCategory model.
-           For now, a generic icon is used.
-        #}
+        <i class="bi {{ asset.category.icon_class or 'bi-box-seam' }} display-4 text-muted"></i>
     </div>
-    {# <img src="{{ asset.image_url or url_for('static', filename='img/placeholders/asset_default.png') }}" class="card-img-top" alt="{{ asset.name }}"> #}
 
     <div class="card-body d-flex flex-column">
         <h5 class="card-title font-heading mb-1">
-            <a href="{{ url_for('edit_asset', asset_id=asset.id) if current_user.role.name in ['hr_ceo', 'system_admin'] else '#' }}"
-               class="text-decoration-nonestretched-link stretched-link {% if not (current_user.role.name in ['hr_ceo', 'system_admin']) %} pe-none {% endif %}">
-                {{ asset.name | truncate(50) }}
-            </a>
+            {% if can_edit %}
+                <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="text-decoration-none stretched-link text-body" title="Edit {{ asset.name }}">
+                    {{ asset.name | truncate(50) }}
+                </a>
+            {% else %}
+                <span class="text-body">{{ asset.name | truncate(50) }}</span>
+            {% endif %}
         </h5>
         <small class="text-muted mb-2">ID: {{ asset.id }} | Qty: {{ asset.quantity }}</small>
 
-        <p class="card-text text-muted small mb-2 flex-grow-1">
-            {{ asset.description | truncate(80) if asset.description else 'No description available.' }}
+        <p class="card-text text-muted small mb-3 flex-grow-1">
+            {{ asset.description | truncate(80) or 'No description available.' }}
         </p>
 
-        <div class="mb-2">
-            {% if asset.status == 'Available' %}
-                <span class="badge bg-success-subtle text-success-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
-                    <i class="bi bi-check-circle-fill me-1"></i>{{ asset.status }}
-                </span>
-            {% elif asset.status == 'Pending Review' %}
-                <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
-                    <i class="bi bi-hourglass-split me-1"></i>{{ asset.status }}
-                </span>
-            {% elif asset.status == 'CheckedOut' %}
-                 <span class="badge bg-info-subtle text-info-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
-                    <i class="bi bi-arrow-up-right-circle-fill me-1"></i>Checked Out
-                </span>
-            {% elif asset.status == 'Under Maintenance' or asset.status == 'Needs Repair' %}
-                <span class="badge bg-danger-subtle text-danger-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
-                    <i class="bi bi-tools me-1"></i>{{ asset.status }}
-                </span>
-            {% elif asset.status == 'Retired' or asset.status == 'Lost' %}
-                 <span class="badge bg-dark-subtle text-dark-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
-                    <i class="bi bi-slash-circle-fill me-1"></i>{{ asset.status }}
-                </span>
-            {% else %}
-                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill px-2 py-1 me-1 fs-08rem">
-                    <i class="bi bi-question-circle-fill me-1"></i>{{ asset.status | default('Unknown') }}
-                </span>
-            {% endif %}
-
-            <span class="badge bg-light-subtle text-dark-emphasis border rounded-pill px-2 py-1 fs-08rem">
-                <i class="bi bi-tag-fill me-1"></i>{{ asset.category.name if asset.category else 'Uncategorized' }}
+        <div class="d-flex flex-wrap gap-1 mt-auto">
+            <span class="badge bg-{{ status_color }}-subtle text-{{ status_color }}-emphasis fw-normal">
+                <i class="bi {{ status_icon }} me-1"></i>
+                {% if asset.status == 'CheckedOut' %}Checked Out{% else %}{{ asset.status or 'Unknown' }}{% endif %}
+            </span>
+            <span class="badge bg-secondary-subtle text-secondary-emphasis fw-normal">
+                <i class="bi bi-tag-fill me-1"></i>{{ asset.category.name or 'Uncategorized' }}
             </span>
         </div>
     </div>
 
-    <div class="card-footer bg-light-subtle d-flex justify-content-between align-items-center">
-        <small class="text-muted">
-            Lab: {{ asset.lab.name if asset.lab else (asset.location_description[:15] + '...' if asset.location_description and asset.location_description | length > 15 else asset.location_description or 'N/A') }}
+    <div class="card-footer bg-light-subtle d-flex justify-content-between align-items-center py-2">
+        <small class="text-muted text-truncate" title="Location">
+            <i class="bi bi-geo-alt-fill me-1"></i>
+            {{ (asset.lab.name or asset.location_description or 'N/A') | truncate(20) }}
         </small>
         <div class="asset-actions">
-            {% if current_user.role.name in ['hr_ceo', 'system_admin'] %}
+            {% if can_edit %}
                 <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="btn btn-sm btn-outline-primary p-1" title="Edit Asset">
                     <i class="bi bi-pencil-square fs-6"></i>
                 </a>
             {% endif %}
             {# All permitted roles should be able to report an asset from here #}
-            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher', 'librarian', 'student', 'talent_club'] %}
+            {% if current_user.has_permission('REPORT_ASSET') %} {# A permission-based check is preferred #}
                 <a href="{{ url_for('report_asset_specific', asset_id=asset.id) }}" class="btn btn-sm btn-outline-warning p-1 ms-1" title="Report Issue">
                     <i class="bi bi-exclamation-triangle-fill fs-6"></i>
                 </a>

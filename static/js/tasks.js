@@ -1,12 +1,13 @@
+/**
+ * tasks.js - Handles dynamic interactions for the Task System.
+ * - Assignee picker for task creation.
+ * - AJAX form submissions for status updates and reviews.
+ */
 
 /**
  * Initializes a modern, unified assignee picker using TomSelect.
- * This picker searches for users, roles, and classes via a single API endpoint.
- *
+ * This is used on the task creation page.
  * @param {object} options - Configuration options.
- * @param {string} options.pickerId - The ID of the <select> element.
- * @param {string} options.hiddenInputId - The ID of the hidden <input> to store data.
- * @param {string} options.searchUrl - The URL of the API endpoint for searching assignees.
  */
 function initializeModernAssigneePicker(options) {
     const pickerElement = document.getElementById(options.pickerId);
@@ -21,21 +22,15 @@ function initializeModernAssigneePicker(options) {
         valueField: 'id',
         labelField: 'text',
         searchField: 'text',
-        optgroupField: 'group', // Group results by 'Users', 'Roles', 'Classes'
+        optgroupField: 'group',
         lockOptgroupColumns: true,
         plugins: ['remove_button', 'optgroup_columns'],
-        
-        // Custom rendering to show icons and subtitles
         render: {
             option: function(data, escape) {
                 let icon = '';
-                if (data.type === 'user') {
-                    icon = '<i class="bi bi-person-fill text-primary me-2"></i>';
-                } else if (data.type === 'role') {
-                    icon = '<i class="bi bi-people-fill text-info me-2"></i>';
-                } else if (data.type === 'grade_section') {
-                    icon = '<i class="bi bi-easel2-fill text-success me-2"></i>';
-                }
+                if (data.type === 'user') icon = '<i class="bi bi-person-fill text-primary me-2"></i>';
+                else if (data.type === 'role') icon = '<i class="bi bi-people-fill text-info me-2"></i>';
+                else if (data.type === 'grade_section') icon = '<i class="bi bi-easel2-fill text-success me-2"></i>';
                 return `<div class="d-flex align-items-center">
                             ${icon}
                             <div>
@@ -46,41 +41,89 @@ function initializeModernAssigneePicker(options) {
             },
             item: function(data, escape) {
                 let icon = '';
-                 if (data.type === 'user') {
-                    icon = '<i class="bi bi-person-fill text-primary me-2"></i>';
-                } else if (data.type === 'role') {
-                    icon = '<i class="bi bi-people-fill text-info me-2"></i>';
-                } else if (data.type === 'grade_section') {
-                    icon = '<i class="bi bi-easel2-fill text-success me-2"></i>';
-                }
-                return `<div class="d-flex align-items-center" title="${escape(data.subtext)}">
-                            ${icon}
-                            <span>${escape(data.text)}</span>
-                        </div>`;
+                if (data.type === 'user') icon = '<i class="bi bi-person-fill text-primary me-2"></i>';
+                else if (data.type === 'role') icon = '<i class="bi bi-people-fill text-info me-2"></i>';
+                else if (data.type === 'grade_section') icon = '<i class="bi bi-easel2-fill text-success me-2"></i>';
+                return `<div class="d-flex align-items-center" title="${escape(data.subtext)}">${icon}<span>${escape(data.text)}</span></div>`;
             }
         },
-
-        // Fetch data from our new API
         load: function(query, callback) {
             if (!query.length || query.length < 2) return callback();
-            fetch(`${options.searchUrl}?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(json => {
-                    callback(json);
-                }).catch(() => {
-                    callback();
-                });
+            // Assumes fetchData is defined in utils.js
+            fetchData(`${options.searchUrl}?q=${encodeURIComponent(query)}`)
+                .then(json => callback(json))
+                .catch(() => callback());
         },
-
-        // When selection changes, update the hidden input
         onChange: function(value) {
             const selectedItems = this.items.map(itemId => {
                 const itemData = this.options[itemId];
-                // Store as a structured string: "type:id"
                 return `${itemData.type}:${itemData.id}`;
             });
             hiddenInputElement.value = selectedItems.join(',');
-            console.log('Hidden input updated:', hiddenInputElement.value);
         },
     });
 }
+
+
+// --- FIX: ADDED NEW FUNCTIONS FOR TASK DETAIL PAGE ---
+
+/**
+ * Handles the AJAX submission for a form on the task detail page.
+ * @param {Event} event - The form submission event.
+ * @param {string} formType - A string to describe the form for logging (e.g., 'Status Update').
+ */
+async function handleTaskFormSubmit(event, formType) {
+    event.preventDefault();
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+
+    // Disable button to prevent double-submission
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+        // Assumes postData helper from utils.js is available
+        const data = await postData(form.action, formData);
+        
+        if (data.success) {
+            showNexusNotification(`${formType} submitted successfully! Refreshing page...`, 'success');
+            // Backend provides a redirect URL on success
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 1000); // Small delay to let user see success message
+        } else {
+            // Handle form validation errors returned from the server
+            const errorMsg = data.errors ? Object.values(data.errors).flat().join(' ') : 'An unknown error occurred.';
+            showNexusNotification(errorMsg, 'danger');
+        }
+    } catch (error) {
+        console.error(`Error submitting task ${formType.toLowerCase()}:`, error);
+        showNexusNotification('A network or server error occurred. Please try again.', 'danger');
+    } finally {
+        if (submitButton) submitButton.disabled = false;
+    }
+}
+
+/**
+ * Initializes event listeners for the task detail page forms.
+ */
+function initializeTaskDetailInteractions() {
+    const updateForm = document.getElementById('updateUserTaskStatusForm');
+    if (updateForm) {
+        updateForm.addEventListener('submit', (event) => handleTaskFormSubmit(event, 'Status Update'));
+    }
+
+    const reviewForm = document.getElementById('reviewUserTaskStatusForm');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', (event) => handleTaskFormSubmit(event, 'Review'));
+    }
+}
+
+// Global initializer
+document.addEventListener('DOMContentLoaded', () => {
+    // This will run on any page, but the forms will only be found on user_task_detail.html.
+    initializeTaskDetailInteractions();
+    
+    // Note: initializeModernAssigneePicker is called from an inline script in create.html
+    // where its specific options (like searchUrl) are available from the backend.
+});

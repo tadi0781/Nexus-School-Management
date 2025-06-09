@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nexusGradient" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="#F3F4F6"/>
+  <path d="M64 192V64H88L168 152V64H192V192H168L88 104V192H64Z" fill="url(#nexusGradient)"/>
+  <circle cx="88" cy="104" r="12" fill="#FFFFFF"/>
+  <circle cx="168" cy="152" r="12" fill="#FFFFFF"/>
+  <circle cx="64" cy="64" r="8" fill="#4F46E5"/>
+  <circle cx="192" cy="192" r="8" fill="#4F46E5"/>
+</svg>

@@ -1,0 +1,158 @@
+{# templates/partials/_global_post_item.html (Revised for Global Posts & Client-Side Rendering) #}
+{#
+    This partial is primarily a TEMPLATE for JavaScript client-side rendering.
+    The actual data will be passed as a JSON object from the API.
+    Context variables used here are examples of what the JS would populate.
+    - post: The GlobalPost object (or a common structure if this becomes more generic).
+            Expected: id, content, author (obj), timestamp, is_edited, file (obj),
+                      like_count, comment_count, current_user_liked, share_url,
+                      allow_comments
+    - current_user: The logged-in user (for permissions).
+    - post_type: 'global' (can be extended if this partial is reused).
+#}
+{% set post_type = post_type | default('global') %}
+{% set post_dom_id = post_type ~ '_post-' ~ post.id %}
+
+<div class="card social-post-item mb-3 shadow-sm" id="{{ post_dom_id }}"
+     data-post-id="{{ post.id }}" data-post-type="{{ post_type }}">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-3">
+            <a href="{{ url_for('user_profile_view', user_id=post.author.id) if post.author else '#' }}" class="flex-shrink-0">
+                <img src="{{ post.author.profile_photo_url or url_for('static', filename='img/placeholders/user_avatar_default.png') }}"
+                     alt="{{ post.author.full_name or post.author.username if post.author else 'User' }}'s avatar" class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
+            </a>
+            <div class="flex-grow-1">
+                <a href="{{ url_for('user_profile_view', user_id=post.author.id) if post.author else '#' }}" class="fw-bold text-dark text-decoration-none font-heading">{{ post.author.full_name or post.author.username if post.author else "Unknown Author" }}</a>
+                <div class="text-muted small">
+                    <i class="bi bi-clock"></i> 
+                    <span class="post-timestamp" title="{{ post.timestamp | datetimeformat('%Y-%m-%d %H:%M:%S UTC') }}">
+                        {{ post.timestamp | humanize_time_diff }}
+                    </span>
+                    {% if post.is_edited %} <span class="fst-italic ms-1">(edited)</span>{% endif %}
+                </div>
+            </div>
+            {# More Options Dropdown for Edit/Delete #}
+            {% if current_user.is_authenticated and ((post.author and post.author.id == current_user.id) or (current_user.role and current_user.role.name in ['system_admin', 'hr_ceo'])) %}
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Post options">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if post.author and post.author.id == current_user.id %}
+                    <li><a class="dropdown-item edit-post-btn" href="#" data-post-id="{{ post.id }}" data-post-type="{{ post_type }}"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>
+                    {% endif %}
+                    <li>
+                        <button class="dropdown-item text-danger delete-post-btn" data-post-id="{{ post.id }}" data-post-type="{{ post_type }}">
+                            <i class="bi bi-trash me-2"></i>Delete Post
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if post.content %}
+        <div class="post-content-text mb-3">
+            {{ post.content | nl2br | safe }}
+        </div>
+        {% endif %}
+
+        {% if post.file %}
+            <div class="post-attachment mb-3">
+                {# Logic to display image, video, or generic file card #}
+                {% if post.file.mimetype and post.file.mimetype.startswith('image/') %}
+                    <a href="{{ post.file.download_url }}" data-bs-toggle="modal" data-bs-target="#viewFileModal" 
+                       data-file-url="{{ post.file.download_url }}" data-file-mimetype="{{ post.file.mimetype }}" 
+                       data-file-name="{{ post.file.original_filename }}">
+                        <img src="{{ post.file.download_url }}" class="img-fluid rounded border" alt="Attachment: {{ post.file.original_filename }}" style="max-height: 450px; object-fit: contain; cursor: pointer;">
+                    </a>
+                {% elif post.file.mimetype and post.file.mimetype.startswith('video/') %}
+                    <video controls class="img-fluid rounded border" style="max-height: 450px; width:100%;">
+                        <source src="{{ post.file.download_url }}" type="{{ post.file.mimetype }}">
+                        Your browser does not support the video tag.
+                    </video>
+                {% else %}
+                    <div class="d-flex align-items-center p-2 border rounded-3 bg-light-subtle">
+                        <i class="bi bi-file-earmark-text-fill fs-2 me-2 text-secondary"></i>
+                        <div class="flex-grow-1">
+                            <a href="{{ post.file.download_url }}" class="fw-semibold text-decoration-none stretched-link" target="_blank" download="{{ post.file.original_filename }}">
+                                {{ post.file.original_filename }}
+                            </a>
+                            <div class="text-muted small">
+                                {{ (post.file.size / (1024*1024)) | round(2) if post.file.size > 1024*1024 else (post.file.size / 1024) | round(1) }} 
+                                {{ 'MB' if post.file.size > 1024*1024 else 'KB' }}
+                                {% if post.file.mimetype %} - {{ post.file.mimetype }}{% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ post.file.download_url }}" class="btn btn-sm btn-outline-secondary ms-2" download="{{ post.file.original_filename }}" aria-label="Download file">
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="post-actions d-flex justify-content-start align-items-center gap-2 border-top pt-2 mt-2">
+            {% set user_liked = post.current_user_liked | default(false) %}
+            <button class="btn btn-subtle btn-sm reaction-btn like-post-btn {{ 'active' if user_liked }}" 
+                    data-post-id="{{ post.id }}" data-post-type="{{ post_type }}" aria-pressed="{{ user_liked|lower }}">
+                <i class="bi {{ 'bi-heart-fill text-danger' if user_liked else 'bi-heart' }}"></i> 
+                <span class="like-text">{{ 'Liked' if user_liked else 'Like' }}</span>
+                (<span class="like-count">{{ post.like_count | default(0) }}</span>)
+            </button>
+            
+            {% if post.allow_comments | default(true) %}
+            <button class="btn btn-subtle btn-sm comment-toggle-btn" data-bs-toggle="collapse" href="#commentsCollapse-{{ post_dom_id }}" role="button" aria-expanded="false" aria-controls="commentsCollapse-{{ post_dom_id }}">
+                <i class="bi bi-chat-dots"></i> Comment 
+                (<span class="comment-count">{{ post.comment_count | default(0) }}</span>)
+            </button>
+            {% endif %}
+
+            <button class="btn btn-subtle btn-sm share-post-btn" data-post-id="{{ post.id }}" data-post-type="{{ post_type }}" data-share-url="{{ post.share_url }}">
+                <i class="bi bi-share"></i> Share
+            </button>
+            <button class="btn btn-subtle btn-sm save-item-btn" data-item-id="{{ post.id }}" data-item-type="{{ post_type }}">
+                {# JS will toggle icon and text #}
+                <i class="bi bi-bookmark"></i> <span class="save-text">Save</span>
+            </button>
+        </div>
+    </div>
+
+    {% if post.allow_comments | default(true) %}
+    <div class="collapse comments-section-wrapper" id="commentsCollapse-{{ post_dom_id }}">
+        <div class="card-footer bg-light-subtle p-2 comments-section" id="comments-for-{{ post_dom_id }}">
+            <div class="text-center py-3 comments-loading-placeholder d-none"> {# Initially hidden #}
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading comments...</span>
+                </div>
+            </div>
+            <div class="comments-list" id="comments-list-{{ post_dom_id }}">
+                {# Comments will be loaded here by JS #}
+            </div>
+            <div class="load-more-comments-container text-center my-2 d-none">
+                 <button class="btn btn-link btn-sm load-more-comments-btn" data-post-id="{{ post.id }}" data-post-type="{{ post_type }}">Load more comments</button>
+            </div>
+
+            {% if current_user.is_authenticated %} {# Only show comment form if user is logged in #}
+                {% set comment_form_instance = get_comment_form() %}
+                {% with 
+                    form = comment_form_instance,
+                    submit_url = url_for('create_global_comment', post_id=post.id), {# For Global Posts #}
+                    placeholder_text = "Write a thoughtful comment...",
+                    submit_button_text = "Reply",
+                    is_comment_form = True,
+                    form_id = "commentForm-" ~ post_dom_id,
+                    textarea_id = "commentTextarea-" ~ post_dom_id,
+                    allow_file_upload = False {# Comments typically don't have files #}
+                %}
+                    {% include "partials/_social_content_form.html" %}
+                {% endwith %}
+            {% else %}
+                <p class="text-muted small text-center mt-2">
+                    <a href="{{ url_for('login', next=request.url) }}">Log in</a> to comment.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>

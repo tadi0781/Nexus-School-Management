@@ -1,0 +1,40 @@
+{# 
+    Renders a single proposal card.
+    Required context:
+    - proposal: The proposal object.
+#}
+<div class="card tc-proposal-item mb-3" id="proposal-{{ proposal.id }}">
+    <div class="card-body">
+        <div class="d-flex justify-content-between">
+            <h5 class="card-title">{{ proposal.title }}</h5>
+            {% set status_meta = {
+                'Pending': {'color': 'warning', 'icon': 'hourglass-split'},
+                'Approved': {'color': 'success', 'icon': 'check-circle-fill'},
+                'Rejected': {'color': 'danger', 'icon': 'x-circle-fill'}
+            } %}
+            <span class="badge fs-6 bg-{{ status_meta[proposal.status].color }}-subtle text-{{ status_meta[proposal.status].color }}-emphasis">
+                <i class="bi bi-{{ status_meta[proposal.status].icon }} me-1"></i>
+                {{ proposal.status }}
+            </span>
+        </div>
+        <h6 class="card-subtitle mb-2 text-muted small">
+            Proposed by {{ proposal.proposer.first_name }} on {{ proposal.timestamp.strftime('%Y-%m-%d') }}
+        </h6>
+        <p class="card-text">{{ proposal.description | truncate(200) }}</p>
+        
+        <!-- Voting/Actions Area -->
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <div>
+                <span class="text-success me-3"><i class="bi bi-hand-thumbs-up-fill"></i> {{ proposal.votes_for }}</span>
+                <span class="text-danger"><i class="bi bi-hand-thumbs-down-fill"></i> {{ proposal.votes_against }}</span>
+            </div>
+            <div>
+                {% if proposal.status == 'Pending' %}
+                <a href="#" class="btn btn-sm btn-outline-success">Vote For</a>
+                <a href="#" class="btn btn-sm btn-outline-danger">Vote Against</a>
+                {% endif %}
+                <a href="#" class="btn btn-sm btn-outline-secondary">Details</a>
+            </div>
+        </div>
+    </div>
+</div>

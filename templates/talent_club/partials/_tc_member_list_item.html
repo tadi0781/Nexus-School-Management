@@ -1,0 +1,37 @@
+{#
+    Renders a single member in a list view.
+    Required context:
+    - member: The club membership object, which links a user and their role.
+#}
+<div class="list-group-item d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <img src="{{ member.user.profile.avatar_url or url_for('static', filename='img/placeholders/avatar_default.svg') }}" 
+             alt="{{ member.user.first_name }}'s avatar" class="rounded-circle me-3" width="40" height="40">
+        <div>
+            <a href="{{ url_for('user_profile', user_id=member.user.id) }}" class="fw-bold text-dark text-decoration-none">{{ member.user.first_name }} {{ member.user.last_name }}</a>
+            <div class="small text-muted">Joined: {{ member.join_date.strftime('%b %Y') }}</div>
+        </div>
+    </div>
+    <div>
+        {% set role_colors = {'Leader': 'primary', 'Co-Leader': 'info', 'Member': 'secondary'} %}
+        <span class="badge bg-{{ role_colors.get(member.role, 'secondary') }}">{{ member.role }}</span>
+    </div>
+</div>
+    Renders a single member in a list view.
+    Required context:
+    - member: The club membership object, which links a user and their role.
+#}
+<div class="list-group-item d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <img src="{{ member.user.profile.avatar_url or url_for('static', filename='img/placeholders/avatar_default.svg') }}" 
+             alt="{{ member.user.first_name }}'s avatar" class="rounded-circle me-3" width="40" height="40">
+        <div>
+            <a href="{{ url_for('user_profile', user_id=member.user.id) }}" class="fw-bold text-dark text-decoration-none">{{ member.user.first_name }} {{ member.user.last_name }}</a>
+            <div class="small text-muted">Joined: {{ member.join_date.strftime('%b %Y') }}</div>
+        </div>
+    </div>
+    <div>
+        {% set role_colors = {'Leader': 'primary', 'Co-Leader': 'info', 'Member': 'secondary'} %}
+        <span class="badge bg-{{ role_colors.get(member.role, 'secondary') }}">{{ member.role }}</span>
+    </div>
+</div>>

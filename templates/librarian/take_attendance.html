@@ -1,0 +1,222 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Library Attendance Kiosk{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Library Attendance Kiosk</h1>
+            <p class="mb-0 text-muted">Quickly log student entry and exit.</p>
+        </div>
+        <div class="text-end">
+            <span id="live-clock" class="h5 font-weight-bold"></span>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Interaction Panel -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Find Student</h6>
+                </div>
+                <div class="card-body">
+                    <form id="studentSearchForm" onsubmit="return false;">
+                        <div class="input-group mb-3">
+                            <input type="text" id="studentSearchInput" class="form-control form-control-lg" placeholder="Enter Student ID or Name..." autocomplete="off" autofocus>
+                            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+                        </div>
+                    </form>
+                    <div id="searchResults" class="list-group">
+                        <!-- AJAX search results will be injected here -->
+                        <div class="text-center p-3 text-muted" id="searchPlaceholder">
+                            <i class="bi bi-person-bounding-box" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">Student details will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Activity Log -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Activity</h6>
+                </div>
+                <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush" id="activityLog">
+                        <!-- Live log entries will be prepended here -->
+                        <li class="list-group-item text-center text-muted" id="logPlaceholder">No activity yet.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // --- Element References ---
+    const searchInput = document.getElementById('studentSearchInput');
+    const searchResults = document.getElementById('searchResults');
+    const searchPlaceholder = document.getElementById('searchPlaceholder');
+    const activityLog = document.getElementById('activityLog');
+    const logPlaceholder = document.getElementById('logPlaceholder');
+    const clockElement = document.getElementById('live-clock');
+
+    // --- CSRF Token for Secure POST Requests ---
+    // The backend must provide a way to get the CSRF token.
+    // Here we assume it's in a meta tag in the base layout.
+    // e.g., <meta name="csrf-token" content="{{ csrf_token() }}">
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // --- Live Clock ---
+    function updateClock() {
+        if (!clockElement) return;
+        clockElement.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // --- Search Functionality ---
+    let searchTimeout;
+    searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        const query = searchInput.value.trim();
+        if (query.length < 2) {
+            searchResults.innerHTML = ''; // Clear results if query is too short
+            searchResults.appendChild(searchPlaceholder);
+            return;
+        }
+        searchTimeout = setTimeout(() => {
+            performSearch(query);
+        }, 300); // Debounce requests by 300ms
+    });
+
+    async function performSearch(query) {
+        searchResults.innerHTML = '<div class="text-center p-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        try {
+            const response = await fetch(`/api/student-search?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+            const students = await response.json();
+            displayResults(students);
+        } catch (error) {
+            console.error('Search failed:', error);
+            searchResults.innerHTML = `<div class="alert alert-danger">Search failed. Please check the connection and try again.</div>`;
+        }
+    }
+
+    function displayResults(students) {
+        searchResults.innerHTML = '';
+        if (students.length === 0) {
+            searchResults.innerHTML = '<div class="list-group-item text-center text-muted">No students found.</div>';
+            return;
+        }
+        students.forEach(student => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+            resultItem.innerHTML = `
+                <div>
+                    <h6 class="mb-0">${student.first_name} ${student.last_name}</h6>
+                    <small class="text-muted">ID: ${student.student_id}</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-success check-in" data-id="${student.id}" data-name="${student.first_name} ${student.last_name}">
+                        <i class="bi bi-box-arrow-in-right"></i> Check In
+                    </button>
+                    <button class="btn btn-sm btn-warning check-out" data-id="${student.id}" data-name="${student.first_name} ${student.last_name}">
+                        <i class="bi bi-box-arrow-right"></i> Check Out
+                    </button>
+                </div>
+            `;
+            searchResults.appendChild(resultItem);
+        });
+    }
+
+    // --- Check-in/Check-out Functionality ---
+    searchResults.addEventListener('click', function(e) {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        const studentId = target.dataset.id;
+        const studentName = target.dataset.name;
+        const action = target.classList.contains('check-in') ? 'in' : 'out';
+        
+        logAttendance(studentId, studentName, action, target);
+    });
+
+    async function logAttendance(studentId, studentName, action, button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        try {
+            const response = await fetch('/api/library-attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ student_id: studentId, action: action })
+            });
+            const result = await response.json();
+
+            if (!response.ok) throw new Error(result.error || 'Failed to log attendance.');
+            
+            addLogEntry(studentName, action, new Date(result.timestamp));
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            searchResults.appendChild(searchPlaceholder);
+            searchInput.focus();
+
+        } catch (error) {
+            console.error('Log failed:', error);
+            alert(`Error: ${error.message}`); // Simple error feedback
+            button.disabled = false;
+            button.innerHTML = action === 'in' ? '<i class="bi bi-box-arrow-in-right"></i> Check In' : '<i class="bi bi-box-arrow-right"></i> Check Out';
+        }
+    }
+    
+    function addLogEntry(studentName, action, timestamp) {
+        if(logPlaceholder) {
+            logPlaceholder.remove();
+        }
+
+        const logItem = document.createElement('li');
+        const isCheckIn = action === 'in';
+        logItem.className = `list-group-item d-flex justify-content-between align-items-center animate-fade-in`;
+        
+        logItem.innerHTML = `
+            <div>
+                <span class="fw-bold">${studentName}</span>
+                <span class="badge ${isCheckIn ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'} ms-2">
+                    Checked ${isCheckIn ? 'In' : 'Out'}
+                </span>
+            </div>
+            <small class="text-muted">${timestamp.toLocaleTimeString()}</small>
+        `;
+        activityLog.prepend(logItem);
+
+        // Keep the log from growing indefinitely
+        while (activityLog.children.length > 50) {
+            activityLog.lastElementChild.remove();
+        }
+    }
+});
+</script>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}

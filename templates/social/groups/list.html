@@ -1,0 +1,46 @@
+{% extends "layout/base.html" %}
+
+{% block title %}My Social Groups{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-collection-fill me-2 text-primary"></i>My Social Groups
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {# The "Create Group" button is permission-driven and can stay #}
+        {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+            <a href="{{ url_for('create_social_group') }}" class="btn btn-sm btn-primary shadow-sm">
+                <i class="bi bi-plus-circle-fill me-1"></i>Create New Group
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# FIX: The template now correctly iterates over `my_groups` from the backend #}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {% for group in my_groups %}
+            {# FIX: Includes the newly created partial to render each group card #}
+            {% include "partials/_group_card_item.html" %}
+        {% else %}
+            {# FIX: The empty state message is now relevant to a "My Groups" page #}
+            <div class="col-12">
+                <div class="text-center text-muted p-5 bg-light rounded">
+                    <i class="bi bi-wind fs-1 mb-3"></i>
+                    <h4 class="font-heading">It's a bit empty here...</h4>
+                    <p>You haven't joined or created any social groups yet.</p>
+                    {# A 'discover' page would be linked here if it existed. For now, create is the main action. #}
+                    {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+                        <a href="{{ url_for('create_social_group') }}" class="btn btn-primary">Create a Group</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

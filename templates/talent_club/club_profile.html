@@ -1,0 +1,77 @@
+{% extends "layout/base.html" %}
+
+{% block title %}{{ club.name }}{% endblock %}
+
+{% block content %}
+{# Initialize Alpine.js component and load the initial 'feed' tab content #}
+<div class="container-fluid mt-4" 
+     x-data="{ activeTab: 'feed' }"
+     x-init="loadTabContent('{{ club.id }}', 'feed')">
+
+    <!-- Club Header -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header p-0" style="height: 200px; background: url({{ url_for('static', filename=(club.profile_photo_url or 'img/placeholders/tc_club_banner.png')) }}) center center / cover; position: relative;">
+            {# A subtle gradient overlay can make text on top more readable #}
+            <div class="w-100 h-100" style="background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));"></div>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-end" style="margin-top: -60px;">
+                <img src="{{ url_for('static', filename=(club.profile_photo_url or 'img/placeholders/tc_club_default_avatar.png')) }}" alt="{{ club.name }} avatar" class="rounded-circle border border-4 border-light me-3" width="120" height="120">
+                <div class="flex-grow-1">
+                    <h1 class="h3 mb-0 font-heading">{{ club.name }}</h1>
+                    <p class="text-muted mb-0">{{ club.description | truncate(100) }}</p>
+                </div>
+                {# FIX: Dynamic action buttons based on user status #}
+                <div class="ms-auto pt-3">
+                    {% if is_manager %}
+                        <a href="#" class="btn btn-outline-secondary btn-sm disabled" data-bs-toggle="tooltip" title="Club management page coming soon"><i class="bi bi-gear-fill"></i> Manage</a>
+                    {% elif user_status == 'member' %}
+                        <button class="btn btn-outline-danger btn-sm tc-action-btn" data-action="leave_club" data-club-id="{{ club.id }}"><i class="bi bi-door-open-fill"></i> Leave Club</button>
+                    {% elif user_status == 'following' %}
+                        <button class="btn btn-secondary btn-sm tc-action-btn" data-action="unfollow_club" data-club-id="{{ club.id }}"><i class="bi bi-person-dash-fill"></i> Unfollow</button>
+                    {% else %}
+                        <button class="btn btn-primary btn-sm tc-action-btn" data-action="follow_club" data-club-id="{{ club.id }}"><i class="bi bi-person-plus-fill"></i> Follow</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs nav-tabs-bottom px-3">
+            <li class="nav-item"><a class="nav-link cursor-pointer" :class="{ 'active': activeTab === 'feed' }" @click.prevent="activeTab = 'feed'; loadTabContent('{{ club.id }}', 'feed');">Feed</a></li>
+            <li class="nav-item"><a class="nav-link cursor-pointer" :class="{ 'active': activeTab === 'media' }" @click.prevent="activeTab = 'media'; loadTabContent('{{ club.id }}', 'media');">Media</a></li>
+            <li class="nav-item"><a class="nav-link cursor-pointer" :class="{ 'active': activeTab === 'files' }" @click.prevent="activeTab = 'files'; loadTabContent('{{ club.id }}', 'files');">Files</a></li>
+            <li class="nav-item"><a class="nav-link cursor-pointer" :class="{ 'active': activeTab === 'members' }" @click.prevent="activeTab = 'members'; loadTabContent('{{ club.id }}', 'members');">Members</a></li>
+            {# Add other tabs like 'proposals', 'tasks' here if they become dynamic #}
+        </ul>
+    </div>
+
+    <!-- Tab Content Container -->
+    <div id="tab-content-container">
+        {# FIX: Content will be dynamically loaded here by talent_club.js #}
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading content...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+{# This JS block is a reminder that talent_club.js needs the loadTabContent function #}
+<script>
+    // This function must be defined in talent_club.js
+    function loadTabContent(clubId, tabName) {
+        const container = document.getElementById('tab-content-container');
+        container.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>`;
+
+        // Assumes a utility function `fetchData` exists in utils.js
+        // The backend endpoint `/talent_club/<club_id>/content/<type>` will be called
+        // The JS will then take the returned HTML and inject it into the container.
+        // This logic belongs in your main JS file (e.g., talent_club.js)
+        console.log(`TODO: Implement AJAX call in talent_club.js to fetch /talent_club/${clubId}/content/${tabName} and place it in #tab-content-container`);
+    }
+</script>
+{% endblock %}

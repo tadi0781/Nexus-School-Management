@@ -1,14 +1,59 @@
-{# templates/layout/_flash_messages.html #}
+{# This container is where toast notifications will be dynamically added #}
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
+    {# Toasts will be generated here by JavaScript #}
+</div>
 
+{# This script captures flashed messages and generates the toasts #}
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="container-fluid px-0 mb-3 flash-messages-container"> {# Or adjust container/padding as needed #}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show shadow-sm" role="alert">
-                    {{ message | safe }} {# Use |safe if your messages might contain HTML #}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  {% if messages %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) return;
+
+        const categoryToIcon = {
+          'success': '<i class="bi bi-check-circle-fill me-2"></i>',
+          'danger': '<i class="bi bi-exclamation-triangle-fill me-2"></i>',
+          'warning': '<i class="bi bi-exclamation-triangle-fill me-2"></i>',
+          'info': '<i class="bi bi-info-circle-fill me-2"></i>'
+        };
+
+        const categoryToClass = {
+          'success': 'text-bg-success',
+          'danger': 'text-bg-danger',
+          'warning': 'text-bg-warning',
+          'info': 'text-bg-info'
+        };
+
+        {% for category, message in messages %}
+          (function() {
+            const toastEl = document.createElement('div');
+            toastEl.classList.add('toast', 'align-items-center', 'border-0');
+            toastEl.classList.add(categoryToClass['{{ category }}'] || 'text-bg-secondary');
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+
+            const iconHtml = categoryToIcon['{{ category }}'] || '';
+            const messageText = `{{ message|escape|safe }}`.replace(/\n/g, '<br>');
+
+            toastEl.innerHTML = `
+              <div class="d-flex">
+                <div class="toast-body">
+                  ${iconHtml}
+                  ${messageText}
                 </div>
-            {% endfor %}
-        </div>
-    {% endif %}
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+            `;
+            
+            toastContainer.appendChild(toastEl);
+            const toast = new bootstrap.Toast(toastEl, { delay: 6000 }); // 6-second delay
+            toast.show();
+            toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+          })();
+        {% endfor %}
+      });
+    </script>
+  {% endif %}
 {% endwith %}

@@ -1,39 +1,42 @@
 {% extends "layout/base.html" %}
 
 {# DEFINE MACROS FIRST, AFTER EXTENDS #}
-{% macro render_stat_card(card_title, card_value, card_icon, card_color_class, card_url=None, card_url_text='View Details', card_id=None) %}
+{% macro render_stat_card(card_title, card_value, card_icon, card_color_class, card_url=None, card_url_text='View Details') %}
 <div class="col">
-    <div class="card dashboard-stat-card h-100 shadow-sm" {% if card_id %}id="{{ card_id }}"{% endif %}>
+    <div class="card dashboard-stat-card h-100 shadow-sm">
         <div class="card-body d-flex align-items-center">
-            <div class="stat-icon display-4 me-3 {{ card_color_class | default('text-primary') }}">
-                <i class="bi {{ card_icon | default('bi-bar-chart-line-fill') }}"></i>
+            <div class="stat-icon display-4 me-3 {{ card_color_class or 'text-primary' }}">
+                <i class="bi {{ card_icon or 'bi-bar-chart-line-fill' }}"></i>
             </div>
-            <div class="stat-content">
-                <h6 class="card-subtitle mb-1 text-muted text-uppercase font-body" style="font-size: 0.8rem;">{{ card_title }}</h6>
+            <div>
+                <h6 class="card-subtitle mb-1 text-body-secondary text-uppercase" style="font-size: 0.75rem;">{{ card_title }}</h6>
                 <p class="card-text display-6 fw-bold mb-0 font-heading">{{ card_value }}</p>
             </div>
         </div>
         {% if card_url %}
-        <a href="{{ card_url }}" class="card-footer text-decoration-none text-muted bg-light-subtle hover-bg-light">
-            <small>{{ card_url_text }} <i class="bi bi-arrow-right-short ms-1"></i></small>
+        <a href="{{ card_url }}" class="card-footer text-decoration-none text-muted bg-light-subtle hover-bg-light small">
+            {{ card_url_text }} <i class="bi bi-arrow-right-short ms-1"></i>
         </a>
         {% endif %}
     </div>
 </div>
 {% endmacro %}
 
-{% macro render_quick_links(links) %}
-    {% if links and links | length > 0 %}
+{% macro render_quick_links(links, title="Quick Actions", icon="bi-lightning-charge-fill") %}
+    {% if links %}
     <div class="card shadow-sm dashboard-quick-links-card">
-        <div class="card-header">
-            <h5 class="mb-0 font-heading"><i class="bi bi-lightning-charge-fill me-2"></i>Quick Actions</h5>
+        <div class="card-header bg-light-subtle">
+            <h5 class="mb-0 font-heading"><i class="bi {{ icon }} me-2"></i>{{ title }}</h5>
         </div>
         <div class="list-group list-group-flush">
             {% for link in links %}
-                <a href="{{ link.url | default('#') }}" class="list-group-item list-group-item-action d-flex align-items-center py-3">
-                    <i class="bi {{ link.icon | default('bi-link-45deg') }} fs-5 me-3 {{ link.color_class | default('text-primary') }}" style="min-width: 24px;"></i>
-                    <span class="fw-medium">{{ link.text | default('Link') }}</span>
-                    <i class="bi bi-chevron-right ms-auto text-muted small"></i>
+                <a href="{{ link.url | default('#') if not link.disabled else 'javascript:void(0);' }}" 
+                   class="list-group-item list-group-item-action d-flex align-items-center py-3 {% if link.js_onclick %}cursor-pointer{% endif %} {% if link.disabled %} disabled-link text-muted {% endif %}"
+                   {% if link.tooltip %} data-bs-toggle="tooltip" title="{{ link.tooltip }}" {% endif %}
+                   {% if link.js_onclick %} onclick="{{ link.js_onclick }}" {% endif %}>
+                    <i class="bi {{ link.icon or 'bi-link-45deg' }} fs-5 me-3 {{ link.color_class or 'text-primary' }}" style="min-width: 24px;"></i>
+                    <span class="fw-medium">{{ link.text or 'Link' }}</span>
+                    <i class="bi bi-chevron-right ms-auto small"></i>
                 </a>
             {% endfor %}
         </div>
@@ -43,24 +46,23 @@
 
 {% macro render_recent_activity(activities) %}
 <div class="card shadow-sm recent-activity-card">
-    <div class="card-header">
+    <div class="card-header bg-light-subtle">
         <h5 class="mb-0 font-heading"><i class="bi bi-clock-history me-2"></i>Recent Activity</h5>
     </div>
-    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-        {% if activities and activities | length > 0 %}
-            <ul class="list-unstyled">
+    <div class="card-body" style="max-height: 450px; overflow-y: auto;">
+        {% if activities %}
+            <ul class="list-unstyled mb-0">
                 {% for activity in activities %}
-                    <li class="d-flex align-items-start mb-3 pb-3 border-bottom">
+                    <li class="d-flex align-items-start pb-3 {% if not loop.last %}mb-3 border-bottom{% endif %}">
                         <div class="activity-icon me-3">
-                            <span class="badge bg-{{ activity.badge_color | default('secondary') }} p-2 rounded-circle">
-                                <i class="bi {{ activity.icon | default('bi-bell') }} fs-5 text-white"></i>
+                            <span class="badge bg-{{ activity.badge_color or 'secondary' }} p-2 rounded-circle d-flex">
+                                <i class="bi {{ activity.icon or 'bi-bell' }} fs-5 text-white"></i>
                             </span>
                         </div>
                         <div class="activity-content">
-                            <p class="mb-1 text-dark">{{ activity.text | safe }}</p>
+                            <p class="mb-1">{{ activity.text | safe }}</p>
                             <small class="text-muted">
-                                <i class="bi bi-calendar3 me-1"></i>
-                                {{ activity.timestamp | datetimeformat('%b %d, %Y %I:%M %p') if activity.timestamp else 'Just now' }}
+                                <i class="bi bi-calendar3 me-1"></i>{{ activity.timestamp | humanize_time_diff }}
                             </small>
                             {% if activity.url %}
                                 <a href="{{ activity.url }}" class="ms-2 small text-decoration-none">View <i class="bi bi-arrow-up-right-square"></i></a>
@@ -70,203 +72,129 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <div class="text-center text-muted p-3">
+            <div class="text-center text-muted p-4">
                 <i class="bi bi-moon-stars fs-1 mb-2"></i>
                 <p>No recent activity to display.</p>
             </div>
         {% endif %}
     </div>
-    {% if activities and activities | length > 5 %}
-    <a href="{{ url_for('view_notifications') }}" class="card-footer text-center text-decoration-none text-muted bg-light-subtle hover-bg-light">
-        <small>View All Activity <i class="bi bi-arrow-right-short ms-1"></i></small>
+    {% if activities and activities|length > 5 %}
+    <a href="{{ url_for('view_notifications') }}" class="card-footer text-center text-decoration-none text-muted bg-light-subtle hover-bg-light small">
+        View All Activity <i class="bi bi-arrow-right-short ms-1"></i>
     </a>
     {% endif %}
 </div>
 {% endmacro %}
 {# END OF MACRO DEFINITIONS #}
 
-
 {% block page_title %}HR & Academics Dashboard{% endblock %}
 
 {% block content_header %}
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="page-title font-heading mb-0">
-            <i class="bi bi-briefcase-fill me-2 text-primary"></i>HR & Academics Dashboard
-        </h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="{{ url_for('create_task') }}" class="btn btn-sm btn-success me-2">
-                 <i class="bi bi-plus-square-dotted me-1"></i> Create New Task
-            </a>
-            <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-gear-fill me-1"></i> Settings
-            </a>
-        </div>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-briefcase-fill me-2 text-primary"></i>HR & Academics Dashboard
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('create_task') }}" class="btn btn-sm btn-success me-2">
+             <i class="bi bi-plus-square-dotted me-1"></i>Create New Task
+        </a>
+        <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-gear-fill me-1"></i>Settings
+        </a>
     </div>
+</div>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid px-0">
-
-    {# Welcome Message #}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm welcome-card bg-primary text-white">
-                <div class="card-body">
-                    <h4 class="card-title font-heading">Welcome, {{ current_user.full_name or current_user.username }}!</h4>
-                    <p class="mb-0">Oversee school operations, manage staff and student affairs, and track key performance indicators.</p>
-                </div>
-            </div>
-        </div>
+    <div class="alert alert-primary-subtle border-primary-subtle mb-4">
+        <h4 class="alert-heading font-heading">Welcome, {{ current_user.full_name or current_user.username }}!</h4>
+        <p class="mb-0">Oversee school operations, manage staff and student affairs, and track key performance indicators.</p>
     </div>
 
     {# Main Stats Cards Row #}
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 mb-4">
-        {{ render_stat_card(
-            card_title="Total Students",
-            card_value=student_count | default(0),
-            card_icon="bi-people-fill",
-            card_color_class="text-info",
-            card_url=url_for('student_database_index')
-        ) }}
-
-        {# Link to teacher management page if exists #}
-        {{ render_stat_card(
-            card_title="Total Teachers",
-            card_value=teacher_count | default(0),
-            card_icon="bi-person-video3",
-            card_color_class="text-success",
-            card_url="#"
-        ) }}
-
-        {{ render_stat_card(
-            card_title="Student Leaders",
-            card_value=student_leader_count | default(0),
-            card_icon="bi-person-check-fill",
-            card_color_class="text-primary",
-            card_url=url_for('manage_student_leaders')
-        ) }}
-
-        {{ render_stat_card(
-            card_title="Pending Assets",
-            card_value=pending_assets | default(0),
-            card_icon="bi-box-seam-fill",
-            card_color_class="text-warning",
-            card_url=url_for('list_pending_assets')
-        ) }}
-
-        {{ render_stat_card(
-            card_title="Open Asset Reports",
-            card_value=reports_open | default(0),
-            card_icon="bi-flag-fill",
-            card_color_class="text-danger",
-            card_url=url_for('list_asset_reports')
-        ) }}
-
-        {# Backend needs to provide this count #}
-        {{ render_stat_card(
-            card_title="Tasks Assigned by You",
-            card_value=my_assigned_tasks_count | default(0),
-            card_icon="bi-card-checklist",
-            card_color_class="text-secondary",
-            card_url=url_for('my_assigned_tasks')
-        ) }}
-
-        {# Backend needs to provide this count #}
-        {{ render_stat_card(
-            card_title="Requests Inbox",
-            card_value=requests_inbox_count | default(0),
-            card_icon="bi-envelope-paper-fill",
-            card_color_class="text-info",
-            card_url=url_for('requests_inbox')
-        ) }}
-
-        {% set unread_notif_val = unread_notifications_count if unread_notifications_count != "N/A" else 0 %}
-        {{ render_stat_card(
-            card_title="Unread Notifications",
-            card_value=unread_notif_val,
-            card_icon="bi-bell-fill",
-            card_color_class="text-warning",
-            card_url=url_for('view_notifications')
-        ) }}
+        {{ render_stat_card("Total Students", student_count|default(0), "bi-people-fill", "text-info", url_for('student_database_index')) }}
+        {{ render_stat_card("Total Teachers", teacher_count|default(0), "bi-person-video3", "text-success", "#") }}
+        {{ render_stat_card("Student Leaders", student_leader_count|default(0), "bi-person-check-fill", "text-primary", url_for('manage_student_leaders')) }}
+        {{ render_stat_card("Pending Assets", pending_assets|default(0), "bi-box-seam-fill", "text-warning", url_for('list_pending_assets')) }}
+        {{ render_stat_card("Open Asset Reports", reports_open|default(0), "bi-flag-fill", "text-danger", url_for('list_asset_reports')) }}
+        {{ render_stat_card("Tasks You Created", my_assigned_tasks_count|default(0), "bi-card-checklist", "text-secondary", url_for('my_assigned_tasks')) }}
+        {{ render_stat_card("Requests Inbox", requests_inbox_count|default(0), "bi-envelope-paper-fill", "text-info", url_for('requests_inbox')) }}
+        {{ render_stat_card("Unread Notifications", unread_notifications_count|default(0), "bi-bell-fill", "text-warning", url_for('view_notifications')) }}
     </div>
 
     <div class="row g-4">
-        {# Left Column: Quick Links & Pending Reviews #}
-        <div class="col-lg-4 col-xl-3">
+        {# Left Column: Quick Links & Analytics Actions #}
+        <div class="col-lg-4">
             {% set hr_ceo_quick_links = [
                 {'url': url_for('list_pending_assets'), 'text': 'Review Pending Assets', 'icon': 'bi-box-arrow-in-down', 'color_class': 'text-primary'},
                 {'url': url_for('list_asset_reports'), 'text': 'Manage Asset Reports', 'icon': 'bi-tools', 'color_class': 'text-danger'},
                 {'url': url_for('manage_student_leaders'), 'text': 'Manage Student Leaders', 'icon': 'bi-person-badge-fill', 'color_class': 'text-success'},
                 {'url': url_for('manage_asset_categories'), 'text': 'Manage Asset Categories', 'icon': 'bi-tags-fill', 'color_class': 'text-info'},
-                {'url': url_for('my_assigned_tasks'), 'text': 'View Tasks You Assigned', 'icon': 'bi-card-list', 'color_class': 'text-secondary'},
-                {'url': url_for('hr_ceo_initiate_request'), 'text': 'Initiate Request (Tier 2)', 'icon': 'bi-send-plus-fill', 'color_class': 'text-warning'},
+                {'url': url_for('my_assigned_tasks'), 'text': 'View Tasks You Created', 'icon': 'bi-card-list', 'color_class': 'text-secondary'},
+                {'url': url_for('hr_ceo_initiate_request'), 'text': 'Initiate Tier 2 Request', 'icon': 'bi-send-plus-fill', 'color_class': 'text-warning'},
                 {'url': url_for('manage_system_tc_leader'), 'text': 'Manage TC System Leader', 'icon': 'bi-trophy-fill', 'color_class': 'text-primary'}
             ] %}
-            {{ render_quick_links(hr_ceo_quick_links) }}
+            {{ render_quick_links(hr_ceo_quick_links, title="Management Actions") }}
 
-             {# Analytics Quick Links #}
-            <div class="card shadow-sm mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0 font-heading"><i class="bi bi-pie-chart-fill me-2"></i>Analytics</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    <a href="#" onclick="fetchAndDisplayAnalytics('attendance', 'Attendance Overview', 'attendanceChartContainer'); return false;" class="list-group-item list-group-item-action"><i class="bi bi-calendar3-event me-2 text-success"></i>Attendance Data</a>
-                    <a href="#" onclick="fetchAndDisplayAnalytics('performance', 'Performance Averages', 'performanceChartContainer'); return false;" class="list-group-item list-group-item-action"><i class="bi bi-graph-up-arrow me-2 text-info"></i>Performance Data</a>
-                    <a href="#" onclick="fetchAndDisplayAnalytics('demographics', 'Student Demographics', 'demographicsChartContainer'); return false;" class="list-group-item list-group-item-action"><i class="bi bi-gender-ambiguous me-2 text-warning"></i>Demographics Data</a>
-                </div>
+            <div class="mt-4">
+                 {% set analytics_links = [
+                    {'url': 'javascript:void(0);', 'text': 'Attendance Overview', 'icon': 'bi-calendar3-event', 'color_class': 'text-success', 'js_onclick': "fetchAndDisplayAnalytics('attendance', 'Attendance Overview', 'attendanceChartContainer', 'doughnut');"},
+                    {'url': 'javascript:void(0);', 'text': 'Performance Data', 'icon': 'bi-graph-up-arrow', 'color_class': 'text-info', 'js_onclick': "fetchAndDisplayAnalytics('performance', 'Performance Averages', 'performanceChartContainer', 'bar');"},
+                    {'url': 'javascript:void(0);', 'text': 'Demographics Data', 'icon': 'bi-gender-ambiguous', 'color_class': 'text-warning', 'js_onclick': "fetchAndDisplayAnalytics('demographics', 'Student Demographics', 'demographicsChartContainer', 'pie');"}
+                ] %}
+                {{ render_quick_links(analytics_links, title="View Analytics", icon="bi-pie-chart-fill") }}
             </div>
         </div>
 
         {# Right Column: Analytics Charts & Recent Activity #}
-        <div class="col-lg-8 col-xl-9">
-            <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="row g-4 mb-4">
                 <div class="col-xl-6">
-                    <div class="card shadow-sm">
-                        <div class="card-header">
-                            <h5 class="mb-0 font-heading"><i class="bi bi-calendar3-event me-2"></i>Attendance Overview</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" id="attendanceChartContainer">
-                                <canvas id="attendanceChart"></canvas> {# Chart.js will target this #}
-                            </div>
-                        </div>
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading"><i class="bi bi-calendar3-event me-2"></i>Attendance Overview</h5></div>
+                        <div class="card-body d-flex align-items-center justify-content-center"><div id="attendanceChartContainer" style="position: relative; height:250px; width:100%"><canvas id="attendanceChart"></canvas></div></div>
                     </div>
                 </div>
                 <div class="col-xl-6">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading"><i class="bi bi-graph-up-arrow me-2"></i>Performance Averages</h5></div>
+                        <div class="card-body d-flex align-items-center justify-content-center"><div id="performanceChartContainer" style="position: relative; height:250px; width:100%"><canvas id="performanceChart"></canvas></div></div>
+                    </div>
+                </div>
+                <div class="col-12">
                     <div class="card shadow-sm">
-                        <div class="card-header">
-                            <h5 class="mb-0 font-heading"><i class="bi bi-graph-up-arrow me-2"></i>Performance Averages</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="chart-container" id="performanceChartContainer">
-                               <canvas id="performanceChart"></canvas>
-                            </div>
-                        </div>
+                        <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading"><i class="bi bi-gender-ambiguous me-2"></i>Student Demographics</h5></div>
+                        <div class="card-body d-flex align-items-center justify-content-center"><div id="demographicsChartContainer" style="position: relative; height:250px; width:100%"><canvas id="demographicsChart"></canvas></div></div>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-4">
-             {{ render_recent_activity(recent_activities) }} {# Assuming recent_activities is passed #}
-            </div>
+            {{ render_recent_activity(recent_activities) }}
         </div>
     </div>
 </div>
-{% endblock %} {# This is the end of the content block #}
+{% endblock %}
 
 {% block body_scripts %}
-{# utils.js should be loaded before this in base.html #}
+{# Assumes utils.js is loaded globally in base.html #}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        console.log('HR/CEO Dashboard JS (using global analytics) loaded.');
+        // Initial load of default chart
         if (typeof fetchAndDisplayAnalytics === 'function') {
             fetchAndDisplayAnalytics('attendance', 'Attendance Overview', 'attendanceChartContainer', 'doughnut');
-            fetchAndDisplayAnalytics('performance', 'Performance Averages', 'performanceChartContainer', 'bar');
-            // For demographics if you add a canvas for it:
-            // fetchAndDisplayAnalytics('demographics', 'Student Demographics', 'demographicsChartContainer', 'pie');
         } else {
-            console.error("fetchAndDisplayAnalytics function not found. Ensure utils.js is loaded.");
+            console.error("The global function 'fetchAndDisplayAnalytics' was not found. Please ensure utils.js is loaded before this script.");
         }
     });
+
+    // Make the analytics function globally accessible from the template's onclick attributes
+    window.fetchAndDisplayAnalytics = window.fetchAndDisplayAnalytics || function(endpoint, title, containerId, type) {
+        // This is a fallback in case utils.js hasn't defined it, to prevent hard errors.
+        console.error(`Analytics function called for ${endpoint}, but the core implementation from utils.js is missing.`);
+        const container = document.getElementById(containerId);
+        if (container) container.innerHTML = '<p class="text-center text-danger">Chart loading function is unavailable.</p>';
+    };
 </script>
 {% endblock %}

@@ -1,61 +1,57 @@
-// Nexus School Management System - main.js
-// Gemini 3 Pro Preview - Phase A.1 (Initial Version)
-
 "use strict";
 
+/**
+ * ===================================================================
+ * main.js - Main Application Initialization Script
+ * ===================================================================
+ * This script runs after the DOM is fully loaded. It's responsible for
+ * initializing all core UI components for the Nexus application.
+ */
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('Nexus Core JS Initialized. Version 1.0');
+    console.log('Nexus Core JS Initialized. Version 2.0');
 
-    // Initialize Bootstrap Components
+    // --- Call all initialization functions here ---
+    
     initializeBootstrapComponents();
-
-    // Initialize Flatpickr instances
     initializeFlatpickr();
-
-    // Initialize TomSelect instances (if any on the page)
     initializeTomSelect();
-
-    // Setup Theme Switcher
     setupThemeSwitcher();
-
-    // Sidebar toggle listener (if using a custom button beyond Bootstrap's navbar-toggler)
-    // setupCustomSidebarToggle();
-
-    // Add CSRF token to AJAX requests if using jQuery (example)
-    // setupJQueryAjaxCsrf();
-
-    // Display a welcome message (example using custom alert)
-    // showNexusNotification('Welcome to Nexus!', 'System is initializing...', 'success');
+    setupSidebarToggle();
+    
+    // Check for and initialize optional components from other files
+    if (typeof initializeAllFilePondInputs === 'function') {
+        initializeAllFilePondInputs();
+    }
+    if (typeof initializeFilePreviewModal === 'function') {
+        initializeFilePreviewModal();
+    }
 });
 
+
+/**
+ * Initializes standard Bootstrap components like Tooltips and Popovers.
+ */
 function initializeBootstrapComponents() {
     // Tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 
     // Popovers
-    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-    popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl);
-    });
-
-    // Toasts (if used, example initialization)
-    // const toastElList = [].slice.call(document.querySelectorAll('.toast'));
-    // toastElList.map(function (toastEl) {
-    //   return new bootstrap.Toast(toastEl, { /* options */ });
-    // });
+    const popoverTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
 }
 
+
+/**
+ * Initializes all elements with Flatpickr classes.
+ */
 function initializeFlatpickr() {
     flatpickr(".flatpickr-date", {
         altInput: true,
         altFormat: "F j, Y",
         dateFormat: "Y-m-d",
-        allowInput: true // Allows manual typing
+        allowInput: true
     });
-
     flatpickr(".flatpickr-datetime", {
         enableTime: true,
         altInput: true,
@@ -64,7 +60,6 @@ function initializeFlatpickr() {
         time_24hr: true,
         allowInput: true
     });
-
     flatpickr(".flatpickr-time", {
         enableTime: true,
         noCalendar: true,
@@ -74,22 +69,28 @@ function initializeFlatpickr() {
     });
 }
 
+
+/**
+ * Initializes all elements with the 'tom-select' class.
+ */
 function initializeTomSelect() {
-    // Generic TomSelect initialization for elements with class 'tom-select'
-    // Specific configurations can be done per-page or via data-attributes
     const tomSelectElements = document.querySelectorAll('.tom-select');
     tomSelectElements.forEach(el => {
         new TomSelect(el, {
-            create: el.dataset.allowCreate === 'true', // Allow creating new options if data-attribute is set
-            // Add other common options or allow data-attributes to configure
-            // persist: false, // Example
+            create: el.dataset.allowCreate === 'true',
+            persist: false,
         });
     });
 }
 
 
+/**
+ * Manages light/dark mode based on user preference and local storage.
+ */
 function setupThemeSwitcher() {
     const themeSwitcherButton = document.getElementById('themeSwitcher');
+    if (!themeSwitcherButton) return;
+
     const htmlElement = document.documentElement;
 
     const getPreferredTheme = () => {
@@ -100,163 +101,89 @@ function setupThemeSwitcher() {
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     };
 
-    const setTheme = (theme) => {
-        if (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            htmlElement.setAttribute('data-bs-theme', 'dark');
-        } else {
-            htmlElement.setAttribute('data-bs-theme', theme);
+    const updateSwitcherIcon = (theme) => {
+        const icon = themeSwitcherButton.querySelector('i.bi');
+        if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
         }
+    };
+    
+    const setTheme = (theme) => {
+        htmlElement.setAttribute('data-bs-theme', theme);
+        localStorage.setItem('nexus-theme', theme);
         updateSwitcherIcon(theme);
     };
 
-    const updateSwitcherIcon = (theme) => {
-        if (themeSwitcherButton) {
-            const icon = themeSwitcherButton.querySelector('i.bi');
-            if (icon) {
-                if (theme === 'dark') {
-                    icon.classList.remove('bi-moon-stars-fill');
-                    icon.classList.add('bi-sun-fill');
-                } else {
-                    icon.classList.remove('bi-sun-fill');
-                    icon.classList.add('bi-moon-stars-fill');
-                }
-            }
-        }
-    };
+    // Set the initial theme on page load
+    setTheme(getPreferredTheme());
 
-    const currentTheme = getPreferredTheme();
-    setTheme(currentTheme); // Set initial theme
-
-    if (themeSwitcherButton) {
-        themeSwitcherButton.addEventListener('click', () => {
-            let newTheme = htmlElement.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
-            localStorage.setItem('nexus-theme', newTheme);
-            setTheme(newTheme);
-        });
-    }
-
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        const storedTheme = localStorage.getItem('nexus-theme');
-        if (storedTheme !== 'light' && storedTheme !== 'dark') { // Only if not manually overridden
-            setTheme(getPreferredTheme());
-        }
+    // Add click listener to the button
+    themeSwitcherButton.addEventListener('click', () => {
+        const currentTheme = htmlElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
     });
 }
 
-// Optional: Custom sidebar toggle if Bootstrap's default is not sufficient
-// function setupCustomSidebarToggle() {
-//     const sidebar = document.getElementById('sidebarMenu');
-//     const sidebarToggler = document.querySelector('[data-bs-target="#sidebarMenu"]'); // Standard Bootstrap toggler
-//
-//     if (sidebar && sidebarToggler) {
-//         // You can listen to Bootstrap's events if more complex logic is needed
-//         // sidebar.addEventListener('shown.bs.collapse', function () { ... });
-//         // sidebar.addEventListener('hidden.bs.collapse', function () { ... });
-//     }
-// }
 
-// CSRF setup for jQuery AJAX (if jQuery is used and Flask-WTF CSRF is active)
-// function setupJQueryAjaxCsrf() {
-//     if (typeof jQuery !== 'undefined') {
-//         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-//         if (csrfToken) {
-//             jQuery.ajaxSetup({
-//                 beforeSend: function(xhr, settings) {
-//                     if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-//                         xhr.setRequestHeader("X-CSRFToken", csrfToken);
-//                     }
-//                 }
-//             });
-//         }
-//     }
-// }
-
-// utils.js will contain helper functions like showNexusNotification, postData etc.
-// For now, main.js calls them assuming they will be in utils.js or this file.
-// Let's move showNexusNotification and postData to utils.js for better organization later.
-// --- START: Sidebar Toggle Script ---
-document.addEventListener('DOMContentLoaded', function() {
+/**
+ * Manages the collapsible sidebar, its state, and the mobile overlay/backdrop.
+ */
+function setupSidebarToggle() {
     const sidebar = document.getElementById('sidebarMenu');
-    const sidebarToggle = document.getElementById('sidebarToggle'); // Hamburger in navbar
-    const sidebarCloseButton = document.getElementById('sidebarCloseButton'); // 'X' in sidebar
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarCloseButton = document.getElementById('sidebarCloseButton');
+    const backdrop = document.querySelector('.sidebar-backdrop');
     const body = document.body;
-
-    if (!sidebar) {
-        if (sidebarToggle) {
-            sidebarToggle.style.display = 'none';
-        }
-        return;
-    }
-    if (!sidebarToggle && !sidebarCloseButton && !sidebar) { // if no sidebar at all, or no toggles
-        return; 
-    }
-
-
     const SIDEBAR_COLLAPSED_KEY = 'nexusSidebarCollapsedState';
 
-    function setSidebarState(isCollapsed) {
-        if (!sidebar) return; // Defensive check
+    if (!sidebar || !sidebarToggle) return;
 
+    const setSidebarState = (isCollapsed) => {
         if (isCollapsed) {
-            sidebar.classList.add('collapsed');
             body.classList.add('sidebar-is-collapsed');
-            if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
         } else {
-            sidebar.classList.remove('collapsed');
             body.classList.remove('sidebar-is-collapsed');
-            if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'true');
         }
-    }
+        sidebarToggle.setAttribute('aria-expanded', !isCollapsed);
+    };
 
-    function toggleSidebar() {
-        if (!sidebar) return; // Defensive check
-        const isCurrentlyCollapsed = sidebar.classList.contains('collapsed');
-        const newStateIsCollapsed = !isCurrentlyCollapsed;
-        setSidebarState(newStateIsCollapsed);
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(newStateIsCollapsed));
-    }
+    const toggleSidebar = () => {
+        const isCurrentlyCollapsed = body.classList.contains('sidebar-is-collapsed');
+        setSidebarState(!isCurrentlyCollapsed);
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(!isCurrentlyCollapsed));
+    };
 
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', function() {
-            toggleSidebar();
-        });
-    }
+    // Event Listeners
+    sidebarToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleSidebar();
+    });
 
     if (sidebarCloseButton) {
-        sidebarCloseButton.addEventListener('click', function() {
+        sidebarCloseButton.addEventListener('click', () => {
+            setSidebarState(true);
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true');
+        });
+    }
+    
+    if (backdrop) {
+        backdrop.addEventListener('click', () => {
             setSidebarState(true);
             localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true');
         });
     }
 
-    // --- Initial state on page load ---
-    if (sidebar) { // Only apply initial state if sidebar exists
-        let initiallyCollapsed;
-        const storedState = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    // Set initial state on page load without animation flash
+    const storedState = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    const initiallyCollapsed = (storedState !== null) 
+        ? (storedState === 'true') 
+        : (window.innerWidth < 768); // Default to collapsed on mobile
 
-        if (storedState !== null) {
-            initiallyCollapsed = (storedState === 'true');
-        } else {
-            // Default behavior:
-            // Collapsed on small screens, visible on larger screens
-            initiallyCollapsed = window.innerWidth < 768;
-        }
-        // Apply initial state directly without transition for the first load to prevent flash
-        sidebar.style.transition = 'none'; // Disable transition temporarily
-        body.style.transition = 'none'; // Disable transition on body for margin changes
-        
-        setSidebarState(initiallyCollapsed);
-        
-        // Force reflow/repaint before re-enabling transitions
-        // This helps ensure the initial state is applied without animation
-        void sidebar.offsetWidth; 
-        void body.offsetWidth;
-
-        // Re-enable transitions after a very short delay
-        setTimeout(() => {
-            sidebar.style.transition = ''; // Revert to CSS defined transition
-            body.style.transition = '';    // Revert to CSS defined transition
-        }, 50); // 50ms should be enough
-    }
-});
-// --- END: Sidebar Toggle Script ---
+    body.style.transition = 'none'; // Temporarily disable transitions on body
+    setSidebarState(initiallyCollapsed);
+    
+    setTimeout(() => {
+        body.style.transition = ''; // Re-enable transitions
+    }, 50);
+}

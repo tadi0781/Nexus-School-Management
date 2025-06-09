@@ -1,0 +1,64 @@
+{# ================================================================= #}
+{# REUSABLE UI COMPONENT MACROS                                      #}
+{# ================================================================= #}
+
+
+{# --- Macro to render a Bootstrap loading spinner --- #}
+{#
+   Call it like this in your templates:
+   {{ render_spinner('Loading data...') }}
+#}
+{% macro render_spinner(message='Loading...', extra_classes='') %}
+<div class="d-flex justify-content-center align-items-center text-center {{ extra_classes }}">
+    <div class="spinner-border text-primary" role="status" style="width: 2.5rem; height: 2.5rem;">
+        <span class="visually-hidden">{{ message }}</span>
+    </div>
+    {% if message %}
+        <span class="ms-3 h5 mb-0">{{ message }}</span>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# --- Macro to render a Bootstrap alert --- #}
+{#
+   Call it like this in your templates:
+   {{ render_alert('This is a success message.', 'success', 'bi-check-circle-fill') }}
+   {{ render_alert('This is a warning.', 'warning', 'bi-exclamation-triangle-fill') }}
+#}
+{% macro render_alert(message, category='primary', icon_class='bi-info-circle-fill', is_dismissible=true) %}
+<div class="alert alert-{{ category }} {% if is_dismissible %}alert-dismissible fade show{% endif %}" role="alert">
+    <i class="bi {{ icon_class }} me-2"></i>
+    {{ message|safe }}
+    {% if is_dismissible %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# --- Macro to render flash messages --- #}
+{#
+   Call it in your base layout like this:
+   {% with messages = get_flashed_messages(with_categories=true) %}
+       {% if messages %}
+           <div class="flash-messages-container">
+               {{ render_flash_messages(messages) }}
+           </div>
+       {% endif %}
+   {% endwith %}
+#}
+{% macro render_flash_messages(messages) %}
+    {% for category, message in messages %}
+        {% set icon = 'bi-info-circle-fill' %}
+        {% if category == 'success' %}
+            {% set icon = 'bi-check-circle-fill' %}
+        {% elif category == 'warning' %}
+            {% set icon = 'bi-exclamation-triangle-fill' %}
+        {% elif category == 'danger' %}
+            {% set icon = 'bi-x-octagon-fill' %}
+        {% endif %}
+        
+        {{ render_alert(message, category, icon, is_dismissible=true) }}
+    {% endfor %}
+{% endmacro %}

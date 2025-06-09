@@ -48,3 +48,53 @@
     </div>
 </div>
 {% endblock %}
+
+<!-- SUPERIOR, DYNAMIC ACTION BUTTONS -->
+<div class="flex-shrink-0 align-self-center ms-3" id="request-actions-{{ request.id }}">
+    {% if request.status == 'PENDING' and request.request_type == 'JOIN_CLUB' %}
+    <button class="btn btn-sm btn-success" 
+            onclick="handleRequest({{ request.id }}, 'approve', this)">Approve</button>
+    <button class="btn btn-sm btn-danger" 
+            onclick="handleRequest({{ request.id }}, 'decline', this)">Decline</button>
+    {% elif request.status != 'PENDING' %}
+        <span class="badge bg-light text-dark">{{ request.status | capitalize }}</span>
+    {% endif %}
+</div>
+
+{# Add this script block at the end of the template (or in a global JS file) #}
+{% if loop.last %}
+<script>
+async function handleRequest(requestId, action, button) {
+    const container = document.getElementById(`request-actions-${requestId}`);
+    const csrfToken = '{{ csrf_token() }}'; // Get CSRF token from Flask
+
+    // Provide immediate visual feedback
+    container.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
+
+    try {
+        const formData = new FormData();
+        formData.append('action', action);
+
+        const response = await fetch(`/club/request/${requestId}/handle`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: formData,
+            redirect: 'manual' // IMPORTANT: Prevents fetch from following the redirect
+        });
+
+        // The backend flashes a message and redirects. We can simply reload to show the result.
+        // A more advanced SPA-like implementation would update the DOM directly.
+        if (response.type === 'opaqueredirect' || response.ok) {
+             window.location.reload();
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'An unknown error occurred.');
+        }
+    } catch (error) {
+        console.error('Request handling failed:', error);
+        // Restore buttons on failure
+        container.innerHTML = `<div class="alert alert-danger p-1 small">Error: ${error.message}</div>`;
+    }
+}
+</script>
+{% endif %}

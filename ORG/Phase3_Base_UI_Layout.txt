@@ -1,0 +1,185 @@
+########## Phase: Phase3_Base_UI_Layout - Base UI & Layout Templates ##########
+# Generated: 2025-06-07 23:56:14
+# Total files in this phase: 36
+================================================================================
+
+########## File: templates/dashboard_fallback.html ##########
+// Content of templates/dashboard_fallback.html
+// This is a dummy file for demonstration.
+########## End of File: templates/dashboard_fallback.html ##########
+
+########## File: templates/errors/403.html ##########
+// Content of templates/errors/403.html
+// This is a dummy file for demonstration.
+########## End of File: templates/errors/403.html ##########
+
+########## File: templates/errors/404.html ##########
+// Content of templates/errors/404.html
+// This is a dummy file for demonstration.
+########## End of File: templates/errors/404.html ##########
+
+########## File: templates/errors/500.html ##########
+// Content of templates/errors/500.html
+// This is a dummy file for demonstration.
+########## End of File: templates/errors/500.html ##########
+
+########## File: templates/files/view_file_modal_content.html ##########
+// Content of templates/files/view_file_modal_content.html
+// This is a dummy file for demonstration.
+########## End of File: templates/files/view_file_modal_content.html ##########
+
+########## File: templates/index.html ##########
+// Content of templates/index.html
+// This is a dummy file for demonstration.
+########## End of File: templates/index.html ##########
+
+########## File: templates/layout/_flash_messages.html ##########
+// Content of templates/layout/_flash_messages.html
+// This is a dummy file for demonstration.
+########## End of File: templates/layout/_flash_messages.html ##########
+
+########## File: templates/layout/_footer.html ##########
+// Content of templates/layout/_footer.html
+// This is a dummy file for demonstration.
+########## End of File: templates/layout/_footer.html ##########
+
+########## File: templates/layout/_navbar.html ##########
+// Content of templates/layout/_navbar.html
+// This is a dummy file for demonstration.
+########## End of File: templates/layout/_navbar.html ##########
+
+########## File: templates/layout/_sidebar.html ##########
+// Content of templates/layout/_sidebar.html
+// This is a dummy file for demonstration.
+########## End of File: templates/layout/_sidebar.html ##########
+
+########## File: templates/layout/base.html ##########
+// Content of templates/layout/base.html
+// This is a dummy file for demonstration.
+########## End of File: templates/layout/base.html ##########
+
+########## File: templates/partials/_asset_card.html ##########
+// Content of templates/partials/_asset_card.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_asset_card.html ##########
+
+########## File: templates/partials/_asset_report_item.html ##########
+// Content of templates/partials/_asset_report_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_asset_report_item.html ##########
+
+########## File: templates/partials/_book_checkout_item.html ##########
+// Content of templates/partials/_book_checkout_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_book_checkout_item.html ##########
+
+########## File: templates/partials/_channel_card_item.html ##########
+// Content of templates/partials/_channel_card_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_channel_card_item.html ##########
+
+########## File: templates/partials/_chat_message_item.html ##########
+// Content of templates/partials/_chat_message_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_chat_message_item.html ##########
+
+########## File: templates/partials/_comment_item.html ##########
+// Content of templates/partials/_comment_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_comment_item.html ##########
+
+########## File: templates/partials/_contact_list_item.html ##########
+// Content of templates/partials/_contact_list_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_contact_list_item.html ##########
+
+########## File: templates/partials/_dashboard_quick_links.html ##########
+// Content of templates/partials/_dashboard_quick_links.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_dashboard_quick_links.html ##########
+
+########## File: templates/partials/_dashboard_recent_activity.html ##########
+// Content of templates/partials/_dashboard_recent_activity.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_dashboard_recent_activity.html ##########
+
+########## File: templates/partials/_dashboard_stat_card.html ##########
+// Content of templates/partials/_dashboard_stat_card.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_dashboard_stat_card.html ##########
+
+########## File: templates/partials/_global_post_item.html ##########
+// Content of templates/partials/_global_post_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_global_post_item.html ##########
+
+########## File: templates/partials/_group_card_item.html ##########
+// Content of templates/partials/_group_card_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_group_card_item.html ##########
+
+########## File: templates/partials/_notification_item.html ##########
+// Content of templates/partials/_notification_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_notification_item.html ##########
+
+########## File: templates/partials/_request_history_log_item.html ##########
+// Content of templates/partials/_request_history_log_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_request_history_log_item.html ##########
+
+########## File: templates/partials/_request_list_item.html ##########
+// Content of templates/partials/_request_list_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_request_list_item.html ##########
+
+########## File: templates/partials/_social_content_form.html ##########
+// Content of templates/partials/_social_content_form.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_social_content_form.html ##########
+
+########## File: templates/partials/_task_history_item.html ##########
+// Content of templates/partials/_task_history_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_task_history_item.html ##########
+
+########## File: templates/partials/_task_list_item.html ##########
+// Content of templates/partials/_task_list_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_task_list_item.html ##########
+
+########## File: templates/partials/_tc_club_card_item.html ##########
+// Content of templates/partials/_tc_club_card_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_tc_club_card_item.html ##########
+
+########## File: templates/partials/_tc_feed_post_item.html ##########
+// Content of templates/partials/_tc_feed_post_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_tc_feed_post_item.html ##########
+
+########## File: templates/partials/_tc_proposal_item.html ##########
+// Content of templates/partials/_tc_proposal_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_tc_proposal_item.html ##########
+
+########## File: templates/partials/_user_task_assignment_item.html ##########
+// Content of templates/partials/_user_task_assignment_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/_user_task_assignment_item.html ##########
+
+########## File: templates/partials/report_asset_general.html ##########
+// Content of templates/partials/report_asset_general.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/report_asset_general.html ##########
+
+########## File: templates/partials/report_asset_specific.html ##########
+// Content of templates/partials/report_asset_specific.html
+// This is a dummy file for demonstration.
+########## End of File: templates/partials/report_asset_specific.html ##########
+
+########## File: templates/settings.html ##########
+// Content of templates/settings.html
+// This is a dummy file for demonstration.
+########## End of File: templates/settings.html ##########
+

@@ -1,0 +1,85 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Report Issue: {{ asset.name }}{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Report Issue
+    </h1>
+    {# Link back to the previous page or a sensible default #}
+    <a href="{{ request.referrer or url_for('list_all_assets') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i>Back
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light-subtle">
+                    <h5 class="mb-0 font-heading">Asset Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0 small">
+                        <dt class="col-sm-3">Asset Name:</dt>
+                        <dd class="col-sm-9 fw-bold">{{ asset.name }}</dd>
+                        
+                        <dt class="col-sm-3">Asset ID:</dt>
+                        <dd class="col-sm-9">{{ asset.id }}</dd>
+
+                        <dt class="col-sm-3">Category:</dt>
+                        <dd class="col-sm-9">{{ asset.category.name if asset.category else 'N/A' }}</dd>
+
+                        <dt class="col-sm-3">Location:</dt>
+                        <dd class="col-sm-9">{{ asset.lab.name if asset.lab else (asset.location_description or 'N/A') }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning-subtle">
+                    <h5 class="mb-0 font-heading text-warning-emphasis">Describe the Issue</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+                    <form method="POST" action="{{ url_for('report_asset_specific', asset_id=asset.id) }}" novalidate>
+                        {{ form.hidden_tag() }} {# CSRF Token #}
+
+                        {# FIX: Now correctly renders the `damage_description` field from the form #}
+                        <div class="mb-3">
+                            {{ form.damage_description.label(class="form-label fw-bold") }}
+                            {{ form.damage_description(class="form-control" + (" is-invalid" if form.damage_description.errors else ""), rows="5", placeholder="Please be specific. What happened? Are there error messages? What is the current state of the asset?", required=True) }}
+                            {% if form.damage_description.errors %}<div class="invalid-feedback">{{ form.damage_description.errors[0] }}</div>{% endif %}
+                        </div>
+
+                        <div class="row g-3">
+                            {# FIX: Now correctly renders the `date_of_damage` field #}
+                            <div class="col-md-6">
+                                {{ form.date_of_damage.label(class="form-label fw-bold") }}
+                                {{ form.date_of_damage(class="form-control" + (" is-invalid" if form.date_of_damage.errors else "")) }}
+                                <small class="form-text text-muted">Leave blank if unknown.</small>
+                                {% if form.date_of_damage.errors %}<div class="invalid-feedback">{{ form.date_of_damage.errors[0] }}</div>{% endif %}
+                            </div>
+
+                            {# FIX: Now correctly renders the `quantity_damaged` field #}
+                            <div class="col-md-6">
+                                {{ form.quantity_damaged.label(class="form-label fw-bold") }}
+                                {{ form.quantity_damaged(class="form-control" + (" is-invalid" if form.quantity_damaged.errors else ""), type="number", min="1") }}
+                                {% if form.quantity_damaged.errors %}<div class="invalid-feedback">{{ form.quantity_damaged.errors[0] }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ request.referrer or url_for('list_all_assets') }}" class="btn btn-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-warning") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1795 @@
+===== PHASE 5: COMMUNICATION & SOCIAL =====
+-e 
+
+===== templates/chat/contacts_section.html =====
+{% extends "layout/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <a href="{{ url_for('contacts_list') }}" class="btn btn-outline-secondary btn-sm me-2" title="Back to All Contacts">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <h1 class="h2 text-primary fw-bold d-inline-block">{{ title }}</h1>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for contact in students %}
+                            {% include 'partials/_contact_list_item.html' %}
+                        {% else %}
+                        <div class="list-group-item text-center text-muted p-4">
+                            No students found in this section that match the criteria.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}-e 
+
+===== templates/chat/universal_chat.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Chat with {{ target_user.full_name or target_user.username }}{% endblock %}
+
+{% block head_css %}
+<style>
+    .chat-window {
+        height: calc(100vh - 56px - 56px - 70px - 3rem); /* Full height - navbar - footer - input_area - padding */
+        min-height: 400px; /* Minimum height for chat window */
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse; /* Newest messages at the bottom, auto-scroll */
+        padding: 1rem;
+        background-color: var(--nexus-body-bg); /* Match overall body bg */
+    }
+    .chat-input-area {
+        border-top: 1px solid var(--nexus-border-color);
+        background-color: var(--nexus-content-bg);
+    }
+    /* Message bubble styles will be in style.scss */
+</style>
+{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-0 border-bottom bg-light-subtle sticky-top shadow-sm" style="top: 56px; z-index: 1010;"> {# Sticky header for chat target #}
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('contacts_list') }}" class="btn btn-sm btn-outline-secondary me-3" title="Back to Contacts">
+                <i class="bi bi-arrow-left-circle"></i>
+            </a>
+            {% if target_user.profile_photo_url %}
+                <img src="{{ url_for('static', filename=target_user.profile_photo_url) }}" alt="{{ target_user.username }}" class="rounded-circle me-2 shadow-sm" style="width: 40px; height: 40px; object-fit: cover;">
+            {% else %}
+                <i class="bi bi-person-circle fs-2 me-2 text-muted"></i>
+            {% endif %}
+            <div>
+                <h1 class="page-title font-heading mb-0 fs-5">{{ target_user.full_name or target_user.username }}</h1>
+                <small class="text-muted">{{ target_user.role.name.replace('_', ' ') | title if target_user.role else 'N/A' }}</small>
+                {# Placeholder for online status / last seen #}
+            </div>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            {# Optional: More actions like call, video call, view profile #}
+            {# <button class="btn btn-sm btn-outline-secondary me-2"><i class="bi bi-telephone-fill"></i></button> #}
+            {# <a href="#" class="btn btn-sm btn-outline-secondary"><i class="bi bi-info-circle-fill"></i></a> #}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+{# No sidebar for chat view, full width focus #}
+{% set no_sidebar = True %}
+
+<div class="container-fluid px-0 h-100 d-flex flex-column">
+    {# Flash messages specific to chat operations could go here, but usually handled by JS alerts #}
+    {# {% include 'layout/_flash_messages.html' %} #}
+
+    <div class="chat-window flex-grow-1" id="chatWindowMessages">
+        {# Messages will be appended here by JS, newest at the bottom #}
+        {# Initial messages can be loaded from the backend if desired #}
+        {% if messages and messages | length > 0 %}
+            {% for message_loop_var in messages %} {# Changed loop variable #}
+                {# Set context for the partial #}
+                {% set message = message_loop_var %}
+                {% set current_user_id = current_user.id %}
+                {% include 'partials/_chat_message_item.html' %}
+            {% endfor %}
+        {% else %}
+            <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
+                <div>
+                    <i class="bi bi-chat-quote-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">Start the Conversation!</h4>
+                    <p>Send a message to {{ target_user.full_name or target_user.username }}.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="chat-input-area p-3">
+        <form id="chatMessageForm" method="POST" action="{{ url_for('universal_chat', target_user_id=target_user.id) }}" novalidate>
+            {{ csrf_token() if csrf_token else '' }} {# CSRF for AJAX if forms are used that way #}
+            <div class="input-group">
+                {# Optional: File attachment button - requires more backend/JS logic #}
+                {# <button class="btn btn-outline-secondary" type="button" id="chatAttachFileBtn" title="Attach file"><i class="bi bi-paperclip"></i></button> #}
+                <textarea class="form-control" id="chatMessageInput" name="message" rows="1" placeholder="Type your message..." aria-label="Message" style="resize: none;"></textarea>
+                <button class="btn btn-primary" type="submit" id="sendChatMessageBtn" title="Send message">
+                    <i class="bi bi-send-fill"></i>
+                    <span class="d-none d-sm-inline ms-1">Send</span>
+                </button>
+            </div>
+            {# <input type="file" id="chatActualFileInput" class="d-none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"> #}
+        </form>
+         <small class="text-muted d-block mt-1" id="typingIndicator" style="height: 1.2em;"></small> {# For "User is typing..." #}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+{# Ensure chat.js is loaded after main.js/utils.js in base.html #}
+<script src="{{ url_for('static', filename='js/chat.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Pass target_user_id to chat.js for its operations
+        const targetUserId = {{ target_user.id | tojson }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        if (typeof initializeChat === 'function') {
+            initializeChat(targetUserId, currentUserId);
+        } else {
+            console.error('initializeChat function not found in chat.js');
+        }
+
+        // Auto-resize textarea
+        const messageInput = document.getElementById('chatMessageInput');
+        if(messageInput) {
+            messageInput.addEventListener('input', function () {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            // Allow Shift+Enter for new line, Enter to send
+            messageInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    document.getElementById('chatMessageForm').requestSubmit();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+-e 
+
+===== templates/chat/contacts_list.html =====
+{% extends "layout/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <div class="row">
+        <div class="col-lg-11 col-xl-10 mx-auto">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 text-primary fw-bold"><i class="bi bi-people-fill me-2"></i>{{ title }}</h1>
+            </div>
+
+            <div class="row">
+                <!-- Left Column: Staff and Teachers -->
+                <div class="col-lg-6 mb-4 mb-lg-0">
+                    
+                    <!-- Staff & Admin Contacts -->
+                    {% if other_contacts_by_role %}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-muted"><i class="bi bi-person-badge-fill me-2"></i>Staff & Administration</h5>
+                        </div>
+                        {% for role_name, contacts in other_contacts_by_role.items() %}
+                        <div class="list-group list-group-flush">
+                            <h6 class="list-group-item bg-light-subtle small text-uppercase fw-bold">{{ role_name }}</h6>
+                            {% for contact in contacts %}
+                                {% include 'partials/_contact_list_item.html' %}
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Teacher Contacts (Grouped by Class) -->
+                    {% if 'teacher' in allowed_role_names and sorted_teacher_blocks %}
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-muted"><i class="bi bi-person-video3 me-2"></i>Teachers (by Class)</h5>
+                        </div>
+                        <div class="accordion accordion-flush" id="teachersAccordion">
+                            {% for (grade, section), teachers in sorted_teacher_blocks %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-{{ grade }}-{{ section }}">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ grade }}-{{ section }}" aria-expanded="false" aria-controls="collapse-{{ grade }}-{{ section }}">
+                                        Grade {{ grade }} - Section {{ section }}
+                                    </button>
+                                </h2>
+                                <div id="collapse-{{ grade }}-{{ section }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ grade }}-{{ section }}" data-bs-parent="#teachersAccordion">
+                                    <div class="list-group list-group-flush">
+                                        {% for contact in teachers %}
+                                            {% include 'partials/_contact_list_item.html' %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div> <!-- End Left Column -->
+
+                <!-- Right Column: Students -->
+                <div class="col-lg-6">
+                    {% if 'student' in allowed_role_names %}
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-muted"><i class="bi bi-mortarboard-fill me-2"></i>Students (by Grade/Section)</h5>
+                        </div>
+                        <div class="card-body">
+                            
+                            <!-- Talent Club Members Block -->
+                            <h6 class="text-success fw-bold"><i class="bi bi-stars me-2"></i>Talent Club Members</h6>
+                            {% if tc_student_blocks %}
+                                <div class="list-group list-group-flush mb-4">
+                                {% for grade, section, student_count in tc_student_blocks %}
+                                    <a href="{{ url_for('contacts_by_section', grade=grade, section=section, tc_only='true') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-grid-3x3-gap-fill me-2 text-success"></i>
+                                            <span class="fw-bold">Grade {{ grade }} - Section {{ section }}</span>
+                                        </div>
+                                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill">{{ student_count }} member(s)</span>
+                                    </a>
+                                {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="small text-muted ps-3">No Talent Club members found.</p>
+                            {% endif %}
+                            
+                            <hr>
+
+                            <!-- Other Students Block -->
+                            <h6 class="text-secondary fw-bold"><i class="bi bi-people me-2"></i>Other Students</h6>
+                            {% if non_tc_student_blocks %}
+                                <div class="list-group list-group-flush">
+                                {% for grade, section, student_count in non_tc_student_blocks %}
+                                    <a href="{{ url_for('contacts_by_section', grade=grade, section=section, tc_only='false') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi bi-grid-3x3-gap-fill me-2 text-secondary"></i>
+                                            <span class="fw-bold">Grade {{ grade }} - Section {{ section }}</span>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">{{ student_count }} student(s)</span>
+                                    </a>
+                                {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="small text-muted ps-3">No other students found.</p>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                    {% endif %}
+                </div> <!-- End Right Column -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}-e 
+
+===== templates/social/global/feed.html =====
+{# templates/social/global/feed.html #}
+{% extends "layout/base.html" %}
+
+{% block page_title %}Nexus Pulse - Community Feed{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Nexus Pulse</h1>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        
+        <div class="mb-4" id="globalPostCreateContainer">
+            {# This include assumes you have a WTForm for creating Global Posts passed from your Python route #}
+            {# And that _social_content_form.html is ready to use it #}
+            {% if global_post_create_form %} {# Check if the form object exists #}
+                {% with 
+                    form = global_post_create_form,
+                    submit_url = url_for('create_global_post'), {# YOUR BACKEND API FOR CREATING GLOBAL POSTS #}
+                    placeholder_text = "Share something with the community...",
+                    submit_button_text = "Post",
+                    form_id = "globalPostCreateForm",
+                    file_input_name = "attached_file", {# Matches PostContentForm field name #}
+                    textarea_id = "globalPostTextarea",
+                    allow_file_upload = True {# Enable file upload for global posts #}
+                %}
+                    {% include "partials/_social_content_form.html" %}
+                {% endwith %}
+            {% else %}
+                <p class="text-muted">Post creation form is unavailable at the moment.</p>
+            {% endif %}
+        </div>
+
+        <div id="globalFeedContainer" class="social-feed-container">
+            <div class="text-center py-5 content-placeholder" id="globalFeedLoadingPlaceholder">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading posts...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading Nexus Pulse...</p>
+            </div>
+            <div class="text-center py-5 d-none content-placeholder" id="globalFeedEmptyPlaceholder">
+                <i class="bi bi-megaphone-fill display-1 text-muted"></i>
+                <p class="mt-3 lead text-muted">The Pulse is quiet right now.</p>
+                <p class="text-muted">Be the first to share something!</p>
+            </div>
+        </div>
+
+        <div id="loadMoreGlobalPostsTrigger" class="text-center my-4 d-none">
+            <button class="btn btn-outline-primary load-more-btn" data-feed-type="global">
+                <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                Load More Posts
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {# Ensure social.js is loaded, which will contain nexusSocial.initGlobalFeed #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // The backend route for feed.html needs to pass 'global_post_create_form'
+            // For JS initialization, assuming your backend API for fetching posts is '/api/v1/global_posts'
+            if (typeof nexusSocial !== 'undefined' && typeof nexusSocial.initGlobalFeed === 'function') {
+                nexusSocial.initGlobalFeed({
+                    feedContainerId: 'globalFeedContainer',
+                    loadingPlaceholderId: 'globalFeedLoadingPlaceholder',
+                    emptyPlaceholderId: 'globalFeedEmptyPlaceholder',
+                    loadMoreTriggerId: 'loadMoreGlobalPostsTrigger',
+                    createFormId: 'globalPostCreateForm', // ID of the post creation form
+                    apiEndpointFetchPosts: '{{ url_for("get_global_posts") }}', // API to get posts
+                    apiEndpointCreatePost: '{{ url_for("create_global_post") }}', // API to create posts
+                    // We will use client-side rendering for post items based on JSON data.
+                    // So, no need for 'postItemPartialUrl'
+                });
+            } else {
+                console.error('nexusSocial or nexusSocial.initGlobalFeed is not defined. Ensure social.js is correctly loaded and structured.');
+            }
+        });
+    </script>
+{% endblock %}-e 
+
+===== templates/social/groups/list.html =====
+{% extends "layout/base.html" %}
+
+{% block title %}Discover Groups{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Discover Groups</h1>
+        <a href="{{ url_for('create_group') }}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-circle-fill me-1"></i> Create New Group
+        </a>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form class="row g-2">
+                <div class="col-md-10">
+                    <input type="search" class="form-control" placeholder="Search for groups by name or topic...">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-primary w-100">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Group Cards Grid -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+        {% for group in groups %}
+            {% include "social/partials/_group_card_item.html" %}
+        {% else %}
+        <div class="col-12">
+            <div class="text-center p-5 bg-light rounded">
+                <h4 class="text-muted">No groups found.</h4>
+                <p>Why not be the first to <a href="{{ url_for('create_group') }}">create one</a>?</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}-e 
+
+===== templates/social/groups/view_group.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}{{ group.name }} - Group{% endblock %}
+
+{% block head_css %}
+<style>
+    .group-chat-window { /* Similar to universal_chat.html but can be distinct */
+        height: calc(100vh - 56px - 56px - 70px - 3rem - 70px); /* Adjust for group header */
+        min-height: 350px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column-reverse;
+        padding: 1rem;
+        background-color: var(--nexus-body-bg);
+    }
+    .group-chat-input-area {
+        border-top: 1px solid var(--nexus-border-color);
+        background-color: var(--nexus-content-bg);
+    }
+    .group-header {
+        background-color: var(--nexus-content-bg);
+        border-bottom: 1px solid var(--nexus-border-color);
+    }
+</style>
+{% endblock %}
+
+{% block content_header %}
+    <div class="group-header pt-3 pb-2 mb-0 sticky-top shadow-sm" style="top: 56px; z-index: 1010;">
+        <div class="container-fluid"> {# Use container-fluid from base for alignment #}
+            <div class="d-flex flex-column flex-md-row align-items-md-center">
+                <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
+                    {% set group_avatar_view = url_for('static', filename=(group.profile_photo_url if group.profile_photo_url else 'img/placeholders/group_default_avatar.png')) %}
+                    <img src="{{ group_avatar_view }}" alt="{{ group.name }} Profile Photo" class="rounded-circle shadow-sm" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid var(--nexus-body-bg);">
+                </div>
+                <div class="flex-grow-1 text-center text-md-start">
+                    <h1 class="page-title font-heading mb-0 fs-4">{{ group.name }}</h1>
+                    <p class="text-muted mb-1 small">
+                        <i class="bi bi-people-fill me-1"></i> <span id="groupMemberCount">{{ group.members.count() }}</span> Member{{ 's' if group.members.count() != 1 else '' }}
+                        <span class="mx-1 text-muted">|</span>
+                        Owned by: {{ group.owner.full_name or group.owner.username if group.owner else 'N/A' }}
+                    </p>
+                </div>
+                <div class="mt-2 mt-md-0 ms-md-auto">
+                    {% if user_group_role in ['owner', 'admin'] %}
+                        <a href="{{ url_for('edit_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-primary me-2" title="Edit Group Settings">
+                            <i class="bi bi-gear-fill"></i>
+                        </a>
+                        <a href="{{ url_for('manage_group_members', group_id=group.id) }}" class="btn btn-sm btn-outline-info" title="Manage Members">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </a>
+                    {% endif %}
+                     {% if user_group_role %} {# If member #}
+                        <button class="btn btn-sm btn-outline-danger ms-2 group-action-btn" data-action="leave" data-group-id="{{ group.id }}" title="Leave Group">
+                            <i class="bi bi-door-closed-fill"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+             {% if group.description %}
+                <p class="text-muted small mb-2 mt-2 text-center text-md-start">{{ group.description | truncate(150) }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+{% set no_sidebar = True %} {# Full focus on group chat #}
+
+<div class="container-fluid px-0 h-100 d-flex flex-column">
+    <div class="group-chat-window flex-grow-1" id="groupChatWindowMessages-{{ group.id }}">
+        {% if messages and messages | length > 0 %}
+            {% for message in messages %} {# Assuming messages are pre-sorted newest first for column-reverse #}
+                {% include 'partials/_chat_message_item.html' with {'message': message, 'current_user_id': current_user.id} %}
+            {% endfor %}
+        {% else %}
+            <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
+                <div>
+                    <i class="bi bi-chat-square-dots-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">Welcome to the {{ group.name }} group!</h4>
+                    <p>Be the first to send a message.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="group-chat-input-area p-3">
+        {% if user_group_role %} {# Only show input if user is a member #}
+            {# Using _social_content_form.html for consistency in posting UI #}
+            {% include 'partials/_social_content_form.html' with {
+                'post_form': post_form, {# Assumes post_form is an instance of PostContentForm #}
+                'submit_url': url_for('create_group_message', group_id=group.id),
+                'submit_button_text': 'Send',
+                'parent_id': group.id
+            } %}
+        {% else %}
+            <p class="text-center text-muted">You must be a member to send messages in this group.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const groupId = {{ group.id | tojson }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        // Initialize chat-like functionality for group messages
+        if (typeof initializeGroupChat === 'function') { // This function would be in social.js or a new group.js
+            initializeGroupChat(groupId, currentUserId);
+        } else {
+            console.warn('initializeGroupChat function not found. Using generic social post handler for messages.');
+            // The generic social post handler in social.js might work if the form action is correct
+            // and backend returns appropriate JSON for prepending messages.
+        }
+
+        // Handle Leave Group button
+        document.querySelectorAll('.group-action-btn[data-action="leave"]').forEach(button => {
+            button.addEventListener('click', async function(e){
+                e.preventDefault();
+                await handleGroupMembershipAction(groupId, 'leave', this);
+            });
+        });
+
+        console.log('View Group page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/groups/edit_group.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Edit Group: {{ group.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-pencil-square me-2 text-primary"></i>Edit Group Settings
+        </h1>
+        <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Group
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Editing: {{ group.name }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('edit_social_group', group_id=group.id) }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter group name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                             {{ form.bio.label(text="Description (Optional)", class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Brief group description") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {% if group.profile_photo_url %}
+                        <div class="mb-2">
+                            <label class="form-label fw-medium">Current Group Photo:</label><br>
+                            <img src="{{ url_for('static', filename=group.profile_photo_url) }}" alt="Current group photo" class="img-thumbnail mb-2" style="max-width: 150px; max-height: 150px;">
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(text="Change Group Photo (Optional)", class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Max 2MB. JPG, PNG, GIF, WEBP. Leave blank to keep current photo.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {# Add other group settings if they exist on EditGroupForm, e.g., group type #}
+                        {# <div class="mb-3">
+                            <label for="groupIsActive" class="form-label fw-medium">Group Status:</label>
+                            <select name="is_active" id="groupIsActive" class="form-select">
+                                <option value="true" {% if group.is_active %}selected{% endif %}>Active</option>
+                                <option value="false" {% if not group.is_active %}selected{% endif %}>Inactive (Archived)</option>
+                            </select>
+                        </div> #}
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Save Group Changes") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('Edit Group page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/groups/create_group.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Create New Social Group{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-plus-circle-fill me-2 text-primary"></i>Create New Social Group
+        </h1>
+        <a href="{{ request.referrer or url_for('social_group_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Cancel & Go Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Group Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('create_social_group') }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter a unique group name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {# form.bio is the field name from CreateGroupForm, corresponds to 'description' in model #}
+                            {{ form.bio.label(text="Description (Optional)", class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Briefly describe your group's purpose") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Optional. Max 2MB. JPG, PNG, GIF, WEBP.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {# Add other group settings if they exist on CreateGroupForm, e.g., public/private type #}
+                        {# <div class="mb-3">
+                            <label for="groupType" class="form-label fw-medium">Group Type:</label>
+                            <select name="group_type" id="groupType" class="form-select">
+                                <option value="private" selected>Private (Invite Only)</option>
+                                <option value="public">Public (Discoverable)</option>
+                            </select>
+                        </div> #}
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ request.referrer or url_for('social_group_list') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Create Group") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // JS for profile photo preview if desired, similar to settings page
+        console.log('Create Group page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/groups/manage_members.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Members: {{ group.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-people-fill me-2 text-primary"></i>Manage Group Members
+        </h1>
+        <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Group: {{ group.name | truncate(30) }}
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Members of "{{ group.name }}"</h5>
+            {# Optional: Add User to Group Button (for owner/admin) - Requires user search modal/flow #}
+            {# <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addMemberModal"><i class="bi bi-person-plus-fill me-1"></i> Add Member</button> #}
+        </div>
+        <div class="card-body p-0">
+            {% if members and members | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;">Avatar</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Global Role</th>
+                                <th scope="col">Group Role</th>
+                                <th scope="col">Joined On</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member_entry in members %}
+                                {% set user = member_entry.user %}
+                                <tr id="member-row-{{ user.id }}">
+                                    <td>
+                                        {% set member_avatar = url_for('static', filename=(user.profile_photo_url if user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                        <img src="{{ member_avatar }}" alt="{{ user.username }}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;">
+                                    </td>
+                                    <td class="fw-medium">
+                                        {{ user.full_name or user.username }}
+                                        {% if user.id == group.owner_id %}<span class="badge bg-primary-subtle text-primary-emphasis ms-1 small">Owner</span>{% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ user.role.name.replace('_',' ') | title if user.role else 'N/A' }}</small></td>
+                                    <td>
+                                        {% if user.id == group.owner_id %}
+                                            <span class="badge bg-primary-subtle text-primary-emphasis p-2">{{ member_entry.role | title }}</span>
+                                        {% elif user_group_role in ['owner'] or (user_group_role == 'admin' and member_entry.role != 'owner') %}
+                                            <select class="form-select form-select-sm change-group-role-select" 
+                                                    data-group-id="{{ group.id }}" data-member-id="{{ user.id }}"
+                                                    {% if user.id == current_user.id %}disabled title="Cannot change your own role here"{% endif %}>
+                                                <option value="member" {% if member_entry.role == 'member' %}selected{% endif %}>Member</option>
+                                                <option value="admin" {% if member_entry.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                {# Only group owner can assign 'owner' role, usually via a separate "Transfer Ownership" action #}
+                                            </select>
+                                        {% else %}
+                                             <span class="badge bg-secondary-subtle text-secondary-emphasis p-2">{{ member_entry.role | title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ member_entry.joined_at | dateformat }}</small></td>
+                                    <td class="text-center">
+                                        {% if user.id != group.owner_id and user.id != current_user.id %} {# Cannot remove owner or self #}
+                                         {% if user_group_role in ['owner'] or (user_group_role == 'admin' and member_entry.role == 'member') %}
+                                            <button class="btn btn-sm btn-outline-danger p-1 remove-group-member-btn"
+                                                    data-group-id="{{ group.id }}" data-member-id="{{ user.id }}"
+                                                    data-member-name="{{ user.full_name or user.username }}"
+                                                    title="Remove Member">
+                                                <i class="bi bi-person-x-fill fs-6"></i>
+                                            </button>
+                                         {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-plus-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Members Yet</h4>
+                    <p>This group currently has no members other than potentially the owner. You can add members if you are an admin.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.change-group-role-select').forEach(selectEl => {
+            selectEl.addEventListener('change', handleGroupRoleChange);
+        });
+        // Remove buttons are handled by event delegation in social.js via .remove-group-member-btn
+        console.log('Manage Group Members JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/channels/view_channel.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}{{ channel.name }} - Channel{% endblock %}
+
+{% block head_css %}
+    {# Optional: Add CSS for image lightbox if used for post images #}
+    {# <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bs5-lightbox@1.8.3/dist/bs5-lightbox.min.css"> #}
+{% endblock %}
+
+
+{% block content_header %}
+    {# Channel Header - could be a banner image in future #}
+    <div class="channel-header pt-3 pb-2 mb-3 border-bottom bg-light-subtle position-relative">
+        <div class="container-fluid"> {# Use container-fluid from base for alignment #}
+            <div class="d-flex flex-column flex-md-row align-items-md-center">
+                <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
+                    {% set channel_avatar_view = url_for('static', filename=(channel.profile_photo_url if channel.profile_photo_url else 'img/placeholders/channel_default_avatar.png')) %}
+                    <img src="{{ channel_avatar_view }}" alt="{{ channel.name }} Profile Photo" class="rounded-circle shadow-sm" style="width: 80px; height: 80px; object-fit: cover; border: 3px solid var(--nexus-content-bg);">
+                </div>
+                <div class="flex-grow-1 text-center text-md-start">
+                    <h1 class="page-title font-heading mb-0 fs-3">{{ channel.name }}</h1>
+                    <p class="text-muted mb-1">
+                        <i class="bi bi-tag-fill me-1"></i>{{ channel.social_category.name if channel.social_category else 'Uncategorized' }}
+                        <span class="mx-2 text-muted">|</span>
+                        <i class="bi bi-people-fill me-1"></i> <span id="subscriberCount">{{ channel.subscribers.count() }}</span> Subscriber{{ 's' if channel.subscribers.count() != 1 else '' }}
+                        <span class="mx-2 text-muted">|</span>
+                        <i class="bi bi-shield-lock-fill me-1"></i>{{ channel.type | title }}
+                    </p>
+                    {% if channel.bio %}
+                        <p class="text-muted small mb-0 d-none d-md-block">{{ channel.bio | truncate(150) }}</p>
+                    {% endif %}
+                </div>
+                <div class="mt-2 mt-md-0 ms-md-auto">
+                    {% if is_subscribed %}
+                        <button class="btn btn-sm btn-outline-secondary channel-action-btn me-2" data-action="unsubscribe" data-channel-id="{{ channel.id }}">
+                            <i class="bi bi-bell-slash-fill me-1"></i> Subscribed
+                        </button>
+                    {% elif channel.type == 'public' %}
+                        <button class="btn btn-sm btn-primary channel-action-btn me-2" data-action="subscribe" data-channel-id="{{ channel.id }}">
+                            <i class="bi bi-bell-fill me-1"></i> Subscribe
+                        </button>
+                    {% endif %}
+
+                    {% if is_owner or is_admin %}
+                        <a href="{{ url_for('edit_social_channel', channel_id=channel.id) }}" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="bi bi-pencil-square me-1"></i> Edit Channel
+                        </a>
+                        <a href="{{ url_for('manage_channel_subscribers', channel_id=channel.id) }}" class="btn btn-sm btn-outline-info">
+                            <i class="bi bi-person-gear me-1"></i> Manage Subs
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+             {% if channel.bio %} {# Show bio on mobile below header items #}
+                <p class="text-muted small mb-2 d-md-none mt-2 text-center">{{ channel.bio | truncate(100) }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row g-4">
+        {# Main Content Feed #}
+        <div class="col-lg-8 col-xl-9 order-lg-2">
+            {% include 'layout/_flash_messages.html' %}
+
+            {# Post Creation Form - only if user can post (e.g., owner, admin, or if channel allows all subscribers) #}
+            {% set can_post_in_channel = is_owner or is_admin %} {# Basic permission - can be expanded #}
+            {% if can_post_in_channel %}
+                <div class="mb-4">
+                    {% include 'partials/_social_content_form.html' with {
+                        'post_form': post_form,
+                        'submit_url': url_for('create_channel_post', channel_id=channel.id),
+                        'submit_button_text': 'Post to Channel',
+                        'parent_id': channel.id
+                    } %}
+                </div>
+            {% endif %}
+
+            <h4 class="font-heading mb-3"><i class="bi bi-card-text me-2"></i>Channel Feed</h4>
+            <div class="social-feed-container" id="channelFeedContainer-{{ channel.id }}">
+                {% if posts and posts | length > 0 %}
+                    {% for post in posts %}
+                        {% include 'partials/_social_post_item.html' %}
+                    {% endfor %}
+                    {# Placeholder for "Load More" button or infinite scroll trigger #}
+                    <div class="text-center my-4" id="loadMorePostsTrigger-{{ channel.id }}">
+                        <button class="btn btn-outline-primary load-more-btn" data-channel-id="{{ channel.id }}" data-current-page="{{ pagination.page if pagination else 1 }}">
+                            <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                            Load More Posts
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted p-5 content-placeholder">
+                        <i class="bi bi-mic-mute-fill display-3 mb-3"></i>
+                        <h4 class="font-heading">It's Quiet Here...</h4>
+                        {% if can_post_in_channel %}
+                        <p>No posts in this channel yet. Be the first to share something!</p>
+                        {% else %}
+                        <p>No posts in this channel yet.</p>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Right Sidebar (Channel Info, Subscribers - Optional) #}
+        <div class="col-lg-4 col-xl-3 order-lg-1 channel-sidebar">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-info-circle-fill me-2"></i>About This Channel</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Owner:</strong> {{ channel.owner.full_name or channel.owner.username if channel.owner else 'N/A' }}</p>
+                    <p><strong>Created:</strong> {{ channel.created_at | dateformat }}</p>
+                    <p><strong>Category:</strong> {{ channel.social_category.name if channel.social_category else 'N/A' }}</p>
+                    <p><strong>Type:</strong> {{ channel.type | title }}</p>
+                    <hr>
+                    <p class="small text-muted">{{ channel.bio if channel.bio else "No detailed description provided for this channel."}}</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-people-fill me-2"></i>Subscribers ({{ channel.subscribers.count() }})</h5>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                    {% for sub_entry in channel.subscribers.limit(10).all() %} {# Limit for display #}
+                        <a href="#" class="list-group-item list-group-item-action d-flex align-items-center">
+                             {% set sub_avatar = url_for('static', filename=(sub_entry.user.profile_photo_url if sub_entry.user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                            <img src="{{ sub_avatar }}" alt="{{ sub_entry.user.username }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
+                            <span class="small">{{ sub_entry.user.full_name or sub_entry.user.username }}</span>
+                            {% if sub_entry.role != 'subscriber' %}
+                                <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill ms-auto small">{{ sub_entry.role | title }}</span>
+                            {% endif %}
+                        </a>
+                    {% endfor %}
+                    {% if channel.subscribers.count() > 10 %}
+                        <a href="{{ url_for('manage_channel_subscribers', channel_id=channel.id) }}" class="list-group-item list-group-item-action text-center text-primary fw-medium">View All Subscribers...</a>
+                    {% elif channel.subscribers.count() == 0 %}
+                         <div class="list-group-item text-center text-muted small p-3">No subscribers yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+{# Optional: BS5 Lightbox JS for image previews #}
+{# <script src="https://cdn.jsdelivr.net/npm/bs5-lightbox@1.8.3/dist/bs5-lightbox.bundle.min.js"></script> #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const channelId = {{ channel.id | tojson }};
+        const currentUserId = {{ current_user.id | tojson }};
+
+        // Initialize social interactions (posts, comments, reactions) for this channel
+        if (typeof initializeSocialFeed === 'function') { // This function would be in social.js
+            initializeSocialFeed('channel', channelId, currentUserId);
+        } else {
+            console.error('initializeSocialFeed function not found in social.js');
+        }
+
+        // Handle channel subscribe/unsubscribe buttons specifically on this page
+        document.querySelectorAll('.channel-action-btn').forEach(button => {
+            button.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const action = this.dataset.action; // 'subscribe' or 'unsubscribe'
+                const chanId = this.dataset.channelId;
+                await handleChannelSubscriptionAction(chanId, action, this);
+            });
+        });
+        console.log('View Channel page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/channels/list.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Channels{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-broadcast-pin me-2 text-primary"></i>My Channels
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('social_channel_discover') }}" class="btn btn-sm btn-outline-info me-2">
+                <i class="bi bi-compass-fill me-1"></i> Discover Channels
+            </a>
+            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %} {# Role check for create button #}
+            <a href="{{ url_for('create_social_channel') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create New Channel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <ul class="nav nav-tabs mb-4" id="myChannelsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="subscribed-tab" data-bs-toggle="tab" data-bs-target="#subscribed-channels-pane" type="button" role="tab" aria-controls="subscribed-channels-pane" aria-selected="true">
+                <i class="bi bi-bell-fill me-1"></i> Subscribed Channels ({{ my_subscribed_channels | length if my_subscribed_channels else 0 }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="owned-tab" data-bs-toggle="tab" data-bs-target="#owned-channels-pane" type="button" role="tab" aria-controls="owned-channels-pane" aria-selected="false">
+                 <i class="bi bi-person-video3 me-1"></i> Owned Channels ({{ my_owned_channels | length if my_owned_channels else 0 }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myChannelsTabContent">
+        <div class="tab-pane fade show active" id="subscribed-channels-pane" role="tabpanel" aria-labelledby="subscribed-tab" tabindex="0">
+            {% if my_subscribed_channels and my_subscribed_channels | length > 0 %}
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                    {% for subscription in my_subscribed_channels %}
+                        {% set channel = subscription.channel %}
+                        {# Variables needed by _channel_card_item.html must be set before include #}
+                        {# current_user is assumed to be globally available from Flask-Login #}
+                        {% set is_subscribed = True %}
+                        {% set is_owner = (channel.owner_id == current_user.id) %}
+                        
+                        {# Call include in its simplest form #}
+                        {% include 'partials/_channel_card_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-broadcast display-3 mb-3"></i>
+                    <h4 class="font-heading">No Subscribed Channels Yet</h4>
+                    <p>You haven't subscribed to any channels. Why not <a href="{{ url_for('social_channel_discover') }}">discover some</a>?</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="tab-pane fade" id="owned-channels-pane" role="tabpanel" aria-labelledby="owned-tab" tabindex="0">
+            {% if my_owned_channels and my_owned_channels | length > 0 %}
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                    {% for channel in my_owned_channels %}
+                         {# Variables needed by _channel_card_item.html must be set before include #}
+                         {# 'channel' is the loop variable, 'current_user' is global #}
+                         {% set is_subscribed = True %} {# Owner is always subscribed conceptually #}
+                         {% set is_owner = True %}
+
+                         {# Call include in its simplest form #}
+                         {% include 'partials/_channel_card_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-plus-square-dotted display-3 mb-3"></i>
+                    <h4 class="font-heading">You Don't Own Any Channels</h4>
+                     {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+                    <p>Ready to start one? <a href="{{ url_for('create_social_channel') }}">Create a new channel</a>.</p>
+                    {% else %}
+                    <p>Users with creator permissions can start new channels.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // JS for handling channel subscribe/unsubscribe buttons if they are on this page
+        // and not just on the discover page. The logic would be in social.js
+        console.log('My Channels page JS loaded.');
+    });
+</script>
+{% endblock %}
+-e 
+
+===== templates/social/channels/manage_subscribers.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Subscribers: {{ channel.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-person-gear me-2 text-primary"></i>Manage Subscribers
+        </h1>
+        <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Channel: {{ channel.name | truncate(30) }}
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Subscribers of "{{ channel.name }}"</h5>
+            {# Optional: Add User to Channel Button (for owner/admin) #}
+            {# <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addSubscriberModal"><i class="bi bi-person-plus-fill me-1"></i> Add Subscriber</button> #}
+        </div>
+        <div class="card-body p-0">
+            {% if subscribers and subscribers | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col" style="width: 5%;">Avatar</th>
+                                <th scope="col">User</th>
+                                <th scope="col">Global Role</th>
+                                <th scope="col">Channel Role</th>
+                                <th scope="col">Subscribed On</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub_entry in subscribers %}
+                                {% set user = sub_entry.user %}
+                                <tr id="subscriber-row-{{ user.id }}">
+                                    <td>
+                                        {% set sub_avatar = url_for('static', filename=(user.profile_photo_url if user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
+                                        <img src="{{ sub_avatar }}" alt="{{ user.username }}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;">
+                                    </td>
+                                    <td class="fw-medium">
+                                        {{ user.full_name or user.username }}
+                                        {% if user.id == channel.owner_id %}<span class="badge bg-primary-subtle text-primary-emphasis ms-1 small">Owner</span>{% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ user.role.name.replace('_',' ') | title if user.role else 'N/A' }}</small></td>
+                                    <td>
+                                        {% if user.id == channel.owner_id %}
+                                            <span class="badge bg-primary-subtle text-primary-emphasis p-2">{{ sub_entry.role | title }}</span>
+                                        {% elif user_channel_role in ['owner'] or (user_channel_role == 'admin' and sub_entry.role != 'owner') %} {# Owner can edit all, Admin can edit non-owners #}
+                                            <select class="form-select form-select-sm change-channel-role-select" 
+                                                    data-channel-id="{{ channel.id }}" data-subscriber-id="{{ user.id }}"
+                                                    {% if user.id == current_user.id %}disabled title="Cannot change your own role here"{% endif %}>
+                                                <option value="subscriber" {% if sub_entry.role == 'subscriber' %}selected{% endif %}>Subscriber</option>
+                                                <option value="admin" {% if sub_entry.role == 'admin' %}selected{% endif %}>Admin</option>
+                                                {% if user_channel_role == 'owner' %} {# Only owner can make other owners #}
+                                                {# <option value="owner" {% if sub_entry.role == 'owner' %}selected{% endif %}>Owner</option> #}
+                                                {# Transfer ownership is a more complex action, typically separate #}
+                                                {% endif %}
+                                            </select>
+                                        {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary-emphasis p-2">{{ sub_entry.role | title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ sub_entry.subscribed_at | dateformat }}</small></td>
+                                    <td class="text-center">
+                                        {% if user.id != channel.owner_id and user.id != current_user.id %} {# Cannot remove owner or self here #}
+                                         {% if user_channel_role in ['owner'] or (user_channel_role == 'admin' and sub_entry.role == 'subscriber') %}
+                                            <button class="btn btn-sm btn-outline-danger p-1 remove-channel-subscriber-btn"
+                                                    data-channel-id="{{ channel.id }}" data-subscriber-id="{{ user.id }}"
+                                                    data-subscriber-name="{{ user.full_name or user.username }}"
+                                                    title="Remove Subscriber">
+                                                <i class="bi bi-person-x-fill fs-6"></i>
+                                            </button>
+                                         {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-plus-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Subscribers Yet</h4>
+                    <p>This channel currently has no subscribers other than potentially the owner.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Modal for adding subscriber - placeholder for future implementation if direct add is desired
+<div class="modal fade" id="addSubscriberModal" tabindex="-1" aria-labelledby="addSubscriberModalLabel" aria-hidden="true"> ... </div>
+#}
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    // JavaScript for handling role changes and removals will be in social.js
+    // This script block can initialize any page-specific listeners or TomSelect if needed.
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for role dropdowns if they aren't too numerous.
+        // For larger lists, direct select might be fine.
+        document.querySelectorAll('.change-channel-role-select').forEach(selectEl => {
+            // new TomSelect(selectEl, {create: false}); // If TomSelect is desired
+            selectEl.addEventListener('change', handleChannelRoleChange);
+        });
+
+        // Remove buttons are handled by event delegation in social.js via .remove-channel-subscriber-btn
+        console.log('Manage Channel Subscribers JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/channels/create_channel.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Create New Channel{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-plus-square-fill me-2 text-primary"></i>Create New Channel
+        </h1>
+        <a href="{{ request.referrer or url_for('social_channel_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Cancel & Go Back
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Channel Details</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('create_social_channel') }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter a unique channel name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.bio.label(class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Briefly describe your channel's purpose (optional)") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {{ form.channel_type.label(class="form-label fw-medium") }}
+                                {{ form.channel_type(class="form-select" + (" is-invalid" if form.channel_type.errors else "")) }}
+                                <small class="form-text text-muted">Public channels are visible to all; private channels require subscription approval (approval not yet implemented, treated as restricted view for now).</small>
+                                {% if form.channel_type.errors %}<div class="invalid-feedback">{% for e in form.channel_type.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {{ form.social_category_id.label(class="form-label fw-medium") }}
+                                {{ form.social_category_id(class="form-select tom-select" + (" is-invalid" if form.social_category_id.errors else ""), placeholder="Select a category...") }}
+                                {% if form.social_category_id.errors %}<div class="invalid-feedback">{% for e in form.social_category_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Optional. Max 2MB. JPG, PNG, GIF, WEBP.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="font-heading mb-3">Channel Settings:</h6>
+                        <div class="form-check form-switch mb-2">
+                            {{ form.allow_comments(class="form-check-input" + (" is-invalid" if form.allow_comments.errors else ""), role="switch", id="allowCommentsSwitch") }}
+                            {{ form.allow_comments.label(class="form-check-label fw-medium", for="allowCommentsSwitch") }}
+                            {% if form.allow_comments.errors %}<div class="invalid-feedback d-block">{% for e in form.allow_comments.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            {{ form.allow_reactions(class="form-check-input" + (" is-invalid" if form.allow_reactions.errors else ""), role="switch", id="allowReactionsSwitch") }}
+                            {{ form.allow_reactions.label(class="form-check-label fw-medium", for="allowReactionsSwitch") }}
+                            {% if form.allow_reactions.errors %}<div class="invalid-feedback d-block">{% for e in form.allow_reactions.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ request.referrer or url_for('social_channel_list') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Create Channel") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categorySelect = document.getElementById('{{ form.social_category_id.id }}');
+        if (categorySelect) {
+            new TomSelect(categorySelect, {
+                create: false, // Assuming categories are predefined
+                placeholder: 'Select a category...'
+            });
+        }
+        console.log('Create Channel page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/channels/discover.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Discover Channels{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-compass-fill me-2 text-primary"></i>Discover Channels
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('social_channel_list') }}" class="btn btn-sm btn-outline-secondary me-2">
+                <i class="bi bi-view-list me-1"></i> My Channels
+            </a>
+             {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
+            <a href="{{ url_for('create_social_channel') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-plus-circle-fill me-1"></i> Create New Channel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Filter and Search Bar #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-light-subtle p-3">
+            <form method="GET" action="{{ url_for('social_channel_discover') }}" class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label for="channelSearchInput" class="form-label fw-medium text-muted small">Search Channels:</label>
+                    <input type="text" name="search_query" id="channelSearchInput" class="form-control form-control-sm" value="{{ search_query or '' }}" placeholder="Search by name or bio...">
+                </div>
+                <div class="col-md-5">
+                    <label for="categoryFilter" class="form-label fw-medium text-muted small">Filter by Category:</label>
+                    <select name="category_id" id="categoryFilter" class="form-select form-select-sm tom-select-filter">
+                        <option value="" {% if not selected_category_id %}selected{% endif %}>All Categories</option>
+                        {% for category in all_social_categories %}
+                            <option value="{{ category.id }}" {% if selected_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {# Channel Listing #}
+    {% if discoverable_channels and discoverable_channels | length > 0 %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4" id="discoverChannelsContainer">
+            {% for channel in discoverable_channels %}
+                 {# Pass subscription status to the card if available #}
+                 {% set is_subscribed = channel_statuses.get(channel.id, {}).get('is_subscribed', False) %}
+                 {% set is_owner = channel_statuses.get(channel.id, {}).get('is_owner', False) %}
+                 {% include 'partials/_channel_card_item.html' %}
+            {% endfor %}
+        </div>
+        {# Optional: Pagination for discoverable_channels #}
+        {% if pagination %}
+            <nav aria-label="Channel discovery pagination" class="mt-5 d-flex justify-content-center">
+                <ul class="pagination shadow-sm">
+                    <li class="page-item {{ 'disabled' if not pagination.has_prev else '' }}">
+                        <a class="page-link" href="{{ url_for('social_channel_discover', page=pagination.prev_num, search_query=search_query, category_id=selected_category_id) if pagination.has_prev else '#' }}">«</a>
+                    </li>
+                    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+                                <a class="page-link" href="{{ url_for('social_channel_discover', page=page_num, search_query=search_query, category_id=selected_category_id) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {{ 'disabled' if not pagination.has_next else '' }}">
+                        <a class="page-link" href="{{ url_for('social_channel_discover', page=pagination.next_num, search_query=search_query, category_id=selected_category_id) if pagination.has_next else '#' }}">»</a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+
+    {% else %}
+        <div class="text-center text-muted p-5 content-placeholder">
+            <i class="bi bi- binoculars-fill display-3 mb-3"></i>
+            <h4 class="font-heading">No Channels Found</h4>
+            <p>No public channels match your current search or filter criteria. Why not create one?</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize TomSelect for category filter
+        const categoryFilterSelect = document.getElementById('categoryFilter');
+        if (categoryFilterSelect) {
+            new TomSelect(categoryFilterSelect, { create: false, placeholder: 'Select a category...' });
+        }
+
+        // Live search input (optional, AJAX based search is better)
+        const channelSearchInput = document.getElementById('channelSearchInput');
+        if (channelSearchInput && !document.getElementById('discoverChannelsContainer').children.length < 20) { // Simple disable if many items (server search better)
+            // Basic live search example (can be improved with AJAX)
+            // channelSearchInput.addEventListener('keyup', debounce(function() {
+            //     const searchTerm = this.value.toLowerCase();
+            //     document.querySelectorAll('#discoverChannelsContainer .channel-card').forEach(card => {
+            //         const channelName = card.querySelector('.card-title a').textContent.toLowerCase();
+            //         const channelBio = card.querySelector('.card-text').textContent.toLowerCase();
+            //         if (channelName.includes(searchTerm) || channelBio.includes(searchTerm)) {
+            //             card.parentElement.style.display = ''; // Show column
+            //         } else {
+            //             card.parentElement.style.display = 'none'; // Hide column
+            //         }
+            //     });
+            // }, 300));
+        }
+        console.log('Discover Channels page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/channels/edit_channel.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Edit Channel: {{ channel.name }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-pencil-square me-2 text-primary"></i>Edit Channel Settings
+        </h1>
+        <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Channel
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">Editing: {{ channel.name }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('edit_social_channel', channel_id=channel.id) }}" enctype="multipart/form-data" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.name.label(class="form-label fw-medium") }}
+                            {{ form.name(class="form-control form-control-lg" + (" is-invalid" if form.name.errors else ""), placeholder="Enter channel name") }}
+                            {% if form.name.errors %}<div class="invalid-feedback">{% for e in form.name.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.bio.label(class="form-label fw-medium") }}
+                            {{ form.bio(class="form-control" + (" is-invalid" if form.bio.errors else ""), rows="3", placeholder="Brief channel description") }}
+                            {% if form.bio.errors %}<div class="invalid-feedback">{% for e in form.bio.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.social_category_id.label(class="form-label fw-medium") }}
+                            {{ form.social_category_id(class="form-select tom-select" + (" is-invalid" if form.social_category_id.errors else "")) }}
+                            {% if form.social_category_id.errors %}<div class="invalid-feedback">{% for e in form.social_category_id.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        {# Current Profile Photo Preview #}
+                        {% if channel.profile_photo_url %}
+                        <div class="mb-2">
+                            <label class="form-label fw-medium">Current Profile Photo:</label><br>
+                            <img src="{{ url_for('static', filename=channel.profile_photo_url) }}" alt="Current channel photo" class="img-thumbnail mb-2" style="max-width: 150px; max-height: 150px;">
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.profile_photo.label(text="Change Profile Photo (Optional)", class="form-label fw-medium") }}
+                            {{ form.profile_photo(class="form-control" + (" is-invalid" if form.profile_photo.errors else "")) }}
+                            <small class="form-text text-muted">Max 2MB. JPG, PNG, GIF, WEBP. Leave blank to keep current photo.</small>
+                            {% if form.profile_photo.errors %}<div class="invalid-feedback">{% for e in form.profile_photo.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        <hr class="my-4">
+                        <h6 class="font-heading mb-3">Channel Content Settings:</h6>
+                        <div class="form-check form-switch mb-2">
+                            {{ form.allow_comments(class="form-check-input" + (" is-invalid" if form.allow_comments.errors else ""), role="switch", id="allowCommentsSwitch") }}
+                            {{ form.allow_comments.label(class="form-check-label fw-medium", for="allowCommentsSwitch") }}
+                            {% if form.allow_comments.errors %}<div class="invalid-feedback d-block">{% for e in form.allow_comments.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            {{ form.allow_reactions(class="form-check-input" + (" is-invalid" if form.allow_reactions.errors else ""), role="switch", id="allowReactionsSwitch") }}
+                            {{ form.allow_reactions.label(class="form-check-label fw-medium", for="allowReactionsSwitch") }}
+                            {% if form.allow_reactions.errors %}<div class="invalid-feedback d-block">{% for e in form.allow_reactions.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('view_social_channel', channel_id=channel.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Save Channel Changes") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const categorySelect = document.getElementById('{{ form.social_category_id.id }}');
+        if (categorySelect) {
+            new TomSelect(categorySelect, { create: false });
+        }
+        console.log('Edit Channel page JS loaded.');
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/social/partials/_group_card_item.html =====
+-e 
+
+===== templates/social/partials/_channel_card_item.html =====
+-e 
+
+===== templates/social/partials/_social_content_form.html =====
+-e 
+
+===== templates/social/partials/_social_comment_item.html =====
+-e 
+
+===== templates/social/partials/_social_post_item.html =====
+-e 
+
+===== templates/notifications/view.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}My Notifications{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-bell-fill me-2 text-primary"></i>My Notifications
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <button class="btn btn-sm btn-outline-primary me-2" id="markAllReadBtn" {% if not notifications or not (notifications | selectattr('is_read', 'equalto', false) | list | length > 0) %}disabled{% endif %}>
+                <i class="bi bi-check2-all me-1"></i> Mark All as Read
+            </button>
+            <a href="{{ url_for('notification_contacts_for_sending') }}" class="btn btn-sm btn-success">
+                <i class="bi bi-send-plus-fill me-1"></i> Send Notification
+            </a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 font-heading">Notification History</h5>
+            {# Optional: Filter controls for notifications #}
+            {# <div>
+                <select class="form-select form-select-sm" id="notificationFilterStatus">
+                    <option value="all" selected>All</option>
+                    <option value="unread">Unread Only</option>
+                    <option value="read">Read Only</option>
+                </select>
+            </div> #}
+        </div>
+        <div class="card-body p-0">
+            {% if notifications and notifications | length > 0 %}
+                <div class="list-group list-group-flush notification-list-full">
+                    {% for notification in notifications %}
+                        {% include 'partials/_notification_item.html' %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-envelope-open-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">All Caught Up!</h4>
+                    <p>You have no new notifications at this time.</p>
+                </div>
+            {% endif %}
+        </div>
+        {# Optional: Pagination if notification list is very long #}
+        {# <div class="card-footer">
+            <nav aria-label="Notification pagination"> ... </nav>
+        </div> #}
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+{# Ensure notifications.js is loaded after main.js/utils.js in base.html if it depends on them #}
+<script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Specific JS for this page, if any, beyond what's in notifications.js
+        console.log('View Notifications page JS context loaded.');
+
+        // Example: Initialize notification item click handlers if not done globally in notifications.js
+        // This is just a placeholder; actual logic will be in notifications.js
+        // document.querySelectorAll('.notification-item.unread-notification').forEach(item => {
+        //     item.addEventListener('click', function(e) {
+        //         // Basic: Prevent default if link_url is '#' or for AJAX marking
+        //         // if (this.getAttribute('href') === '#') e.preventDefault();
+        //         // markNotificationAsRead(this.dataset.notificationId); // Assumes function in notifications.js
+        //     });
+        // });
+    });
+</script>
+{% endblock %}-e 
+
+===== templates/notifications/send_form.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Send Notification to {{ receiver.full_name or receiver.username }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-send-fill me-2 text-primary"></i>Compose Notification
+        </h1>
+        <a href="{{ url_for('notification_contacts_for_sending') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to Select Recipient
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary-subtle text-primary-emphasis">
+                    <h5 class="mb-0 font-heading">To:
+                        <span class="fw-bold">{{ receiver.full_name or receiver.username }}</span>
+                        <small class="text-muted">({{ receiver.role.name.replace('_', ' ') | title if receiver.role }})</small>
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ url_for('send_notification_to_user', receiver_id=receiver.id) }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label fw-medium") }}
+                            {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows="6", placeholder="Type your notification message here...") }}
+                            <small class="form-text text-muted">Max 1000 characters.</small>
+                            {% if form.content.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.content.errors %}<span>{{ error }}</span>{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {# Optional: Link URL field if added to NotificationForm
+                        {% if form.link_url %}
+                        <div class="mb-3">
+                            {{ form.link_url.label(class="form-label fw-medium") }}
+                            {{ form.link_url(class="form-control" + (" is-invalid" if form.link_url.errors else ""), placeholder="https://example.com/relevant-page (Optional)") }}
+                            {% if form.link_url.errors %}<div class="invalid-feedback">{% for e in form.link_url.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        {% endif %} #}
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('notification_contacts_for_sending') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value="Send Notification") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}-e 
+
+===== templates/notifications/contacts_for_sending.html =====
+{% extends "layout/base.html" %}
+
+{% block page_title %}Send Notification - Select Recipient{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-people-fill me-2 text-primary"></i>Select Notification Recipient
+        </h1>
+        <a href="{{ url_for('view_notifications') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to My Notifications
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0 font-heading">Users You Can Notify</h5>
+            {# Add search/filter form if contact list is very long #}
+        </div>
+        <div class="card-body p-0">
+            {% if contacts and contacts | length > 0 %}
+                <div class="list-group list-group-flush">
+                    {% for contact in contacts %}
+                        <a href="{{ url_for('send_notification_to_user', receiver_id=contact.id) }}" class="list-group-item list-group-item-action contact-list-item-clickable">
+                            <div class="d-flex align-items-center">
+                                {% if contact.profile_photo_url %}
+                                    <img src="{{ url_for('static', filename=contact.profile_photo_url) }}" alt="{{ contact.username }}" class="rounded-circle me-3 shadow-sm" style="width: 45px; height: 45px; object-fit: cover;">
+                                {% else %}
+                                    <i class="bi bi-person-circle fs-2 me-3 text-muted"></i>
+                                {% endif %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 font-heading">{{ contact.full_name or contact.username }}</h6>
+                                    <small class="text-muted">
+                                        {{ contact.role.name.replace('_', ' ') | title if contact.role else 'N/A' }}
+                                        {% if contact.grade and contact.section %} (G:{{ contact.grade }}-S:{{ contact.section }}){% endif %}
+                                    </small>
+                                </div>
+                                <i class="bi bi-send-plus-fill fs-4 text-primary opacity-75"></i>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 content-placeholder">
+                    <i class="bi bi-person-x-fill display-3 mb-3"></i>
+                    <h4 class="font-heading">No Contacts Available</h4>
+                    <p>There are currently no users you are permitted to send notifications to, or no users match the criteria.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

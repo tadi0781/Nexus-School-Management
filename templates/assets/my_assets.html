@@ -1,0 +1,79 @@
+{% extends "layout/base.html" %}
+
+{% block title %}My Added Assets{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-box-seam-fill me-2 text-primary"></i>My Added Assets
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('add_asset') }}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus-circle-fill me-1"></i>Add Another Asset
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light-subtle">
+            <h5 class="mb-0 font-heading">Assets You Have Submitted for Review</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if assets %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Asset Name</th>
+                                <th scope="col">Category</th>
+                                <th scope="col">Quantity</th>
+                                <th scope="col">Condition</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in assets %}
+                            <tr>
+                                <td class="fw-bold">{{ asset.name }}</td>
+                                <td>{{ asset.category.name if asset.category else 'Pending' }}</td>
+                                <td class="text-center">{{ asset.quantity }}</td>
+                                <td>{{ asset.condition }}</td>
+                                <td>
+                                    {# Using a map for cleaner status badges #}
+                                    {% set status_map = {
+                                        'Available': 'success', 'Pending Review': 'warning',
+                                        'CheckedOut': 'info', 'Under Maintenance': 'danger',
+                                        'Needs Repair': 'danger', 'Retired': 'dark', 'Lost': 'dark'
+                                    } %}
+                                    {% set color = status_map.get(asset.status, 'secondary') %}
+                                    <span class="badge bg-{{ color }}-subtle text-{{ color }}-emphasis">{{ asset.status }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {# Only HR/Admins can edit, but the user who added it can always report it. #}
+                                    <a href="{{ url_for('report_asset_specific', asset_id=asset.id) }}" class="btn btn-sm btn-outline-warning" data-bs-toggle="tooltip" title="Report an issue with this asset">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Report
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center p-5 text-muted">
+                    <i class="bi bi-journal-x fs-1 mb-3"></i>
+                    <h4 class="font-heading">You haven't added any assets yet.</h4>
+                    <p>When you add assets to the system, they will appear here for you to track.</p>
+                    <a href="{{ url_for('add_asset') }}" class="btn btn-primary mt-2">Add Your First Asset</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

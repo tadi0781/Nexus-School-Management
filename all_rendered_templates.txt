@@ -1,0 +1,4 @@
+s/phase1.txt:auth/complete_registration.html'
+s/phase1.txt:auth/confirm_identity.html'
+s/phase1.txt:auth/pre_register.html'
+s/phase1.txt:social/partials/_social_comment_item.html'

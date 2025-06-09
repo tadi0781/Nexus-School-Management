@@ -1,0 +1,108 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Enter Marks for {{ subject_taught }}{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-pencil-square me-2 text-primary"></i>Enter/Edit Marks
+    </h1>
+    <a href="{{ url_for('teacher_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i>Back to Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light-subtle">
+            <h5 class="mb-0 font-heading">Marks for Subject: <span class="text-primary">{{ subject_taught }}</span></h5>
+            <small class="text-body-secondary">Class: Grade {{ teacher_profile.grade or 'N/A' }} - Section {{ teacher_profile.section or 'N/A' }}</small>
+        </div>
+        <div class="card-body">
+            {% if students %}
+                <div class="alert alert-info small py-2">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Enter scores for each semester. Total, Average, and Rank are calculated automatically upon saving. You can save partial marks (e.g., only Semester 1) and update the rest later.
+                </div>
+
+                <form method="POST" action="{{ url_for('enter_marks') }}" novalidate>
+                    {{ csrf_token() }} {# Assumes a global CSRF token function #}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped table-hover align-middle" id="marksTable">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th scope="col" style="width: 5%;">#</th>
+                                    <th scope="col" class="text-start">Student Name</th>
+                                    <th scope="col" class="text-start">Username</th>
+                                    <th scope="col" style="width: 15%;">Semester 1 (100)</th>
+                                    <th scope="col" style="width: 15%;">Semester 2 (100)</th>
+                                    <th scope="col" style="width: 10%;">Total</th>
+                                    <th scope="col" style="width: 10%;">Average</th>
+                                    <th scope="col" style="width: 10%;">Rank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                    {# Set variables for cleaner access inside the loop #}
+                                    {% set mark = existing_marks_map.get(student.id) %}
+                                    {% set errors = validation_errors.get(student.id, []) %}
+
+                                    <tr>
+                                        <td class="text-center">{{ loop.index }}</td>
+                                        <td>{{ student.full_name or student.username }}</td>
+                                        <td class="text-body-secondary">{{ student.username }}</td>
+
+                                        {# Semester 1 Input #}
+                                        <td>
+                                            {# This logic correctly preserves user input on validation error #}
+                                            {% set s1_value = mark.semester_1 if mark and mark.semester_1 is not none else request.form.get('semester_1_' + student.id|string, '') %}
+                                            <input type="number" name="semester_1_{{ student.id }}"
+                                                   class="form-control form-control-sm text-center marks-input {{ 'is-invalid' if errors and 'Semester 1' in (errors|join) }}"
+                                                   value="{{ s1_value }}"
+                                                   min="0" max="100" step="0.1" placeholder="Score">
+                                        </td>
+
+                                        {# Semester 2 Input #}
+                                        <td>
+                                            {% set s2_value = mark.semester_2 if mark and mark.semester_2 is not none else request.form.get('semester_2_' + student.id|string, '') %}
+                                            <input type="number" name="semester_2_{{ student.id }}"
+                                                   class="form-control form-control-sm text-center marks-input {{ 'is-invalid' if errors and 'Semester 2' in (errors|join) }}"
+                                                   value="{{ s2_value }}"
+                                                   min="0" max="100" step="0.1" placeholder="Score">
+                                        </td>
+
+                                        {# Calculated Fields #}
+                                        <td class="text-center fw-medium">{{ mark.total if mark and mark.total is not none else '—' }}</td>
+                                        <td class="text-center fw-bold 
+                                            {% if mark and mark.average is not none %}
+                                                {% if mark.average >= 75 %}text-success
+                                                {% elif mark.average >= 50 %}text-warning
+                                                {% else %}text-danger{% endif %}
+                                            {% endif %}">
+                                            {{ "%.2f"|format(mark.average) if mark and mark.average is not none else '—' }}
+                                        </td>
+                                        <td class="text-center fw-medium">{{ mark.rank if mark and mark.rank is not none else '—' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save-fill me-2"></i>Save All Marks
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <p class="mb-0">No active students found for Grade {{ teacher_profile.grade or 'N/A' }}, Section {{ teacher_profile.section or 'N/A' }}.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

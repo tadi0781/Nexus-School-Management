@@ -1,0 +1,31 @@
+{% extends "layout/base.html" %}
+{% from "macros/_form_helpers.html" import render_field, render_submit_button %}
+
+{% block title %}Report General Issue{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 800px;">
+    <div class="text-center mb-4">
+        <i class="bi bi-tools text-primary" style="font-size: 3rem;"></i>
+        <h1 class="h3 mt-2 text-gray-800">Report a General Issue</h1>
+        <p class="lead text-muted">Notice something broken or out of place? Let us know.</p>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body p-4">
+            <form method="POST" action="">
+                {{ form.csrf_token }}
+                <div class="row g-3">
+                    <div class="col-12">{{ render_field(form.issue_description, rows=5, placeholder="Please be as specific as possible. What is the problem? e.g., 'The projector in the main hall is not turning on.'") }}</div>
+                    <div class="col-12">{{ render_field(form.location, placeholder="Where did you see this issue? e.g., 'Main Hall, near the stage.'") }}</div>
+                    <div class="col-12">{{ render_field(form.reported_by_name, placeholder="Your Name (Optional)") }}</div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    {{ render_submit_button(class="btn-primary btn-lg", text="Submit Report") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

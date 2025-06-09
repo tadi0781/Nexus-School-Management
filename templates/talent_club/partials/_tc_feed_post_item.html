@@ -1,0 +1,45 @@
+{# 
+    Renders a specialized post for a Talent Club feed.
+    Extends the concept of a social post with club-specific context.
+    Required context:
+    - post: The post object, which may have a linked_proposal or linked_event.
+#}
+<div class="card tc-post-item mb-3 shadow-sm">
+    <div class="card-body">
+        <!-- Post Header -->
+        <div class="d-flex align-items-center mb-3">
+            <img src="{{ post.author.profile.avatar_url or url_for('static', filename='img/placeholders/avatar_default.svg') }}" 
+                 alt="{{ post.author.first_name }}'s avatar" class="rounded-circle me-3" width="48" height="48">
+            <div class="flex-grow-1">
+                <a href="{{ url_for('user_profile', user_id=post.author.id) }}" class="fw-bold text-dark text-decoration-none">{{ post.author.first_name }} {{ post.author.last_name }}</a>
+                <div class="text-muted small">{{ post.timestamp | humanize_time }}</div>
+            </div>
+            {% if post.author == current_user %}
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#">Delete Post</a></li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        <!-- Post Content -->
+        <div class="post-content mb-3">
+            {{ post.content | nl2br | safe }}
+        </div>
+        <!-- Contextual Link (e.g., to a proposal) -->
+        {% if post.linked_proposal %}
+        <div class="alert alert-light border p-2">
+            <i class="bi bi-lightbulb-fill me-2 text-primary"></i>
+            This post is related to the proposal: 
+            <a href="#proposal-{{ post.linked_proposal.id }}" class="fw-bold">{{ post.linked_proposal.title }}</a>
+        </div>
+        {% endif %}
+        <!-- Post Actions -->
+        <div class="post-actions d-flex justify-content-start align-items-center gap-3 border-top pt-2">
+            <a href="#" class="btn btn-light btn-sm"><i class="bi bi-hand-thumbs-up"></i> Like</a>
+            <a href="#" class="btn btn-light btn-sm"><i class="bi bi-chat-dots"></i> Comment</a>
+        </div>
+    </div>
+    <!-- Comments are loaded dynamically or included as in the social post item -->
+</div>

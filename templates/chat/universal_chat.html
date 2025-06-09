@@ -81,14 +81,32 @@
             <div class="input-group">
                 {# Optional: File attachment button - requires more backend/JS logic #}
                 {# <button class="btn btn-outline-secondary" type="button" id="chatAttachFileBtn" title="Attach file"><i class="bi bi-paperclip"></i></button> #}
-                <textarea class="form-control" id="chatMessageInput" name="message" rows="1" placeholder="Type your message..." aria-label="Message" style="resize: none;"></textarea>
-                <button class="btn btn-primary" type="submit" id="sendChatMessageBtn" title="Send message">
-                    <i class="bi bi-send-fill"></i>
-                    <span class="d-none d-sm-inline ms-1">Send</span>
-                </button>
-            </div>
-            {# <input type="file" id="chatActualFileInput" class="d-none" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"> #}
-        </form>
+                {# templates/chat/universal_chat.html #}
+{# ... inside <div class="chat-input-area p-3"> ... #}
+<form id="chatMessageForm" method="POST" enctype="multipart/form-data" novalidate> {# action removed as JS will handle, added enctype #}
+    {{ csrf_token() if csrf_token else '' }}
+    
+    {# BEGIN ADD - Task E1.4 (File Input UI for DMs) #}
+    <div id="dmFilePreviewArea" class="mb-2 small"></div> {# For displaying selected file info #}
+    <input type="file" id="chatActualDmFileInput" name="dm_file" class="d-none" 
+           accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.mp3,.wav,.mp4,.mov,.avi">
+    {# END ADD - Task E1.4 (File Input UI for DMs) #}
+
+    <div class="input-group">
+        {# BEGIN ADD - Task E1.4 (Attach Button for DMs) #}
+        <button class="btn btn-outline-secondary" type="button" id="chatAttachFileBtn" title="Attach file">
+            <i class="bi bi-paperclip"></i>
+        </button>
+        {# END ADD - Task E1.4 (Attach Button for DMs) #}
+        <textarea class="form-control" id="chatMessageInput" name="message" rows="1" placeholder="Type your message..." aria-label="Message" style="resize: none;"></textarea>
+        <button class="btn btn-primary" type="submit" id="sendChatMessageBtn" title="Send message">
+            <i class="bi bi-send-fill"></i>
+            <span class="d-none d-sm-inline ms-1">Send</span>
+        </button>
+    </div>
+    <small class="text-muted d-block mt-1" id="typingIndicator" style="height: 1.2em;"></small>
+</form>
+
          <small class="text-muted d-block mt-1" id="typingIndicator" style="height: 1.2em;"></small> {# For "User is typing..." #}
     </div>
 </div>

@@ -1,0 +1,85 @@
+{# templates/social/global/feed.html #}
+{% extends "layout/base.html" %}
+
+{% block page_title %}Nexus Pulse - Community Feed{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Nexus Pulse</h1>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        
+        <div class="mb-4" id="globalPostCreateContainer">
+            {# This include assumes you have a WTForm for creating Global Posts passed from your Python route #}
+            {# And that _social_content_form.html is ready to use it #}
+            {% if global_post_create_form %} {# Check if the form object exists #}
+                {% with 
+                    form = global_post_create_form,
+                    submit_url = url_for('create_global_post'), {# YOUR BACKEND API FOR CREATING GLOBAL POSTS #}
+                    placeholder_text = "Share something with the community...",
+                    submit_button_text = "Post",
+                    form_id = "globalPostCreateForm",
+                    file_input_name = "attached_file", {# Matches PostContentForm field name #}
+                    textarea_id = "globalPostTextarea",
+                    allow_file_upload = True {# Enable file upload for global posts #}
+                %}
+                    {% include "partials/_social_content_form.html" %}
+                {% endwith %}
+            {% else %}
+                <p class="text-muted">Post creation form is unavailable at the moment.</p>
+            {% endif %}
+        </div>
+
+        <div id="globalFeedContainer" class="social-feed-container">
+            <div class="text-center py-5 content-placeholder" id="globalFeedLoadingPlaceholder">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading posts...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading Nexus Pulse...</p>
+            </div>
+            <div class="text-center py-5 d-none content-placeholder" id="globalFeedEmptyPlaceholder">
+                <i class="bi bi-megaphone-fill display-1 text-muted"></i>
+                <p class="mt-3 lead text-muted">The Pulse is quiet right now.</p>
+                <p class="text-muted">Be the first to share something!</p>
+            </div>
+        </div>
+
+        <div id="loadMoreGlobalPostsTrigger" class="text-center my-4 d-none">
+            <button class="btn btn-outline-primary load-more-btn" data-feed-type="global">
+                <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                Load More Posts
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {# Ensure social.js is loaded, which will contain nexusSocial.initGlobalFeed #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // The backend route for feed.html needs to pass 'global_post_create_form'
+            // For JS initialization, assuming your backend API for fetching posts is '/api/v1/global_posts'
+            if (typeof nexusSocial !== 'undefined' && typeof nexusSocial.initGlobalFeed === 'function') {
+                nexusSocial.initGlobalFeed({
+                    feedContainerId: 'globalFeedContainer',
+                    loadingPlaceholderId: 'globalFeedLoadingPlaceholder',
+                    emptyPlaceholderId: 'globalFeedEmptyPlaceholder',
+                    loadMoreTriggerId: 'loadMoreGlobalPostsTrigger',
+                    createFormId: 'globalPostCreateForm', // ID of the post creation form
+                    apiEndpointFetchPosts: '{{ url_for("get_global_posts") }}', // API to get posts
+                    apiEndpointCreatePost: '{{ url_for("create_global_post") }}', // API to create posts
+                    // We will use client-side rendering for post items based on JSON data.
+                    // So, no need for 'postItemPartialUrl'
+                });
+            } else {
+                console.error('nexusSocial or nexusSocial.initGlobalFeed is not defined. Ensure social.js is correctly loaded and structured.');
+            }
+        });
+    </script>
+{% endblock %}

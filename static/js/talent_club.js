@@ -1,18 +1,93 @@
 // Nexus School Management System - talent_club.js
 "use strict";
 
+/**
+ * Loads content for a specific tab on the club profile page via AJAX.
+ * This is called by the Alpine.js component in club_profile.html.
+ * @param {string} clubId - The ID of the club.
+ * @param {string} tabName - The name of the tab to load (e.g., 'feed', 'media').
+ */
+async function loadTabContent(clubId, tabName) {
+    const container = document.getElementById('tab-content-container');
+    if (!container) {
+        console.error('Error: The #tab-content-container element was not found on the page.');
+        return;
+    }
+    
+    // Display a loading spinner immediately
+    container.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>`;
+
+    try {
+        const response = await fetch(`/talent_club/${clubId}/content/${tabName}`);
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
+        
+        const html = await response.text();
+        container.innerHTML = html;
+        
+        // After loading the content, if it's the feed, we must initialize its JavaScript.
+        if (tabName === 'feed') {
+            initializeTCFeed(clubId); // Assumes initializeTCFeed is defined in this file
+        }
+    } catch (error) {
+        console.error(`Error loading tab content for '${tabName}':`, error);
+        container.innerHTML = `<div class="alert alert-danger text-center">Could not load content. Please refresh the page and try again.</div>`;
+    }
+}
+
+/**
+ * Handles form submissions for TC Leader admin actions (e.g., unban) via AJAX.
+ * @param {HTMLFormElement} form - The submitted form element.
+ */
+async function handleTCMemberActionFormSubmit(form) {
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+
+    // Show loading state
+    submitButton.disabled = true;
+    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processing...`;
+
+    try {
+        const data = await postData(form.action, new FormData(form)); // Assumes postData in utils.js
+        if (data.success) {
+            showNexusNotification(data.message || 'Action successful!', 'success');
+            // Reload the page after a short delay to show the updated status
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showNexusNotification(data.error || 'The action could not be completed.', 'danger');
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    } catch (error) {
+        showNexusNotification('A server error occurred. Please try again.', 'danger');
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+    }
+}
+// Make this function globally accessible so Alpine.js can call it from the template.
+window.loadTabContent = loadTabContent;.
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log('Nexus Talent Club JS Initialized.');
 
     // Event delegation for Talent Club actions (follow, unfollow, etc.)
-    document.body.addEventListener('click', async function(event) {
-        const actionButton = event.target.closest('.tc-action-btn');
-        if (actionButton) {
-            event.preventDefault();
-            const clubId = actionButton.dataset.clubId;
-            const action = actionButton.dataset.action;
-            await handleTalentClubAction(clubId, action, actionButton);
-        }
+// At the top of talent_club.js, inside the DOMContentLoaded listener
+
+document.body.addEventListener('submit', async function(event) {
+    const commentForm = event.target.closest('.tc-comment-form');
+    if (commentForm) {
+        event.preventDefault();
+        await handleTCCommentSubmit(commentForm);
+    }
+    
+    // ADD THIS PART
+    const memberActionForm = event.target.closest('.tc-member-action-form');
+    if(memberActionForm) {
+        event.preventDefault();
+        await handleTCMemberActionFormSubmit(memberActionForm);
+    }
+});
 
         // Note: TC Leader voting is typically handled by standard form submission,
         // not AJAX by default in this script.
@@ -23,6 +98,53 @@ document.addEventListener('DOMContentLoaded', function () {
     // 'mentioned_member_ids_picker'.
     // initializeTcUserPickers(); // Call if it has other purposes.
 });
+
+/**
+ * Registers real-time event handlers for the Talent Club system.
+ */
+function registerTCRealtimeHandlers() {
+    // Ensure the global realtime manager from socketHandlers.js is ready
+    if (typeof nexusRealtimeManager === 'undefined') {
+        console.warn("nexusRealtimeManager not found. Real-time updates for TC are disabled.");
+        return;
+    }
+
+    console.log("Registering Talent Club real-time event handlers.");
+
+    // Listen for a new post in a specific club's feed
+    nexusRealtimeManager.subscribe('tc_new_feed_post', (data) => {
+        const feedContainer = document.getElementById(`tcFeedContainer-${data.club_id}`);
+        // Only prepend if the user is viewing that specific feed and the post isn't already there
+        if (feedContainer && !document.getElementById(`tc_feed_post-${data.post_id}`)) {
+            feedContainer.insertAdjacentHTML('afterbegin', data.post_html);
+            showNexusNotification(`New post in ${data.club_name}!`, 'info', { autoClose: 5000 });
+        }
+    });
+
+    // Listen for a new comment on a post the user might be viewing
+    nexusRealtimeManager.subscribe('tc_new_comment', (data) => {
+        const commentsList = document.getElementById(`tc-comments-list-${data.post_id}`);
+        if (commentsList && !document.getElementById(`comment-${data.comment_id}`)) {
+            // Remove the 'no comments yet' placeholder if it exists
+            const noCommentsYet = commentsList.querySelector('.no-comments-yet');
+            if (noCommentsYet) noCommentsYet.remove();
+            
+            commentsList.insertAdjacentHTML('beforeend', data.comment_html);
+            
+            // Update the comment count badge
+            const commentToggleBtn = document.querySelector(`[href="#tcCommentsCollapse-${data.post_id}"] .badge`);
+            if(commentToggleBtn) {
+                commentToggleBtn.textContent = data.new_comment_count;
+            }
+        }
+    });
+
+    // You can add more listeners here for reactions, deleted posts, etc.
+}
+
+// Ensure the handlers are registered once the socket connection is established.
+// This should be at the bottom of the main DOMContentLoaded event listener.
+document.addEventListener('realtimeManagerReady', registerTCRealtimeHandlers);
 
 async function handleTalentClubAction(clubId, action, buttonElement) {
     if (!clubId || !action) return;

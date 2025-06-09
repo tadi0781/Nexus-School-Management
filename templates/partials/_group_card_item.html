@@ -1,59 +1,56 @@
-{% extends "layout/base.html" %}
+{# templates/partials/_group_card_item.html - Nexus School Management System #}
+{#
+    Reusable card for displaying a single Social Group.
+    Expects a `group` object (SocialGroup instance) and `current_user`.
+    Optionally, `is_member` boolean for button states.
+#}
 
-{% block page_title %}My Social Groups{% endblock %}
+{% set group_avatar = url_for('static', filename=(group.profile_photo_url if group.profile_photo_url else 'img/placeholders/group_default_avatar.png')) %}
+{% set member_count = group.members.count() if group.members else 0 %} {# Assumes group.members is queryable for count #}
 
-{% block content_header %}
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="page-title font-heading mb-0">
-            <i class="bi bi-person-bounding-box me-2 text-primary"></i>My Social Groups
-        </h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            {# Optional: Discover public groups link if feature exists #}
-            {# <a href="{{ url_for('social_group_discover') }}" class="btn btn-sm btn-outline-info me-2">
-                <i class="bi bi-compass-fill me-1"></i> Discover Groups
-            </a> #}
-            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %} {# Role check for create button #}
-            <a href="{{ url_for('create_social_group') }}" class="btn btn-sm btn-success">
-                <i class="bi bi-plus-circle-fill me-1"></i> Create New Group
-            </a>
-            {% endif %}
-        </div>
-    </div>
-{% endblock %}
-
-{% block content %}
-<div class="container-fluid px-0">
-    {% include 'layout/_flash_messages.html' %}
-
-    {% if my_groups and my_groups | length > 0 %}
-        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
-            {% for group in my_groups %}
-                {% include 'partials/_group_card_item.html' with {'group': group, 'current_user': current_user, 'is_member': True, 'is_owner': (group.owner_id == current_user.id)} %}
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="text-center text-muted p-5 content-placeholder">
-            <i class="bi bi-people display-3 mb-3"></i>
-            <h4 class="font-heading">No Groups Joined Yet</h4>
-            <p>You are not a member of any social groups.
-            {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
-                You can <a href="{{ url_for('create_social_group') }}">create a new group</a>.
-            {% else %}
-                Ask a group owner or admin to add you to a group.
-            {% endif %}
+<div class="col"> {# Bootstrap column class applied by parent template #}
+    <div class="card social-group-card h-100 shadow-sm">
+        <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="text-decoration-none d-block group-card-image-link">
+            <div class="group-card-img-placeholder bg-secondary-subtle text-center d-flex align-items-center justify-content-center" style="height: 120px;">
+                {% if group.profile_photo_url %}
+                    <img src="{{ group_avatar }}" alt="{{ group.name }} Cover" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <i class="bi bi-people-fill display-3 text-secondary opacity-75"></i>
+                {% endif %}
+            </div>
+        </a>
+        <div class="card-body d-flex flex-column">
+            <h5 class="card-title font-heading mb-1">
+                <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="text-decoration-none stretched-link text-dark">
+                    {{ group.name | truncate(40) }}
+                </a>
+            </h5>
+            <small class="text-muted mb-2">
+                <i class="bi bi-person-check-fill me-1"></i>{{ member_count }} Member{{ 's' if member_count != 1 else '' }}
+            </small>
+            <p class="card-text text-muted small mb-2 flex-grow-1">
+                {{ group.description | truncate(70) if group.description else 'No description provided.' }}
             </p>
         </div>
-    {% endif %}
+        <div class="card-footer bg-light-subtle d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Owner: {{ group.owner.full_name or group.owner.username if group.owner else 'N/A' }}
+            </small>
+            <div>
+                {% if is_member is defined %} {# Check if variable is passed, for use in discover/my_groups context #}
+                    {% if is_member %}
+                        <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-primary">View Group</a>
+                        {# Leave Group button could be here, handled by JS #}
+                        {# <button class="btn btn-sm btn-outline-danger group-action-btn ms-1" data-action="leave" data-group-id="{{ group.id }}">Leave</button> #}
+                    {% else %}
+                        {# Placeholder for "Join Group" or "Request to Join" if group is public/requestable #}
+                        {# <button class="btn btn-sm btn-success group-action-btn" data-action="join" data-group-id="{{ group.id }}">Join</button> #}
+                         <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-secondary">View Details</a>
+                    {% endif %}
+                {% else %}
+                     <a href="{{ url_for('view_social_group', group_id=group.id) }}" class="btn btn-sm btn-outline-primary">View Group</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
-{% endblock %}
-
-{% block body_scripts %}
-<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // JS for handling group join/leave buttons if they are AJAX-based
-        // For now, list.html mainly links to view_social_group
-        console.log('My Groups page JS loaded.');
-    });
-</script>
-{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "layout/base.html" %}
+{% block title %}Manage: {{ club.name }}{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Club Management Dashboard</h1>
+            <p class="text-muted mb-0">You are managing: <strong>{{ club.name }}</strong></p>
+        </div>
+        <a href="{{ url_for('club_profile', club_id=club.id) }}" class="btn btn-outline-secondary"><i class="bi bi-eye-fill me-1"></i> View Public Profile</a>
+    </div>
+
+    <div class="row">
+        <!-- Member Management -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header"><h6 class="m-0 font-weight-bold text-primary">Manage Members</h6></div>
+                <div class="card-body">
+                    <h5 class="card-title">Pending Join Requests</h5>
+                    <div class="list-group mb-3">
+                        {% for req in pending_requests %}
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>{{ req.sender.first_name }} {{ req.sender.last_name }}</span>
+                                <span><!-- Action buttons here --></span>
+                            </div>
+                        {% else %}
+                            <div class="list-group-item text-muted">No pending requests.</div>
+                        {% endfor %}
+                    </div>
+                    <h5 class="card-title">Current Members</h5>
+                    <div class="list-group">
+                        {% for member in club.memberships %}
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>{{ member.user.first_name }} {{ member.user.last_name }}</span>
+                                <span>{{ member.role }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Proposal & Task Management -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header"><h6 class="m-0 font-weight-bold text-primary">Proposals & Tasks</h6></div>
+                <div class="card-body">
+                    <!-- Actions to create proposals/tasks -->
+                    <a href="#" class="btn btn-primary w-100 mb-3">Create New Task</a>
+                    <a href="#" class="btn btn-outline-primary w-100">Create New Proposal</a>
+                    <hr>
+                    <h5 class="card-title">Pending Proposals</h5>
+                     <div class="list-group">
+                        {% for prop in pending_proposals %}
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>{{ prop.title }}</span>
+                                <span><a href="#" class="btn btn-sm btn-secondary">Review</a></span>
+                            </div>
+                        {% else %}
+                             <div class="list-group-item text-muted">No proposals awaiting review.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

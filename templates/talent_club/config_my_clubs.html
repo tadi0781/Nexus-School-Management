@@ -1,0 +1,98 @@
+{% extends "layout/base.html" %}
+
+{% block title %}My Club Management{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-person-video3 me-2 text-primary"></i>My Club Involvement
+    </h1>
+    <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i>Back to TC Config
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    {% include 'layout/_flash_messages.html' %}
+
+    {# Section for Clubs the User Manages #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light-subtle">
+            <h5 class="mb-0 font-heading"><i class="bi bi-person-gear me-2"></i>Clubs I Manage</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if my_manager_memberships %}
+                <div class="list-group list-group-flush">
+                    {% for membership in my_manager_memberships %}
+                        {% set club = membership.club %}
+                        <div class="list-group-item p-3">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ url_for('static', filename=(club.profile_photo_url or 'img/placeholders/tc_club_default_avatar.png')) }}" alt="{{ club.name }}" class="rounded-circle me-3" width="40" height="40">
+                                    <div>
+                                        <h6 class="mb-0 font-heading">{{ club.name }}</h6>
+                                        <small class="text-muted">Your Role: {{ membership.role | title }}</small>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <a href="#" class="btn btn-sm btn-primary disabled" data-bs-toggle="tooltip" title="Manage members, settings, etc. (Coming Soon)">
+                                        <i class="bi bi-gear-fill me-1"></i>Manage
+                                    </a>
+                                    <a href="{{ url_for('view_talent_club_feed', club_id=club.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-layout-text-sidebar-reverse me-1"></i>View Feed
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted text-center p-3">You do not manage any clubs.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Section for Clubs the User is a Member Of #}
+    <div class="card shadow-sm">
+        <div class="card-header bg-light-subtle">
+            <h5 class="mb-0 font-heading"><i class="bi bi-people-fill me-2"></i>Clubs I'm a Member Of</h5>
+        </div>
+        <div class="card-body p-0">
+            {% if my_member_memberships %}
+                <div class="list-group list-group-flush">
+                    {% for membership in my_member_memberships %}
+                        {% set club = membership.club %}
+                        <div class="list-group-item p-3">
+                             <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ url_for('static', filename=(club.profile_photo_url or 'img/placeholders/tc_club_default_avatar.png')) }}" alt="{{ club.name }}" class="rounded-circle me-3" width="40" height="40">
+                                    <div>
+                                        <h6 class="mb-0 font-heading">{{ club.name }}</h6>
+                                        <small class="text-muted">Level: {{ club.level }}</small>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <a href="{{ url_for('view_talent_club_feed', club_id=club.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-layout-text-sidebar-reverse me-1"></i>View Feed
+                                    </a>
+                                    {# The action for leaving a club is handled by the talent_club.js AJAX call #}
+                                    <button class="btn btn-sm btn-outline-danger tc-action-btn" data-action="leave_club" data-club-id="{{ club.id }}">
+                                        <i class="bi bi-door-open-fill me-1"></i>Leave
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center p-3">
+                    <p class="text-muted">You are not a member of any other clubs.</p>
+                    <a href="{{ url_for('talent_club_discover') }}" class="btn btn-sm btn-primary">Discover Clubs</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

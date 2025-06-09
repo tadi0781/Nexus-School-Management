@@ -1,0 +1,88 @@
+{% extends "layout/base.html" %}
+
+{% set is_edit_mode = record is defined and record.id is not none %} {# Simplified is_edit for template logic #}
+{% set page_action = "Edit" if is_edit_mode else "Add New" %}
+{% set form_action_url = url_for('edit_behavior_record', record_id=record.id) if is_edit_mode else url_for('add_behavior_record', student_id=student.id) %}
+
+{% block page_title %}{{ page_action }} Behavioral Record - {{ student.full_name or student.username }}{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi {{ 'bi-pencil-square text-primary' if is_edit_mode else 'bi-journal-plus text-success' }} me-2"></i>
+            {{ page_action }} Behavioral Record
+        </h1>
+        <a href="{{ url_for('view_student_behavior_records', user_id=student.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i> Back to {{ student.full_name or student.username }}'s Records
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header {{ 'bg-primary-subtle text-primary-emphasis' if is_edit_mode else 'bg-success-subtle text-success-emphasis' }}">
+                    <h5 class="mb-0 font-heading">
+                        Record for: <span class="fw-bold">{{ student.full_name or student.username }}</span> (ID: {{ student.id }})
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    {% include 'layout/_flash_messages.html' %}
+
+                    <form method="POST" action="{{ form_action_url }}" novalidate>
+                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+
+                        {# Date of Record - Backend sets this on add, could be display-only on edit or admin-editable #}
+                        {% if is_edit_mode and record.date %}
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Date of Record (System Set):</label>
+                            <input type="text" class="form-control" value="{{ record.date | datetimeformat }}" readonly disabled>
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.behavior_type.label(class="form-label fw-medium") }}
+                            {{ form.behavior_type(class="form-select" + (" is-invalid" if form.behavior_type.errors else "")) }}
+                            {% if form.behavior_type.errors %}<div class="invalid-feedback">{% for e in form.behavior_type.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.description.label(class="form-label fw-medium") }}
+                            {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="5", placeholder="Detailed, objective account of the behavior, context, and any immediate observations...") }}
+                            {% if form.description.errors %}<div class="invalid-feedback">{% for e in form.description.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.severity.label(class="form-label fw-medium") }}
+                            {{ form.severity(class="form-select" + (" is-invalid" if form.severity.errors else "")) }}
+                            {% if form.severity.errors %}<div class="invalid-feedback">{% for e in form.severity.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <hr class="my-4">
+                        <h5 class="font-heading mb-3">Resolution & Follow-up</h5>
+
+                        <div class="mb-3">
+                            {{ form.resolution.label(class="form-label fw-medium") }}
+                            {{ form.resolution(class="form-control" + (" is-invalid" if form.resolution.errors else ""), rows="4", placeholder="Actions taken, communication with parents, counseling notes, etc. (Optional)") }}
+                            {% if form.resolution.errors %}<div class="invalid-feedback">{% for e in form.resolution.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            {{ form.is_resolved(class="form-check-input" + (" is-invalid" if form.is_resolved.errors else ""), role="switch", id="isResolvedSwitch") }}
+                            {{ form.is_resolved.label(class="form-check-label fw-medium", for="isResolvedSwitch") }}
+                            {% if form.is_resolved.errors %}<div class="invalid-feedback d-block">{% for e in form.is_resolved.errors %}{{e}}{% endfor %}</div>{% endif %}
+                        </div>
+                        
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('view_student_behavior_records', user_id=student.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            {{ form.submit(class="btn btn-primary px-4", value=("Update Record" if is_edit_mode else "Add Record")) }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

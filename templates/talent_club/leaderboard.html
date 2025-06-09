@@ -1,0 +1,40 @@
+{% extends "layout/base.html" %}
+{% block title %}Talent Club Leaderboard{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="text-center mb-5">
+        <i class="bi bi-trophy-fill text-warning" style="font-size: 3.5rem;"></i>
+        <h1 class="h2 mt-2">Talent Club Leaderboard</h1>
+        <p class="lead text-muted">See which clubs are leading the way in points and achievements.</p>
+    </div>
+    <div class="card shadow">
+        <div class="card-body">
+            <table class="table table-hover table-borderless">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 10%;">Rank</th>
+                        <th style="width: 60%;">Club Name</th>
+                        <th style="width: 30%;" class="text-end">Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for entry in leaderboard_data %}
+                    <tr class="align-middle">
+                        <td><span class="fs-4 fw-bold text-primary">#{{ loop.index }}</span></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="{{ entry.club.avatar_url or url_for('static', filename='img/placeholders/tc_club_default_avatar.png') }}" class="rounded-circle me-3" width="40" height="40">
+                                <a href="{{ url_for('club_profile', club_id=entry.club.id) }}" class="fw-bold text-dark text-decoration-none">{{ entry.club.name }}</a>
+                            </div>
+                        </td>
+                        <td class="text-end fs-5 fw-bold text-muted">{{ entry.points }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3" class="text-center p-4">Leaderboard data is not yet available.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

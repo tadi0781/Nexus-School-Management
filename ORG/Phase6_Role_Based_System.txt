@@ -1,0 +1,140 @@
+########## Phase: Phase6_Role_Based_System - Role-Based & System-Specific Templates ##########
+# Generated: 2025-06-07 23:56:15
+# Total files in this phase: 27
+================================================================================
+
+########## File: templates/Database/students/index.html ##########
+// Content of templates/Database/students/index.html
+// This is a dummy file for demonstration.
+########## End of File: templates/Database/students/index.html ##########
+
+########## File: templates/Database/students/student_block.html ##########
+// Content of templates/Database/students/student_block.html
+// This is a dummy file for demonstration.
+########## End of File: templates/Database/students/student_block.html ##########
+
+########## File: templates/government/dashboard.html ##########
+// Content of templates/government/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/government/dashboard.html ##########
+
+########## File: templates/hr_ceo/dashboard.html ##########
+// Content of templates/hr_ceo/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/dashboard.html ##########
+
+########## File: templates/hr_ceo/edit_category.html ##########
+// Content of templates/hr_ceo/edit_category.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/edit_category.html ##########
+
+########## File: templates/hr_ceo/list_reports.html ##########
+// Content of templates/hr_ceo/list_reports.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/list_reports.html ##########
+
+########## File: templates/hr_ceo/manage_categories.html ##########
+// Content of templates/hr_ceo/manage_categories.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/manage_categories.html ##########
+
+########## File: templates/hr_ceo/manage_tc_leader.html ##########
+// Content of templates/hr_ceo/manage_tc_leader.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/manage_tc_leader.html ##########
+
+########## File: templates/hr_ceo/pending_assets.html ##########
+// Content of templates/hr_ceo/pending_assets.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/pending_assets.html ##########
+
+########## File: templates/hr_ceo/resolve_report.html ##########
+// Content of templates/hr_ceo/resolve_report.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/resolve_report.html ##########
+
+########## File: templates/hr_ceo/student_leaders.html ##########
+// Content of templates/hr_ceo/student_leaders.html
+// This is a dummy file for demonstration.
+########## End of File: templates/hr_ceo/student_leaders.html ##########
+
+########## File: templates/librarian/attendance_dashboard.html ##########
+// Content of templates/librarian/attendance_dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/librarian/attendance_dashboard.html ##########
+
+########## File: templates/librarian/dashboard.html ##########
+// Content of templates/librarian/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/librarian/dashboard.html ##########
+
+########## File: templates/librarian/list_checkouts.html ##########
+// Content of templates/librarian/list_checkouts.html
+// This is a dummy file for demonstration.
+########## End of File: templates/librarian/list_checkouts.html ##########
+
+########## File: templates/librarian/student_profile.html ##########
+// Content of templates/librarian/student_profile.html
+// This is a dummy file for demonstration.
+########## End of File: templates/librarian/student_profile.html ##########
+
+########## File: templates/librarian/take_attendance.html ##########
+// Content of templates/librarian/take_attendance.html
+// This is a dummy file for demonstration.
+########## End of File: templates/librarian/take_attendance.html ##########
+
+########## File: templates/parent/dashboard.html ##########
+// Content of templates/parent/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/parent/dashboard.html ##########
+
+########## File: templates/school_exec/dashboard.html ##########
+// Content of templates/school_exec/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/school_exec/dashboard.html ##########
+
+########## File: templates/student/dashboard.html ##########
+// Content of templates/student/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/student/dashboard.html ##########
+
+########## File: templates/student/library_view.html ##########
+// Content of templates/student/library_view.html
+// This is a dummy file for demonstration.
+########## End of File: templates/student/library_view.html ##########
+
+########## File: templates/system_admin/dashboard.html ##########
+// Content of templates/system_admin/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/system_admin/dashboard.html ##########
+
+########## File: templates/talent_club_role_dashboard/dashboard.html ##########
+// Content of templates/talent_club_role_dashboard/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club_role_dashboard/dashboard.html ##########
+
+########## File: templates/teacher/attendance.html ##########
+// Content of templates/teacher/attendance.html
+// This is a dummy file for demonstration.
+########## End of File: templates/teacher/attendance.html ##########
+
+########## File: templates/teacher/dashboard.html ##########
+// Content of templates/teacher/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/teacher/dashboard.html ##########
+
+########## File: templates/teacher/lab_equipment.html ##########
+// Content of templates/teacher/lab_equipment.html
+// This is a dummy file for demonstration.
+########## End of File: templates/teacher/lab_equipment.html ##########
+
+########## File: templates/teacher/marks.html ##########
+// Content of templates/teacher/marks.html
+// This is a dummy file for demonstration.
+########## End of File: templates/teacher/marks.html ##########
+
+########## File: templates/teacher/student_profile_view.html ##########
+// Content of templates/teacher/student_profile_view.html
+// This is a dummy file for demonstration.
+########## End of File: templates/teacher/student_profile_view.html ##########
+

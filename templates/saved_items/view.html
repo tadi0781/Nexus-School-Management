@@ -1,0 +1,241 @@
+{% extends "layout/base.html" %}
+{% from 'macros/_ui_components.html' import render_spinner, render_alert %}
+
+{% block page_title %}My Saved Items{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">My Saved Items</h1>
+    {# Optional: Add actions like 'Clear All' here #}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0" x-data="savedItemsManager()">
+    <!-- Filters and Controls -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="itemTypeFilter" class="form-label">Filter by Type</label>
+            <select id="itemTypeFilter" class="form-select" x-model="itemTypeFilter" @change="fetchSavedItems(true)">
+                <option value="">All Types</option>
+                {% for item_type in filter_options %}
+                    <option value="{{ item_type }}">{{ item_type.replace('_', ' ') }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="sortBy" class="form-label">Sort By</label>
+            <select id="sortBy" class="form-select" x-model="sortBy" @change="fetchSavedItems(true)">
+                <option value="saved_at_desc">Newest Saved</option>
+                <option value="saved_at_asc">Oldest Saved</option>
+                <option value="item_type_asc">Type</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Saved Items List -->
+    <div id="savedItemsContainer">
+        <template x-if="isLoading">
+            <div class="text-center p-5">
+                {{ render_spinner('Loading your saved items...') }}
+            </div>
+        </template>
+        
+        <template x-if="!isLoading && savedItems.length === 0">
+            <div class="text-center p-5">
+                <i class="bi bi-bookmark-x-fill text-muted" style="font-size: 3rem;"></i>
+                <p class="mt-3">You haven't saved any items yet.</p>
+                <p class="text-muted">Click the bookmark icon on posts or messages to save them for later.</p>
+            </div>
+        </template>
+
+        <template x-for="item in savedItems" :key="item.saved_item_id">
+            <div class="card shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex">
+                        <div class="flex-shrink-0 me-3">
+                            <i class="bi bi-pin-angle-fill text-primary" style="font-size: 1.5rem;" x-show="item.content_details.type === 'GlobalPost'"></i>
+                            <i class="bi bi-broadcast text-info" style="font-size: 1.5rem;" x-show="item.content_details.type === 'ChannelPost'"></i>
+                            <i class="bi bi-chat-left-text-fill text-success" style="font-size: 1.5rem;" x-show="item.content_details.type === 'DirectMessage'"></i>
+                            <i class="bi bi-people-fill text-warning" style="font-size: 1.5rem;" x-show="item.content_details.type === 'GroupMessage'"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-1">
+                                <a :href="item.content_details.url || '#'" class="text-decoration-none" x-text="item.content_details.title || 'Untitled Item'"></a>
+                            </h5>
+                            <p class="card-text text-muted small mb-2">
+                                Saved <span x-text="formatRelativeTime(item.saved_at)"></span>
+                                <span x-show="item.content_details.author_name">
+                                    • by <strong x-text="item.content_details.author_name"></strong>
+                                </span>
+                            </p>
+                            <p class="card-text" x-text="item.content_details.snippet || 'No snippet available.'"></p>
+                            
+                            <!-- Notes Section -->
+                            <div class="mt-2">
+                                <p class="mb-1" x-show="item.notes">
+                                    <strong>My Notes:</strong> <span x-text="item.notes"></span>
+                                </p>
+                                <button class="btn btn-sm btn-outline-secondary" @click="editNotes(item)">
+                                    <i class="bi bi-pencil-square"></i>
+                                    <span x-text="item.notes ? 'Edit Note' : 'Add Note'"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ms-auto">
+                            <button class="btn btn-sm btn-outline-danger" @click="unsaveItem(item.item_type, item.item_id)">
+                                <i class="bi bi-bookmark-x"></i> Unsave
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Load More Button -->
+    <div class="text-center" x-show="!isLoading && hasNextPage">
+        <button class="btn btn-primary" @click="fetchSavedItems(false)">
+             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" x-show="isPaginating"></span>
+            Load More
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('savedItemsManager', () => ({
+        savedItems: [],
+        isLoading: true,
+        isPaginating: false,
+        hasNextPage: false,
+        currentPage: 1,
+        itemTypeFilter: '',
+        sortBy: 'saved_at_desc',
+
+        init() {
+            this.fetchSavedItems(true);
+        },
+
+        async fetchSavedItems(isNewQuery = false) {
+            if (isNewQuery) {
+                this.currentPage = 1;
+                this.isLoading = true;
+            } else {
+                this.isPaginating = true;
+            }
+
+            const params = new URLSearchParams({
+                page: this.currentPage,
+                per_page: 15,
+                item_type_filter: this.itemTypeFilter,
+                sort_by: this.sortBy,
+            });
+
+            try {
+                const response = await fetch(`/api/v1/saved_items?${params.toString()}`);
+                if (!response.ok) throw new Error('Network response was not ok.');
+                const data = await response.json();
+
+                if (data.success) {
+                    if (isNewQuery) {
+                        this.savedItems = data.saved_items;
+                    } else {
+                        this.savedItems.push(...data.saved_items);
+                    }
+                    this.hasNextPage = data.pagination.has_next;
+                    this.currentPage++;
+                } else {
+                    showToast('Error', data.error || 'Could not load saved items.', 'error');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                showToast('Error', 'An error occurred while fetching your saved items.', 'error');
+            } finally {
+                this.isLoading = false;
+                this.isPaginating = false;
+            }
+        },
+
+        async unsaveItem(itemType, itemId) {
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: "This item will be removed from your saved list.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, unsave it!'
+            });
+
+            if (result.isConfirmed) {
+                const params = new URLSearchParams({ item_type: itemType, item_id: itemId });
+                try {
+                    const response = await fetch(`/api/v1/saved_items?${params.toString()}`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': getCsrfToken() }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        this.savedItems = this.savedItems.filter(i => !(i.item_type === itemType && i.item_id === itemId));
+                        showToast('Success', 'Item unsaved.', 'success');
+                    } else {
+                        showToast('Error', data.error || 'Failed to unsave item.', 'error');
+                    }
+                } catch(error) {
+                    showToast('Error', 'A network error occurred.', 'error');
+                }
+            }
+        },
+        
+        async editNotes(item) {
+            const { value: text } = await Swal.fire({
+                title: 'Add/Edit Your Notes',
+                input: 'textarea',
+                inputValue: item.notes || '',
+                inputPlaceholder: 'Type your notes here...',
+                showCancelButton: true,
+                confirmButtonText: 'Save Notes',
+                inputValidator: (value) => {
+                    if (value.length > 1000) {
+                        return 'Notes cannot be longer than 1000 characters.'
+                    }
+                }
+            });
+
+            if (text !== undefined) {
+                try {
+                    const response = await fetch(`/api/v1/saved_items/${item.saved_item_id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({ notes: text })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        item.notes = data.saved_item.notes; // Update note in the UI
+                        showToast('Success', 'Notes updated!', 'success');
+                    } else {
+                        showToast('Error', data.error || 'Failed to update notes.', 'error');
+                    }
+                } catch(error) {
+                    showToast('Error', 'A network error occurred.', 'error');
+                }
+            }
+        },
+        
+        formatRelativeTime(isoString) {
+            if (!isoString) return '';
+            return timeAgo.format(new Date(isoString));
+        }
+    }));
+    
+    // Helper for relative time formatting
+    const timeAgo = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+});
+</script>
+{% endblock %}

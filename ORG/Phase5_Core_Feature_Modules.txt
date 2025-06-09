@@ -1,0 +1,335 @@
+########## Phase: Phase5_Core_Feature_Modules - Core Feature Modules Templates ##########
+# Generated: 2025-06-07 23:56:14
+# Total files in this phase: 66
+================================================================================
+
+########## File: templates/assets/add_asset.html ##########
+// Content of templates/assets/add_asset.html
+// This is a dummy file for demonstration.
+########## End of File: templates/assets/add_asset.html ##########
+
+########## File: templates/assets/all_assets.html ##########
+// Content of templates/assets/all_assets.html
+// This is a dummy file for demonstration.
+########## End of File: templates/assets/all_assets.html ##########
+
+########## File: templates/assets/edit_asset.html ##########
+// Content of templates/assets/edit_asset.html
+// This is a dummy file for demonstration.
+########## End of File: templates/assets/edit_asset.html ##########
+
+########## File: templates/assets/my_assets.html ##########
+// Content of templates/assets/my_assets.html
+// This is a dummy file for demonstration.
+########## End of File: templates/assets/my_assets.html ##########
+
+########## File: templates/assets/report_asset_general.html ##########
+// Content of templates/assets/report_asset_general.html
+// This is a dummy file for demonstration.
+########## End of File: templates/assets/report_asset_general.html ##########
+
+########## File: templates/assets/report_asset_specific.html ##########
+// Content of templates/assets/report_asset_specific.html
+// This is a dummy file for demonstration.
+########## End of File: templates/assets/report_asset_specific.html ##########
+
+########## File: templates/behavior/add_edit_record.html ##########
+// Content of templates/behavior/add_edit_record.html
+// This is a dummy file for demonstration.
+########## End of File: templates/behavior/add_edit_record.html ##########
+
+########## File: templates/behavior/view_student_records.html ##########
+// Content of templates/behavior/view_student_records.html
+// This is a dummy file for demonstration.
+########## End of File: templates/behavior/view_student_records.html ##########
+
+########## File: templates/books/checkout_book.html ##########
+// Content of templates/books/checkout_book.html
+// This is a dummy file for demonstration.
+########## End of File: templates/books/checkout_book.html ##########
+
+########## File: templates/chat/contacts_list.html ##########
+// Content of templates/chat/contacts_list.html
+// This is a dummy file for demonstration.
+########## End of File: templates/chat/contacts_list.html ##########
+
+########## File: templates/chat/contacts_section.html ##########
+// Content of templates/chat/contacts_section.html
+// This is a dummy file for demonstration.
+########## End of File: templates/chat/contacts_section.html ##########
+
+########## File: templates/chat/universal_chat.html ##########
+// Content of templates/chat/universal_chat.html
+// This is a dummy file for demonstration.
+########## End of File: templates/chat/universal_chat.html ##########
+
+########## File: templates/notifications/contacts_for_sending.html ##########
+// Content of templates/notifications/contacts_for_sending.html
+// This is a dummy file for demonstration.
+########## End of File: templates/notifications/contacts_for_sending.html ##########
+
+########## File: templates/notifications/send_form.html ##########
+// Content of templates/notifications/send_form.html
+// This is a dummy file for demonstration.
+########## End of File: templates/notifications/send_form.html ##########
+
+########## File: templates/notifications/view.html ##########
+// Content of templates/notifications/view.html
+// This is a dummy file for demonstration.
+########## End of File: templates/notifications/view.html ##########
+
+########## File: templates/requests/detail.html ##########
+// Content of templates/requests/detail.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/detail.html ##########
+
+########## File: templates/requests/hr_ceo_initiate.html ##########
+// Content of templates/requests/hr_ceo_initiate.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/hr_ceo_initiate.html ##########
+
+########## File: templates/requests/inbox.html ##########
+// Content of templates/requests/inbox.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/inbox.html ##########
+
+########## File: templates/requests/my_requests.html ##########
+// Content of templates/requests/my_requests.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/my_requests.html ##########
+
+########## File: templates/requests/review.html ##########
+// Content of templates/requests/review.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/review.html ##########
+
+########## File: templates/requests/school_exec_initiate.html ##########
+// Content of templates/requests/school_exec_initiate.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/school_exec_initiate.html ##########
+
+########## File: templates/requests/submit.html ##########
+// Content of templates/requests/submit.html
+// This is a dummy file for demonstration.
+########## End of File: templates/requests/submit.html ##########
+
+########## File: templates/social/channels/create_channel.html ##########
+// Content of templates/social/channels/create_channel.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/channels/create_channel.html ##########
+
+########## File: templates/social/channels/discover.html ##########
+// Content of templates/social/channels/discover.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/channels/discover.html ##########
+
+########## File: templates/social/channels/edit_channel.html ##########
+// Content of templates/social/channels/edit_channel.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/channels/edit_channel.html ##########
+
+########## File: templates/social/channels/list.html ##########
+// Content of templates/social/channels/list.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/channels/list.html ##########
+
+########## File: templates/social/channels/manage_subscribers.html ##########
+// Content of templates/social/channels/manage_subscribers.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/channels/manage_subscribers.html ##########
+
+########## File: templates/social/channels/view_channel.html ##########
+// Content of templates/social/channels/view_channel.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/channels/view_channel.html ##########
+
+########## File: templates/social/global/feed.html ##########
+// Content of templates/social/global/feed.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/global/feed.html ##########
+
+########## File: templates/social/groups/create_group.html ##########
+// Content of templates/social/groups/create_group.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/groups/create_group.html ##########
+
+########## File: templates/social/groups/edit_group.html ##########
+// Content of templates/social/groups/edit_group.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/groups/edit_group.html ##########
+
+########## File: templates/social/groups/list.html ##########
+// Content of templates/social/groups/list.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/groups/list.html ##########
+
+########## File: templates/social/groups/manage_members.html ##########
+// Content of templates/social/groups/manage_members.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/groups/manage_members.html ##########
+
+########## File: templates/social/groups/view_group.html ##########
+// Content of templates/social/groups/view_group.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/groups/view_group.html ##########
+
+########## File: templates/social/partials/_channel_card_item.html ##########
+// Content of templates/social/partials/_channel_card_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/partials/_channel_card_item.html ##########
+
+########## File: templates/social/partials/_group_card_item.html ##########
+// Content of templates/social/partials/_group_card_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/partials/_group_card_item.html ##########
+
+########## File: templates/social/partials/_social_comment_item.html ##########
+// Content of templates/social/partials/_social_comment_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/partials/_social_comment_item.html ##########
+
+########## File: templates/social/partials/_social_content_form.html ##########
+// Content of templates/social/partials/_social_content_form.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/partials/_social_content_form.html ##########
+
+########## File: templates/social/partials/_social_post_item.html ##########
+// Content of templates/social/partials/_social_post_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/social/partials/_social_post_item.html ##########
+
+########## File: templates/talent_club/club_feed.html ##########
+// Content of templates/talent_club/club_feed.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/club_feed.html ##########
+
+########## File: templates/talent_club/club_profile.html ##########
+// Content of templates/talent_club/club_profile.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/club_profile.html ##########
+
+########## File: templates/talent_club/community_group.html ##########
+// Content of templates/talent_club/community_group.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/community_group.html ##########
+
+########## File: templates/talent_club/config_current_leader.html ##########
+// Content of templates/talent_club/config_current_leader.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/config_current_leader.html ##########
+
+########## File: templates/talent_club/config_my_clubs.html ##########
+// Content of templates/talent_club/config_my_clubs.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/config_my_clubs.html ##########
+
+########## File: templates/talent_club/config_new_proposal.html ##########
+// Content of templates/talent_club/config_new_proposal.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/config_new_proposal.html ##########
+
+########## File: templates/talent_club/configuration.html ##########
+// Content of templates/talent_club/configuration.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/configuration.html ##########
+
+########## File: templates/talent_club/dashboard.html ##########
+// Content of templates/talent_club/dashboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/dashboard.html ##########
+
+########## File: templates/talent_club/discover.html ##########
+// Content of templates/talent_club/discover.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/discover.html ##########
+
+########## File: templates/talent_club/invite_response.html ##########
+// Content of templates/talent_club/invite_response.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/invite_response.html ##########
+
+########## File: templates/talent_club/leader/ban_mute_member.html ##########
+// Content of templates/talent_club/leader/ban_mute_member.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/leader/ban_mute_member.html ##########
+
+########## File: templates/talent_club/leader/club_management.html ##########
+// Content of templates/talent_club/leader/club_management.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/leader/club_management.html ##########
+
+########## File: templates/talent_club/leader/member_management.html ##########
+// Content of templates/talent_club/leader/member_management.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/leader/member_management.html ##########
+
+########## File: templates/talent_club/leader/review_proposal_detail.html ##########
+// Content of templates/talent_club/leader/review_proposal_detail.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/leader/review_proposal_detail.html ##########
+
+########## File: templates/talent_club/leader/review_proposals.html ##########
+// Content of templates/talent_club/leader/review_proposals.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/leader/review_proposals.html ##########
+
+########## File: templates/talent_club/leaderboard.html ##########
+// Content of templates/talent_club/leaderboard.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/leaderboard.html ##########
+
+########## File: templates/talent_club/my_clubs.html ##########
+// Content of templates/talent_club/my_clubs.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/my_clubs.html ##########
+
+########## File: templates/talent_club/my_proposals.html ##########
+// Content of templates/talent_club/my_proposals.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/my_proposals.html ##########
+
+########## File: templates/talent_club/partials/_tc_club_card_item.html ##########
+// Content of templates/talent_club/partials/_tc_club_card_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/partials/_tc_club_card_item.html ##########
+
+########## File: templates/talent_club/partials/_tc_feed_post_item.html ##########
+// Content of templates/talent_club/partials/_tc_feed_post_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/partials/_tc_feed_post_item.html ##########
+
+########## File: templates/talent_club/partials/_tc_member_list_item.html ##########
+// Content of templates/talent_club/partials/_tc_member_list_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/partials/_tc_member_list_item.html ##########
+
+########## File: templates/talent_club/partials/_tc_proposal_item.html ##########
+// Content of templates/talent_club/partials/_tc_proposal_item.html
+// This is a dummy file for demonstration.
+########## End of File: templates/talent_club/partials/_tc_proposal_item.html ##########
+
+########## File: templates/tasks/create.html ##########
+// Content of templates/tasks/create.html
+// This is a dummy file for demonstration.
+########## End of File: templates/tasks/create.html ##########
+
+########## File: templates/tasks/my_assigned_tasks.html ##########
+// Content of templates/tasks/my_assigned_tasks.html
+// This is a dummy file for demonstration.
+########## End of File: templates/tasks/my_assigned_tasks.html ##########
+
+########## File: templates/tasks/my_assigned_tasks_detail.html ##########
+// Content of templates/tasks/my_assigned_tasks_detail.html
+// This is a dummy file for demonstration.
+########## End of File: templates/tasks/my_assigned_tasks_detail.html ##########
+
+########## File: templates/tasks/my_tasks.html ##########
+// Content of templates/tasks/my_tasks.html
+// This is a dummy file for demonstration.
+########## End of File: templates/tasks/my_tasks.html ##########
+
+########## File: templates/tasks/user_task_detail.html ##########
+// Content of templates/tasks/user_task_detail.html
+// This is a dummy file for demonstration.
+########## End of File: templates/tasks/user_task_detail.html ##########
+
