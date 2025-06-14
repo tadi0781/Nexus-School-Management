@@ -24,7 +24,7 @@
                 <div class="list-group list-group-flush">
                     {% for role_name in staff_roles %}
                     <a href="{{ url_for('send_notification_to_group', filter_type='role', filter_value=role_name) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        {{ role_name.replace('_', ' ').title() }}s
+                        All {{ role_name.replace('_', ' ').title() }}s
                         <i class="bi bi-chevron-right text-muted small"></i>
                     </a>
                     {% endfor %}

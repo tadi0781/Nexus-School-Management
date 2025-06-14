@@ -41,40 +41,23 @@
         {% include 'layout/_navbar.html' %}
     {% endblock navbar_block %}
     
-    {# ================================================================= #}
-    {# === CORRECTED OFF-CANVAS LAYOUT STRUCTURE ======================= #}
-    {# ================================================================= #}
-
     {# This div will contain the sidebar and the main content area #}
     <div class="d-flex flex-grow-1">
 
-        {# 1. RENDER THE SIDEBAR (if applicable) #}
-        {# The sidebar is now a direct child of the flex container. #}
-        {# All grid classes like col-md-3, d-md-block have been removed. #}
+        {# RENDER THE SIDEBAR (if applicable) #}
         {% if current_user.is_authenticated and not no_sidebar %}
-            
-            {# The <nav> element now only has the ID and nexus-sidebar class, as intended by style.css #}
             {% include 'layout/_sidebar.html' %}
-            
-            {# 2. ADD THE MISSING BACKDROP FOR MOBILE VIEW #}
-            {# This is the crucial overlay that your JS is looking for. #}
+            {# ADD THE MISSING BACKDROP FOR MOBILE VIEW #}
             <div class="sidebar-backdrop d-md-none"></div>
-
         {% endif %}
 
-        {# 3. RENDER THE MAIN CONTENT AREA #}
-        {# This is the wrapper for your page content. It will be pushed by the sidebar on desktop. #}
-        {# The class 'nexus-main-content' is what your CSS targets to apply margin-left. #}
+        {# RENDER THE MAIN CONTENT AREA #}
         <main role="main" class="nexus-main-content">
             {% block content_header %}{% endblock %}
             {% block content %}{% endblock %}
         </main>
         
     </div>
-
-    {# ================================================================= #}
-    {# === END OF CORRECTION =========================================== #}
-    {# ================================================================= #}
 
     {% include 'layout/_footer.html' %}
 
@@ -112,6 +95,7 @@
         {% endif %}
     </script>
     
+    
     <!-- Core & Third-Party Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -127,10 +111,30 @@
     <script src="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.min.js"></script>
     <script src="https://unpkg.com/filepond/dist/filepond.min.js"></script>
     
-    <!-- Application-specific JavaScript (must come last) -->
+    {# ========================================================================= #}
+    {# === CORRECTED APPLICATION JAVASCRIPT LOADING ORDER ====================== #}
+    {# ========================================================================= #}
+
+    <!-- 1. Core Utilities & Services (MUST be loaded first) -->
     <script src="{{ url_for('static', filename='js/utils.js') }}?v={{ range(1, 99999) | random }}"></script>
     <script src="{{ url_for('static', filename='js/socketHandlers.js') }}?v={{ range(1, 99999) | random }}"></script>
+
+    <!-- 2. Feature-Specific Modules (Load all the application parts) -->
+    <script src="{{ url_for('static', filename='js/analytics.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/requests.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/tasks.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 99999) | random }}"></script>
+
+    <!-- 3. Global Initializers & Main App Entrypoint (MUST be loaded last) -->
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1, 99999) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 99999) | random }}"></script>
+
+    {# ========================================================================= #}
+    {# === END OF CORRECTION =================================================== #}
+    {# ========================================================================= #}
     
     {% block body_scripts %}{% endblock %} {# For page-specific JS #}
 

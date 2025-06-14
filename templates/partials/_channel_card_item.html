@@ -6,7 +6,7 @@
 #}
 
 {% set channel_avatar = url_for('static', filename=(channel.profile_photo_url or 'img/placeholders/channel_default_avatar.png')) %}
-{% set subscriber_count = channel.subscribers|length %} {# Use Jinja length filter for efficiency #}
+{% set subscriber_count = channel.subscribers.count() %} {# Use Jinja length filter for efficiency #}
 
 <div class="col"> {# Bootstrap column class to be applied by parent template #}
     <div class="card channel-card h-100 shadow-sm">

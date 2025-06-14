@@ -1,0 +1,38 @@
+{#
+This macro renders a single WTForms field with Bootstrap 5 styling.
+It handles labels, 'is-invalid' class for errors, and displaying error messages.
+Any extra keyword arguments passed to the macro (like placeholder, rows, etc.)
+are passed directly to the form field's HTML attributes.
+#}
+{% macro render_field(field, label_visible=true) %}
+  <div class="mb-3">
+    {# Display the label unless it's explicitly hidden #}
+    {% if label_visible %}
+      {{ field.label(class="form-label") }}
+    {% endif %}
+
+    {# Add the 'is-invalid' class to the field if there are validation errors #}
+    {% set field_class = 'form-control' %}
+    {% if field.errors %}
+      {% set field_class = field_class + ' is-invalid' %}
+    {% endif %}
+
+    {# Render the actual input field. The 'kwargs' variable automatically collects
+       any extra arguments passed from the template call, like `placeholder` or `rows`. #}
+    {{ field(class=field_class, **kwargs) }}
+
+    {# Loop through and display any validation errors for this field #}
+    {% for error in field.errors %}
+      <div class="invalid-feedback">
+        {{ error }}
+      </div>
+    {% endfor %}
+
+    {# Display the field's help text/description, if it has one #}
+    {% if field.description %}
+      <div class="form-text">
+        {{ field.description }}
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}

@@ -1,22 +1,168 @@
 {% extends "layout/base.html" %}
 
-{% block page_title %}{{ group.name }} - Group{% endblock %}
+{% block page_title %}
+    {{ group.name }} - Group
+{% endblock %}
 
 {% block head_css %}
 <style>
-    .group-chat-window { /* Similar to universal_chat.html but can be distinct */
-        height: calc(100vh - 56px - 56px - 70px - 3rem - 70px); /* Adjust for group header */
+    /* Base Chat Window Styles */
+    .group-chat-window {
+        height: calc(100vh - 250px);
         min-height: 350px;
         overflow-y: auto;
         display: flex;
-        flex-direction: column-reverse;
+        flex-direction: column-reverse; /* This makes new messages appear at the bottom */
         padding: 1rem;
         background-color: var(--nexus-body-bg);
+        border-radius: 0.5rem; /* Slightly rounded corners for the chat area */
+        box-shadow: inset 0 0 5px rgba(0,0,0,0.05); /* Subtle inner shadow */
     }
+
+    /* Scrollbar Styling (Webkit - Chrome, Safari) */
+    .group-chat-window::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .group-chat-window::-webkit-scrollbar-track {
+        background: var(--nexus-bg-color); /* Lighter track */
+    }
+
+    .group-chat-window::-webkit-scrollbar-thumb {
+        background-color: var(--nexus-border-color); /* Darker thumb */
+        border-radius: 10px;
+        border: 2px solid var(--nexus-body-bg); /* Padding around thumb */
+    }
+
+    /* Message Item Spacing */
+    .chat-message-item {
+        margin-bottom: 0.75rem; /* Space between messages */
+        max-width: 80%; /* Prevent messages from taking full width */
+    }
+
+    /* Align messages by sender */
+    .chat-message-item.sent-by-current-user {
+        margin-left: auto; /* Push current user's messages to the right */
+        text-align: right;
+    }
+
+    .chat-message-item.sent-by-other-user {
+        margin-right: auto; /* Keep other users' messages to the left */
+        text-align: left;
+    }
+
+    /* Message Bubble Styling */
+    .chat-message-bubble {
+        padding: 0.75rem 1rem;
+        border-radius: 1.25rem; /* More rounded bubbles */
+        display: inline-block; /* Shrink to content width */
+        word-wrap: break-word; /* Break long words */
+        max-width: 100%; /* Ensure content doesn't overflow */
+    }
+
+    /* Current User Message Bubble */
+    .chat-message-item.sent-by-current-user .chat-message-bubble {
+        background-color: var(--bs-primary); /* Use primary brand color */
+        color: var(--bs-white); /* White text for contrast */
+    }
+
+    /* Other User Message Bubble */
+    .chat-message-item.sent-by-other-user .chat-message-bubble {
+        background-color: var(--bs-light); /* Light background for others' messages */
+        color: var(--bs-dark); /* Dark text */
+        border: 1px solid var(--nexus-border-color); /* Subtle border */
+    }
+
+    /* User Avatar in chat */
+    .chat-message-item .avatar-small {
+        width: 32px;
+        height: 32px;
+        min-width: 32px; /* Prevent shrinking */
+        min-height: 32px; /* Prevent shrinking */
+        object-fit: cover;
+        border: 1px solid var(--nexus-border-color);
+        margin-right: 0.5rem; /* Space between avatar and bubble */
+    }
+
+    .chat-message-item.sent-by-current-user .avatar-small {
+        order: 2; /* Put avatar on the right for current user */
+        margin-left: 0.5rem;
+        margin-right: 0;
+    }
+
+    /* Timestamp and Sender Name */
+    .chat-message-info {
+        font-size: 0.75em;
+        color: var(--bs-secondary); /* Lighter text for info */
+        margin-top: 0.2rem;
+        display: block; /* Ensure it takes full width */
+    }
+
+    /* For current user's messages, align info right */
+    .chat-message-item.sent-by-current-user .chat-message-info {
+        text-align: right;
+    }
+
+    /* For other users' messages, align info left */
+    .chat-message-item.sent-by-other-user .chat-message-info {
+        text-align: left;
+    }
+
+    /* Attached Media in Chat */
+    .chat-message-media {
+        max-width: 100%;
+        max-height: 200px; /* Limit height of embedded images/media */
+        border-radius: 0.5rem;
+        object-fit: contain; /* Ensure full image is visible */
+        margin-top: 0.5rem;
+        cursor: pointer; /* Indicate it's clickable (for lightbox/modal) */
+        border: 1px solid var(--nexus-border-color);
+        background-color: var(--bs-light); /* Background for transparent images */
+    }
+
+    /* Chat Input Area */
     .group-chat-input-area {
         border-top: 1px solid var(--nexus-border-color);
         background-color: var(--nexus-content-bg);
+        padding-top: 1rem;
     }
+
+    /* Textarea adjustments */
+    .post-content-textarea {
+        resize: vertical; /* Allow vertical resizing only */
+        min-height: 38px; /* Minimum height */
+        max-height: 150px; /* Maximum height to prevent too large textarea */
+        transition: height 0.2s ease-in-out; /* Smooth resize */
+    }
+    .post-content-textarea::placeholder {
+        color: var(--bs-secondary); /* Darker placeholder text */
+        opacity: 0.7;
+    }
+
+    /* Submit button */
+    .post-submit-btn {
+        min-width: 80px; /* Give button a consistent width */
+    }
+
+    /* FilePond container (if you're using it, otherwise can be removed) */
+    .filepond--root {
+        height: auto; /* Adjust height automatically */
+        margin-bottom: 0; /* Remove default margin */
+    }
+    .filepond--panel-root {
+        background-color: var(--nexus-body-bg); /* Match background */
+        border: 1px dashed var(--nexus-border-color);
+        border-radius: 0.5rem;
+    }
+    .filepond--item {
+        background-color: var(--nexus-content-bg); /* Background for file items */
+        border: 1px solid var(--nexus-border-color);
+    }
+    .filepond--label-action {
+        text-decoration: underline;
+    }
+
+    /* General Group Header */
     .group-header {
         background-color: var(--nexus-content-bg);
         border-bottom: 1px solid var(--nexus-border-color);
@@ -26,7 +172,7 @@
 
 {% block content_header %}
     <div class="group-header pt-3 pb-2 mb-0 sticky-top shadow-sm" style="top: 56px; z-index: 1010;">
-        <div class="container-fluid"> {# Use container-fluid from base for alignment #}
+        <div class="container-fluid">
             <div class="d-flex flex-column flex-md-row align-items-md-center">
                 <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
                     {% set group_avatar_view = url_for('static', filename=(group.profile_photo_url if group.profile_photo_url else 'img/placeholders/group_default_avatar.png')) %}
@@ -35,9 +181,10 @@
                 <div class="flex-grow-1 text-center text-md-start">
                     <h1 class="page-title font-heading mb-0 fs-4">{{ group.name }}</h1>
                     <p class="text-muted mb-1 small">
-                        <i class="bi bi-people-fill me-1"></i> <span id="groupMemberCount">{{ group.members.count() }}</span> Member{{ 's' if group.members.count() != 1 else '' }}
+                        <i class="bi bi-people-fill me-1"></i>
+                        <span id="groupMemberCount">{{ group.members.count() }}</span> Member{{ 's' if group.members.count() != 1 else '' }}
                         <span class="mx-1 text-muted">|</span>
-                        Owned by: {{ group.owner.full_name or group.owner.username if group.owner else 'N/A' }}
+                        Owned by: {{ group.owner.display_name if group.owner else 'N/A' }}
                     </p>
                 </div>
                 <div class="mt-2 mt-md-0 ms-md-auto">
@@ -49,14 +196,14 @@
                             <i class="bi bi-person-plus-fill"></i>
                         </a>
                     {% endif %}
-                     {% if user_group_role %} {# If member #}
+                    {% if user_group_role %}
                         <button class="btn btn-sm btn-outline-danger ms-2 group-action-btn" data-action="leave" data-group-id="{{ group.id }}" title="Leave Group">
                             <i class="bi bi-door-closed-fill"></i>
                         </button>
                     {% endif %}
                 </div>
             </div>
-             {% if group.description %}
+            {% if group.description %}
                 <p class="text-muted small mb-2 mt-2 text-center text-md-start">{{ group.description | truncate(150) }}</p>
             {% endif %}
         </div>
@@ -64,66 +211,66 @@
 {% endblock %}
 
 {% block content %}
-{% set no_sidebar = True %} {# Full focus on group chat #}
-
-<div class="container-fluid px-0 h-100 d-flex flex-column">
-    <div class="group-chat-window flex-grow-1" id="groupChatWindowMessages-{{ group.id }}">
-        {% if messages and messages | length > 0 %}
-            {% for message in messages %} {# Assuming messages are pre-sorted newest first for column-reverse #}
-                {% include 'partials/_chat_message_item.html' with {'message': message, 'current_user_id': current_user.id} %}
-            {% endfor %}
-        {% else %}
-            <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
-                <div>
-                    <i class="bi bi-chat-square-dots-fill display-3 mb-3"></i>
-                    <h4 class="font-heading">Welcome to the {{ group.name }} group!</h4>
-                    <p>Be the first to send a message.</p>
+    {% set no_sidebar = True %}
+    <div class="container-fluid px-0 h-100 d-flex flex-column">
+        <div class="group-chat-window flex-grow-1" id="groupChatWindowMessages-{{ group.id }}">
+            {% if messages %}
+                {% for message in messages %}
+                    {# The _chat_message_item.html partial should use the classes defined above #}
+                    {% include 'partials/_chat_message_item.html' %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
+                    <div>
+                        <i class="bi bi-chat-square-dots-fill display-3 mb-3"></i>
+                        <h4 class="font-heading">Welcome to the {{ group.name }} group!</h4>
+                        <p>Be the first to send a message.</p>
+                    </div>
                 </div>
-            </div>
-        {% endif %}
-    </div>
+            {% endif %}
+        </div>
 
-    <div class="group-chat-input-area p-3">
-        {% if user_group_role %} {# Only show input if user is a member #}
-            {# Using _social_content_form.html for consistency in posting UI #}
-            {% include 'partials/_social_content_form.html' with {
-                'post_form': post_form, {# Assumes post_form is an instance of PostContentForm #}
-                'submit_url': url_for('create_group_message', group_id=group.id),
-                'submit_button_text': 'Send',
-                'parent_id': group.id
-            } %}
-        {% else %}
-            <p class="text-center text-muted">You must be a member to send messages in this group.</p>
-        {% endif %}
+        <div class="group-chat-input-area p-3">
+            {% if user_group_role %}
+                {# Set variables for the included template to be accessed directly within it #}
+                {# The 'form' variable is passed from the Flask view, no need to redefine here #}
+                {% set submit_url_val = url_for('create_group_message', group_id=group.id) %}
+                {% set submit_button_text_val = 'Send' %}
+                {% set parent_id_val = group.id %}
+                {% set form_id_val = 'group-message-form-' ~ group.id %}
+                {% set textarea_id_val = 'group-message-textarea-' ~ group.id %}
+                {% set file_input_name_val = 'group_attached_file' %}
+                {% set placeholder_text_val = 'Write a group message...' %}
+                {% include 'partials/_social_content_form.html' %}
+            {% else %}
+                <p class="text-center text-muted">You must be a member to send messages in this group.</p>
+            {% endif %}
+        </div>
     </div>
-</div>
 {% endblock %}
 
 {% block body_scripts %}
-<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000)|random }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const groupId = {{ group.id | tojson }};
         const currentUserId = {{ current_user.id | tojson }};
 
-        // Initialize chat-like functionality for group messages
-        if (typeof initializeGroupChat === 'function') { // This function would be in social.js or a new group.js
+        if (typeof initializeGroupChat === 'function') {
             initializeGroupChat(groupId, currentUserId);
         } else {
-            console.warn('initializeGroupChat function not found. Using generic social post handler for messages.');
-            // The generic social post handler in social.js might work if the form action is correct
-            // and backend returns appropriate JSON for prepending messages.
+            console.warn('initializeGroupChat function not found. Real-time updates may not work.');
         }
 
-        // Handle Leave Group button
-        document.querySelectorAll('.group-action-btn[data-action="leave"]').forEach(button => {
-            button.addEventListener('click', async function(e){
+        const leaveButton = document.querySelector('.group-action-btn[data-action="leave"]');
+        if (leaveButton) {
+            leaveButton.addEventListener('click', async function(e){
                 e.preventDefault();
                 await handleGroupMembershipAction(groupId, 'leave', this);
             });
-        });
+        }
 
-        console.log('View Group page JS loaded.');
+        console.log(`View Group page JS loaded for group ID: ${groupId}.`);
     });
 </script>
 {% endblock %}

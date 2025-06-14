@@ -1,31 +1,549 @@
 {% extends "layout/base.html" %}
-{% from "macros/_form_helpers.html" import render_field, render_submit_button %}
+{% from 'macros/_ui_components.html' import render_spinner %}
 
-{% block title %}Report General Issue{% endblock %}
+{% block page_title %}Nexus Pulse{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">Nexus Pulse</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {# Future actions like filtering could go here #}
+    </div>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width: 800px;">
-    <div class="text-center mb-4">
-        <i class="bi bi-tools text-primary" style="font-size: 3rem;"></i>
-        <h1 class="h3 mt-2 text-gray-800">Report a General Issue</h1>
-        <p class="lead text-muted">Notice something broken or out of place? Let us know.</p>
-    </div>
+<div class="container-fluid px-0">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
 
-    <div class="card shadow mb-4">
-        <div class="card-body p-4">
-            <form method="POST" action="">
-                {{ form.csrf_token }}
-                <div class="row g-3">
-                    <div class="col-12">{{ render_field(form.issue_description, rows=5, placeholder="Please be as specific as possible. What is the problem? e.g., 'The projector in the main hall is not turning on.'") }}</div>
-                    <div class="col-12">{{ render_field(form.location, placeholder="Where did you see this issue? e.g., 'Main Hall, near the stage.'") }}</div>
-                    <div class="col-12">{{ render_field(form.reported_by_name, placeholder="Your Name (Optional)") }}</div>
-                </div>
+            {# 1. Create Post Component (Now a functional form) #}
+            <div class="card shadow-sm mb-4">
+                <form id="create-global-post-form" action="{{ url_for('create_global_post') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ get_csrf_token_value() }}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start">
+                            <img src="{{ url_for('static', filename=(current_user.profile_photo_url or 'img/placeholders/user_avatar_default.png')) }}" class="rounded-circle me-3" width="48" height="48" alt="Your Avatar">
+                            <div class="flex-grow-1">
+                                <textarea id="global-post-content" name="content" class="form-control" rows="3" placeholder="What's happening, {{ current_user.first_name or current_user.username }}?"></textarea>
+                                
+                                {# File attachment display area #}
+                                <div id="post-file-preview" class="mt-2 d-none">
+                                    <div class="alert alert-secondary d-flex justify-content-between align-items-center p-2">
+                                        <span>
+                                            <i class="bi bi-paperclip me-2"></i>
+                                            <span id="post-file-name"></span>
+                                        </span>
+                                        <button type="button" class="btn-close" aria-label="Remove File" id="remove-post-file-btn"></button>
+                                    </div>
+                                </div>
 
-                <div class="mt-4 text-center">
-                    {{ render_submit_button(class="btn-primary btn-lg", text="Submit Report") }}
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div>
+                                        {# This button will trigger the file input modal #}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary border-0" data-bs-toggle="tooltip" title="Attach File" id="attach-file-btn">
+                                            <i class="bi bi-paperclip"></i>
+                                        </button>
+                                        {# Add other buttons as needed #}
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" id="submit-global-post-btn">
+                                        <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                                        Post
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            {# 2. Feed Container (JavaScript will populate this) #}
+            <div id="global-feed-container">
+                {# Placeholder Skeleton UI - This is shown while the first API call is in progress #}
+                <div id="feed-skeleton-loader">
+                    {% for i in range(3) %} {# Show 3 skeleton cards #}
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="skeleton-avatar rounded-circle me-3"></div>
+                                <div class="flex-grow-1">
+                                    <div class="skeleton-line skeleton-line-short"></div>
+                                    <div class="skeleton-line skeleton-line-very-short mt-1"></div>
+                                </div>
+                            </div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line skeleton-line-long"></div>
+                            <div class="skeleton-line skeleton-line-medium"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-            </form>
+            </div>
+
+            {# 3. Load More Trigger #}
+            <div id="load-more-trigger" class="text-center my-4 d-none">
+                 <button class="btn btn-outline-primary" id="load-more-btn">
+                    <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                    Load More Posts
+                 </button>
+            </div>
         </div>
     </div>
 </div>
+
+{# Hidden file input for the "Attach File" button #}
+<input type="file" id="global-post-file-input" class="d-none">
+
+{% endblock %}
+
+{% block page_styles %}
+{# Simple CSS for the skeleton loader effect #}
+<style>
+    .skeleton-line, .skeleton-avatar {
+        background-color: #e9ecef;
+        border-radius: .25rem;
+        animation: skeleton-loading 1.5s infinite;
+    }
+    .skeleton-avatar { width: 48px; height: 48px; }
+    .skeleton-line { height: 1em; }
+    .skeleton-line-long { width: 80%; }
+    .skeleton-line-medium { width: 60%; }
+    .skeleton-line-short { width: 40%; }
+    .skeleton-line-very-short { width: 20%; }
+    @keyframes skeleton-loading {
+        0% { background-color: #e9ecef; }
+        50% { background-color: #ced4da; }
+        100% { background-color: #e9ecef; }
+    }
+</style>
+{% endblock %}
+
+{% block body_scripts %}
+{# Import the Socket.IO client library #}
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<script type="module">
+    // --- CONSTANTS & STATE ---
+    const feedContainer = document.getElementById('global-feed-container');
+    const skeletonLoader = document.getElementById('feed-skeleton-loader');
+    const loadMoreTrigger = document.getElementById('load-more-trigger');
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const createPostForm = document.getElementById('create-global-post-form');
+    const postContentTextarea = document.getElementById('global-post-content');
+    const postFileInput = document.getElementById('global-post-file-input');
+    const attachFileBtn = document.getElementById('attach-file-btn');
+    const filePreview = document.getElementById('post-file-preview');
+    const fileNameSpan = document.getElementById('post-file-name');
+    const removeFileBtn = document.getElementById('remove-post-file-btn');
+
+    let currentPage = 1;
+    let isLoading = false;
+    const currentUserId = {{ current_user.id|tojson }};
+    const isAdmin = {{ 'true' if current_user.role and current_user.role.name in ['system_admin', 'hr_ceo'] else 'false' }};
+
+    // --- SOCKET.IO SETUP ---
+    const socket = io();
+    socket.on('connect', () => console.log('Socket.IO connected to Nexus Pulse.'));
+
+    socket.on('new_comment', (data) => {
+        const { post_id, comment_html, new_comment_count } = data;
+        const commentSection = document.getElementById(`comments-for-post-${post_id}`);
+        if (commentSection) {
+            commentSection.insertAdjacentHTML('beforeend', comment_html);
+        }
+        const commentCountSpan = document.querySelector(`#global-post-${post_id} .comment-count`);
+        if (commentCountSpan) {
+            commentCountSpan.textContent = new_comment_count;
+        }
+    });
+
+    socket.on('like_update', (data) => {
+        const { post_id, new_like_count } = data;
+        const likeCountSpan = document.querySelector(`#global-post-${post_id} .like-count`);
+        if (likeCountSpan) {
+            likeCountSpan.textContent = new_like_count;
+        }
+    });
+
+    // --- FUNCTIONS ---
+    const escapeHtml = (unsafe) => {
+        if (!unsafe) return '';
+        return unsafe
+             .replace(/&/g, "&")
+             .replace(/</g, "<")
+             .replace(/>/g, ">")
+             .replace(/"/g, """)
+             .replace(/'/g, "'");
+    };
+    
+    async function fetchAndRenderPosts(page = 1) {
+        if (isLoading) return;
+        isLoading = true;
+        const spinner = loadMoreBtn.querySelector('.spinner-border');
+        if (spinner) spinner.classList.remove('d-none');
+        
+        try {
+            const response = await fetch(`{{ url_for('get_global_posts') }}?page=${page}`);
+            if (!response.ok) throw new Error('Failed to fetch posts');
+            
+            const data = await response.json();
+            
+            if (page === 1) {
+                feedContainer.innerHTML = '';
+            }
+            
+            data.posts.forEach(post => {
+                const postHtml = renderPostHtml(post);
+                feedContainer.insertAdjacentHTML('beforeend', postHtml);
+                socket.emit('join_post_room', { 'post_id': post.id });
+            });
+            
+            if (data.pagination.has_next) {
+                loadMoreTrigger.classList.remove('d-none');
+                currentPage = data.pagination.page + 1;
+            } else {
+                loadMoreTrigger.classList.add('d-none');
+            }
+        } catch (error) {
+            console.error('Error fetching posts:', error);
+            feedContainer.innerHTML = `<div class="alert alert-danger text-center">Could not load posts. Please try again later.</div>`;
+        } finally {
+            isLoading = false;
+            if (spinner) spinner.classList.add('d-none');
+            if (skeletonLoader) skeletonLoader.remove();
+        }
+    }
+
+    // --- EVENT DELEGATION FOR DYNAMIC CONTENT ---
+    feedContainer.addEventListener('click', (e) => {
+        const likeButton = e.target.closest('.like-btn');
+        const commentButton = e.target.closest('.comment-btn');
+        const deleteButton = e.target.closest('.delete-post-btn');
+        const editButton = e.target.closest('.edit-post-btn');
+        
+        if (likeButton) {
+            e.preventDefault();
+            handleLike(likeButton.dataset.postId, likeButton);
+        } else if (commentButton) {
+            e.preventDefault();
+            toggleCommentSection(commentButton.dataset.postId);
+        } else if (deleteButton) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+                handleDelete(deleteButton.dataset.postId);
+            }
+        } else if (editButton) {
+            e.preventDefault();
+            handleEdit(editButton.dataset.postId);
+        }
+    });
+
+    feedContainer.addEventListener('submit', async (e) => {
+        if (e.target.classList.contains('comment-form')) {
+            e.preventDefault();
+            handleCommentSubmit(e.target);
+        }
+        if (e.target.classList.contains('edit-post-form')) {
+            e.preventDefault();
+            handleEditSubmit(e.target);
+        }
+    });
+
+    // --- ACTION HANDLERS ---
+    async function handleLike(postId, button) {
+        try {
+            const response = await fetch(`{{ url_for('toggle_global_post_like', post_id=0) }}`.replace('0', postId), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (response.ok) {
+                const likeCountSpan = button.querySelector('.like-count');
+                likeCountSpan.textContent = result.like_count;
+                if (result.liked) {
+                    button.classList.add('text-primary');
+                    button.classList.remove('text-muted');
+                } else {
+                    button.classList.remove('text-primary');
+                    button.classList.add('text-muted');
+                }
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Like action failed:', error);
+        }
+    }
+
+    function toggleCommentSection(postId) {
+        const commentSection = document.getElementById(`comment-section-post-${postId}`);
+        if (commentSection) {
+            commentSection.classList.toggle('d-none');
+            if (!commentSection.classList.contains('d-none')) {
+                loadCommentsForPost(postId);
+            }
+        }
+    }
+    
+    async function handleDelete(postId) {
+        try {
+            const response = await fetch(`{{ url_for('delete_global_post', post_id=0) }}`.replace('0', postId), { method: 'DELETE' });
+            if(response.ok) {
+                const postElement = document.getElementById(`global-post-${postId}`);
+                if(postElement) {
+                    postElement.style.transition = 'opacity 0.5s';
+                    postElement.style.opacity = '0';
+                    setTimeout(() => postElement.remove(), 500);
+                }
+            } else {
+                const result = await response.json();
+                alert(`Error: ${result.error}`);
+            }
+        } catch(error) {
+            console.error('Delete action failed:', error);
+        }
+    }
+    
+    async function loadCommentsForPost(postId) {
+        const commentsContainer = document.getElementById(`comments-for-post-${postId}`);
+        if (commentsContainer.dataset.loaded === 'true') return;
+        commentsContainer.innerHTML = '{{ render_spinner() }}';
+        try {
+            const response = await fetch(`{{ url_for('get_global_post_comments', post_id=0) }}?per_page=50`.replace('0', postId));
+            const data = await response.json();
+            commentsContainer.innerHTML = '';
+            if (response.ok) {
+                data.comments.forEach(comment => {
+                    const commentHtml = renderCommentHtml(comment);
+                    commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
+                });
+                commentsContainer.dataset.loaded = 'true';
+            } else {
+                commentsContainer.innerHTML = '<p class="text-danger small">Could not load comments.</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load comments:', error);
+            commentsContainer.innerHTML = '<p class="text-danger small">Could not load comments.</p>';
+        }
+    }
+    
+    async function handleCommentSubmit(form) {
+        const postId = form.dataset.postId;
+        const input = form.querySelector('input[type="text"]');
+        const content = input.value.trim();
+        if (!content) return;
+        try {
+            const response = await fetch(`{{ url_for('create_global_comment', post_id=0) }}`.replace('0', postId), {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ content: content })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                const commentsContainer = document.getElementById(`comments-for-post-${postId}`);
+                const commentHtml = renderCommentHtml(result.comment);
+                commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
+                input.value = '';
+                const commentCountSpan = document.querySelector(`#global-post-${postId} .comment-count`);
+                if(commentCountSpan) commentCountSpan.textContent = result.post_comment_count;
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to post comment:', error);
+        }
+    }
+
+    function handleEdit(postId) {
+        const postElement = document.getElementById(`global-post-${postId}`);
+        const contentElement = postElement.querySelector('.post-content-area');
+        const originalContentParagraph = contentElement.querySelector('p.card-text');
+        const originalContent = originalContentParagraph ? originalContentParagraph.innerHTML : '';
+        
+        const editFormHtml = `
+            <form class="edit-post-form" data-post-id="${postId}">
+                <textarea class="form-control" name="content" rows="4">${originalContent.replace(/<br\s*[\/]?>/gi, "\n")}</textarea>
+                <div class="text-end mt-2">
+                    <button type="button" class="btn btn-sm btn-secondary cancel-edit-btn">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+                </div>
+            </form>
+        `;
+        contentElement.dataset.originalContent = contentElement.innerHTML;
+        contentElement.innerHTML = editFormHtml;
+
+        contentElement.querySelector('.cancel-edit-btn').addEventListener('click', () => {
+            contentElement.innerHTML = contentElement.dataset.originalContent;
+        }, { once: true });
+    }
+
+    async function handleEditSubmit(form) {
+        const postId = form.dataset.postId;
+        const textarea = form.querySelector('textarea');
+        const content = textarea.value;
+
+        try {
+            const response = await fetch(`{{ url_for('update_global_post', post_id=0) }}`.replace('0', postId), {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ content: content })
+            });
+            const result = await response.json();
+            if(response.ok) {
+                const contentElement = document.querySelector(`#global-post-${postId} .post-content-area`);
+                contentElement.innerHTML = `<p class="card-text">${escapeHtml(content).replace(/\n/g, '<br>')}</p>`;
+            } else {
+                alert(`Error: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to edit post:', error);
+        }
+    }
+
+    // --- INITIALIZATION & CREATE POST FORM LISTENERS ---
+    document.addEventListener('DOMContentLoaded', () => fetchAndRenderPosts(1));
+    loadMoreBtn.addEventListener('click', () => fetchAndRenderPosts(currentPage));
+    attachFileBtn.addEventListener('click', () => postFileInput.click());
+    postFileInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) {
+            fileNameSpan.textContent = file.name;
+            filePreview.classList.remove('d-none');
+        }
+    });
+    removeFileBtn.addEventListener('click', () => {
+        postFileInput.value = '';
+        filePreview.classList.add('d-none');
+    });
+
+    createPostForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('submit-global-post-btn');
+        const spinner = submitBtn.querySelector('.spinner-border');
+        
+        const content = postContentTextarea.value.trim();
+        const file = postFileInput.files[0];
+
+        if (!content && !file) {
+            alert("Please write something or attach a file.");
+            return;
+        }
+
+        const formData = new FormData(createPostForm);
+        // The file input is outside the form, so we must append its file manually.
+        // We also must check if a file was selected.
+        if (file) {
+            formData.append('attached_file', file);
+        }
+        
+        submitBtn.disabled = true;
+        spinner.classList.remove('d-none');
+        try {
+            const response = await fetch("{{ url_for('create_global_post') }}", {
+                method: 'POST',
+                body: formData
+                // NO Content-Type header needed for FormData; browser sets it.
+            });
+            const result = await response.json();
+            if (response.ok) {
+                const newPostHtml = renderPostHtml(result.post);
+                feedContainer.insertAdjacentHTML('afterbegin', newPostHtml);
+                socket.emit('join_post_room', { 'post_id': result.post.id });
+                createPostForm.reset();
+                filePreview.classList.add('d-none');
+                postFileInput.value = ''; // Important to clear the file input
+            } else {
+                alert(`Error: ${result.error || 'Could not create post.'}`);
+            }
+        } catch (error) {
+            console.error('Error creating post:', error);
+            alert('A network error occurred. Please try again.');
+        } finally {
+            submitBtn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    });
+
+    // --- HTML RENDERER HELPERS ---
+    function renderPostHtml(post) {
+        const getHumanTime = (isoString) => {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffSeconds = Math.round((now - date) / 1000);
+            if (diffSeconds < 60) return 'just now';
+            if (diffSeconds < 3600) return `${Math.round(diffSeconds / 60)} min ago`;
+            if (diffSeconds < 86400) return `${Math.round(diffSeconds / 3600)} hr ago`;
+            return date.toLocaleDateString();
+        };
+        
+        const authorProfileUrl = post.author.profile_photo_url ? `{{ url_for('static', filename='') }}${post.author.profile_photo_url}` : `{{ url_for('static', filename='img/placeholders/user_avatar_default.png') }}`;
+        const contentHtml = post.content ? `<p class="card-text">${escapeHtml(post.content).replace(/\n/g, '<br>')}</p>` : '';
+        
+        let fileHtml = '';
+        if (post.file) {
+            if (post.file.mimetype && post.file.mimetype.startsWith('image/')) {
+                fileHtml = `<img src="${post.file.download_url}" class="img-fluid rounded mt-2" alt="Post attachment">`;
+            } else {
+                fileHtml = `<div class="border rounded p-3 mt-2"><i class="bi bi-file-earmark-text fs-4 me-2"></i><a href="${post.file.download_url}" target="_blank">${escapeHtml(post.file.original_filename)}</a></div>`;
+            }
+        }
+
+        const isAuthor = post.author.id === currentUserId;
+        const canDelete = isAuthor || isAdmin;
+        const optionsDropdown = (isAuthor || canDelete) ? `
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi bi-three-dots"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    ${isAuthor ? `<li><a class="dropdown-item edit-post-btn" href="#" data-post-id="${post.id}">Edit Post</a></li>` : ''}
+                    ${canDelete ? `<li><a class="dropdown-item text-danger delete-post-btn" href="#" data-post-id="${post.id}">Delete Post</a></li>` : ''}
+                </ul>
+            </div>` : '';
+
+        const likedClass = post.current_user_liked ? 'text-primary' : 'text-muted';
+
+        return `
+            <div class="card shadow-sm mb-4" id="global-post-${post.id}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="d-flex align-items-center">
+                            <img src="${authorProfileUrl}" class="rounded-circle me-3" width="48" height="48" alt="Avatar">
+                            <div><h6 class="mb-0">${escapeHtml(post.author.full_name)}</h6><small class="text-muted">@${escapeHtml(post.author.username)} · ${getHumanTime(post.timestamp)}</small></div>
+                        </div>
+                        ${optionsDropdown}
+                    </div>
+                    <div class="mt-3 post-content-area">${contentHtml}${fileHtml}</div>
+                </div>
+                <div class="card-footer bg-white d-flex justify-content-around py-1">
+                    <button class="btn btn-sm ${likedClass} w-100 like-btn" data-post-id="${post.id}"><i class="bi bi-hand-thumbs-up"></i> <span class="like-count">${post.like_count}</span> Like</button>
+                    <button class="btn btn-sm text-muted w-100 comment-btn" data-post-id="${post.id}"><i class="bi bi-chat-dots"></i> <span class="comment-count">${post.comment_count}</span> Comment</button>
+                    <button class="btn btn-sm text-muted w-100 save-post-btn" data-post-id="${post.id}"><i class="bi bi-bookmark"></i> Save</button>
+                </div>
+                <div class="card-footer bg-light p-2 d-none" id="comment-section-post-${post.id}">
+                     <div class="comments-container mb-2" id="comments-for-post-${post.id}"></div>
+                     <form class="comment-form" data-post-id="${post.id}">
+                        <div class="input-group"><input type="text" class="form-control form-control-sm" placeholder="Write a comment..."><button class="btn btn-primary btn-sm" type="submit">Send</button></div>
+                     </form>
+                 </div>
+            </div>`;
+    }
+
+    function renderCommentHtml(comment) {
+        const authorProfileUrl = comment.author.profile_photo_url ? `{{ url_for('static', filename='') }}${comment.author.profile_photo_url}` : `{{ url_for('static', filename='img/placeholders/user_avatar_default.png') }}`;
+        const canDelete = comment.author.id === currentUserId || isAdmin;
+        const deleteButton = canDelete ? `<button class="btn btn-sm btn-link text-danger p-0 delete-comment-btn" data-comment-id="${comment.id}"><i class="bi bi-trash"></i></button>` : '';
+
+        return `
+            <div class="d-flex align-items-start mt-2" id="comment-${comment.id}">
+                <img src="${authorProfileUrl}" class="rounded-circle me-2" width="32" height="32" alt="Avatar">
+                <div class="flex-grow-1 bg-white p-2 rounded">
+                    <div class="d-flex justify-content-between">
+                        <strong>${escapeHtml(comment.author.full_name)}</strong>
+                        ${deleteButton}
+                    </div>
+                    <p class="mb-0 small">${escapeHtml(comment.content)}</p>
+                </div>
+            </div>`;
+    }
+</script>
 {% endblock %}

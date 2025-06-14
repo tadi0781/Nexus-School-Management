@@ -1,11 +1,14 @@
 {% extends "layout/base.html" %}
 
+{# FIX 1: Set no_sidebar at the top to ensure it's globally available for base.html #}
+{% set no_sidebar = True %}
+
 {% block page_title %}{{ community_group.name if community_group else "Talent Club Community" }}{% endblock %}
 
 {% block head_css %}
 <style>
     .tc-community-chat-window {
-        height: calc(100vh - 56px - 56px - 70px - 3rem - 70px); /* Adjust for header and input */
+        height: calc(100vh - 56px - 70px - 90px); /* Simplified calc for navbar, header, and input */
         min-height: 400px;
         overflow-y: auto;
         display: flex;
@@ -29,7 +32,6 @@
         <div class="container-fluid">
             <div class="d-flex flex-column flex-md-row align-items-md-center">
                 <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
-                    {# Placeholder for a TC Community Group Icon/Logo #}
                     <span class="fa-stack fa-2x d-inline-block me-md-2" style="font-size: 2.5rem;">
                         <i class="bi bi-shield-fill fs-1 text-primary"></i>
                         <i class="bi bi-stars fs-4 text-warning position-absolute" style="top: 2px; left: 1px; opacity: 0.9;"></i>
@@ -45,10 +47,9 @@
                     <a href="{{ url_for('talent_club_configuration') }}" class="btn btn-sm btn-outline-secondary">
                         <i class="bi bi-gear-fill me-1"></i> TC Config
                     </a>
-                    {# Optional: Link to view members if a dedicated page exists #}
                 </div>
             </div>
-             {% if community_group and community_group.description %}
+            {% if community_group and community_group.description %}
                 <p class="text-muted small mb-2 mt-2 text-center text-md-start">{{ community_group.description }}</p>
             {% endif %}
         </div>
@@ -56,23 +57,19 @@
 {% endblock %}
 
 {% block content %}
-{% set no_sidebar = True %} {# Full focus on community chat #}
+{# The `set no_sidebar` line was correctly moved to the top #}
 
 <div class="container-fluid px-0 h-100 d-flex flex-column">
     <div class="tc-community-chat-window flex-grow-1" id="tcCommunityChatWindowMessages-{{ community_group.id if community_group else '0' }}">
         {% if messages and messages | length > 0 %}
-            {% for message_loop_var in messages %} {# Changed loop variable name #}
-                {# Set the context variables needed by the partial #}
-                {% set message = message_loop_var %}
-                {% set current_user_id = current_user.id %} {# Explicitly set for the partial #}
-                
-                {# Call include in its simplest form #}
+            {% for message in messages %}
+                {# The partial now only needs the 'message' variable, as current_user is global #}
                 {% include 'partials/_chat_message_item.html' %}
             {% endfor %}
         {% else %}
             <div class="text-center text-muted p-5 flex-grow-1 d-flex align-items-center justify-content-center">
                 <div>
-                    <i class="bi bi- megaphone-fill display-3 mb-3"></i>
+                    <i class="bi bi-megaphone-fill display-3 mb-3"></i>
                     <h4 class="font-heading">Welcome to the {{ community_group.name if community_group else "Community" }}!</h4>
                     <p>Start a discussion, share an announcement, or ask a question.</p>
                 </div>
@@ -81,16 +78,18 @@
     </div>
 
     <div class="tc-community-input-area p-3">
-        {% if can_post_in_community %} {# Backend variable: True if user not muted in TC #}
-            {# Reusing _social_content_form.html for message input UI consistency #}
-            {# Set variables with names expected by _social_content_form.html #}
-            {% set post_form_for_partial = post_form %} {# Use a distinct name if 'post_form' is already used, or ensure it's correctly scoped #}
-            {% set submit_url = url_for('create_tc_community_message') %}
-            {% set submit_button_text = 'Send Message' %}
-            {% set parent_id = community_group.id if community_group else '0' %}
+        {% if can_post_in_community %}
+            {# Set local variables needed by the partial #}
+            {% set form_id_val = 'tcCommunityMessageForm-' ~ (community_group.id | string) %}
+            {% set textarea_id_val = 'tcCommunityMessageInput-' ~ (community_group.id | string) %}
+            {% set submit_url_val = url_for('create_tc_community_message') %}
+            {% set submit_button_text_val = 'Send' %}
 
-            {# Call include in its simplest form #}
-            {% include 'partials/_social_content_form.html' %}
+            {# 
+               FIX 2: Use 'with context' to pass the 'form' object from your Python view
+               into the partial. This is required for {{ form.csrf_token }} to work.
+            #}
+            {% include 'partials/_social_content_form.html' with context %}
         {% else %}
             <div class="alert alert-warning text-center" role="alert">
                 <i class="bi bi-mic-mute-fill me-1"></i> You are currently muted and cannot send messages in the TC Community.
@@ -101,8 +100,8 @@
 {% endblock %}
 
 {% block body_scripts %}
-<script src="{{ url_for('static', filename='js/talent_club.js') }}?v={{ range(1, 100000) | random }}"></script>
 <script>
+    // This inline script remains the same. Its job is to kick off the JS initialization.
     document.addEventListener('DOMContentLoaded', function () {
         const communityGroupId = {{ community_group.id | tojson if community_group else 'null' }};
         const currentUserId = {{ current_user.id | tojson }};
@@ -110,11 +109,8 @@
         if (communityGroupId && typeof initializeTCCommunityChat === 'function') {
             initializeTCCommunityChat(communityGroupId, currentUserId);
         } else if(communityGroupId) {
-            console.warn('initializeTCCommunityChat function not found in talent_club.js. TC Community chat may not be fully dynamic.');
-            // Basic form submission will still work if the form action in _social_content_form.html is correct.
-            // The generic social.js post handler might pick it up if class names match and form action is correct.
+            console.warn('initializeTCCommunityChat function not found in talent_club.js. Chat will not be dynamic.');
         }
-        console.log('TC Community Group page JS loaded.');
     });
 </script>
 {% endblock %}

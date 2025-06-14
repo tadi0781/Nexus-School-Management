@@ -1,0 +1,25 @@
+<div class="card mb-3 recipient-group-container">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">{{ group_name }} ({{ users|length }})</h6>
+        <div class="form-check">
+            <input class="form-check-input select-all-group" type="checkbox" id="select-all-{{ group_name|replace(' ', '-')|replace('.', '')|lower }}">
+            <label class="form-check-label" for="select-all-{{ group_name|replace(' ', '-')|replace('.', '')|lower }}">
+                Select All
+            </label>
+        </div>
+    </div>
+    <ul class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+        {% for user in users %}
+        <li class="list-group-item d-flex align-items-center recipient-list-item" data-name="{{ user.full_name|lower }}" data-username="{{ user.username|lower }}">
+            <input class="form-check-input me-3 recipient-checkbox" type="checkbox" name="recipient_ids_visual" value="{{ user.id }}" id="user-{{ user.id }}">
+            <label class="form-check-label d-flex align-items-center w-100" for="user-{{ user.id }}">
+                <img src="{{ url_for('static', filename=user.profile_photo_url or 'img/placeholders/avatar.png') }}" alt="" class="rounded-circle me-2" width="32" height="32">
+                <div class="flex-grow-1">
+                    <span class="fw-bold">{{ user.full_name }}</span>
+                    <small class="text-muted ms-2">({{ user.username }})</small>
+                </div>
+            </label>
+        </li>
+        {% endfor %}
+    </ul>
+</div>

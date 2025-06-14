@@ -1,3 +1,4 @@
+<!-- START OF REWRITTEN FILE: templates/social/groups/list.html -->
 {% extends "layout/base.html" %}
 
 {% block title %}My Social Groups{% endblock %}
@@ -5,10 +6,11 @@
 {% block content_header %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2 font-heading">
-        <i class="bi bi-collection-fill me-2 text-primary"></i>My Social Groups
+        <i class="bi bi-people-fill me-2 text-primary"></i>My Social Groups
     </h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        {# The "Create Group" button is permission-driven and can stay #}
+        {# Optional: Add a "Discover Groups" button if that feature exists #}
+        {# <a href="#" class="btn btn-sm btn-outline-info me-2">Discover Groups</a> #}
         {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
             <a href="{{ url_for('create_social_group') }}" class="btn btn-sm btn-primary shadow-sm">
                 <i class="bi bi-plus-circle-fill me-1"></i>Create New Group
@@ -22,25 +24,63 @@
 <div class="container-fluid px-0">
     {% include 'layout/_flash_messages.html' %}
 
-    {# FIX: The template now correctly iterates over `my_groups` from the backend #}
-    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-        {% for group in my_groups %}
-            {# FIX: Includes the newly created partial to render each group card #}
-            {% include "partials/_group_card_item.html" %}
-        {% else %}
-            {# FIX: The empty state message is now relevant to a "My Groups" page #}
-            <div class="col-12">
+    {# Logic to determine which tab should be active by default #}
+    {% set owned_is_active = (my_owned_groups and my_owned_groups|length > 0) %}
+    {% set joined_is_active = not owned_is_active %}
+
+    <ul class="nav nav-tabs mb-4" id="myGroupsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if joined_is_active }}" id="joined-tab" data-bs-toggle="tab" data-bs-target="#joined-groups-pane" type="button" role="tab" aria-controls="joined-groups-pane" aria-selected="{{ 'true' if joined_is_active else 'false' }}">
+                <i class="bi bi-person-check-fill me-1"></i> Joined Groups ({{ my_joined_groups | length if my_joined_groups else 0 }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if owned_is_active }}" id="owned-tab" data-bs-toggle="tab" data-bs-target="#owned-groups-pane" type="button" role="tab" aria-controls="owned-groups-pane" aria-selected="{{ 'true' if owned_is_active else 'false' }}">
+                 <i class="bi bi-person-workspace me-1"></i> Owned Groups ({{ my_owned_groups | length if my_owned_groups else 0 }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myGroupsTabContent">
+        {# Joined Groups Pane #}
+        <div class="tab-pane fade {{ 'show active' if joined_is_active }}" id="joined-groups-pane" role="tabpanel" aria-labelledby="joined-tab" tabindex="0">
+            {% if my_joined_groups and my_joined_groups | length > 0 %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                    {% for membership in my_joined_groups %}
+                        {% set group = membership.group %} {# Extract the group object #}
+                        {% set is_member = True %} {# For the card partial #}
+                        {% include "partials/_group_card_item.html" %}
+                    {% endfor %}
+                </div>
+            {% else %}
                 <div class="text-center text-muted p-5 bg-light rounded">
                     <i class="bi bi-wind fs-1 mb-3"></i>
                     <h4 class="font-heading">It's a bit empty here...</h4>
-                    <p>You haven't joined or created any social groups yet.</p>
-                    {# A 'discover' page would be linked here if it existed. For now, create is the main action. #}
+                    <p>You haven't joined any groups yet.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        {# Owned Groups Pane #}
+        <div class="tab-pane fade {{ 'show active' if owned_is_active }}" id="owned-groups-pane" role="tabpanel" aria-labelledby="owned-tab" tabindex="0">
+             {% if my_owned_groups and my_owned_groups | length > 0 %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+                    {% for group in my_owned_groups %}
+                        {% set is_member = True %} {# For the card partial #}
+                        {% include "partials/_group_card_item.html" %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center text-muted p-5 bg-light rounded">
+                    <i class="bi bi-plus-square-dotted fs-1 mb-3"></i>
+                    <h4 class="font-heading">You Don't Own Any Groups</h4>
                     {% if current_user.role.name in ['hr_ceo', 'system_admin', 'teacher'] %}
-                        <a href="{{ url_for('create_social_group') }}" class="btn btn-primary">Create a Group</a>
+                        <p>Ready to start one? <a href="{{ url_for('create_social_group') }}">Create a new group</a>.</p>
                     {% endif %}
                 </div>
-            </div>
-        {% endfor %}
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}
+<!-- END OF REWRITTEN FILE -->

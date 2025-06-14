@@ -1,0 +1,3167 @@
+// Nexus School Management System - requests.js
+// Gemini 3 Pro Preview - Phase H.1 (Initial Setup)
+
+"use strict";
+
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Nexus Requests JS Initialized.');
+    
+    /**
+ * A generic, reusable function to handle form submissions via AJAX.
+ * It shows loading states and handles success or error responses from the server.
+ * @param {HTMLFormElement} form - The form element being submitted.
+ */
+async function handleAjaxFormSubmit(form) {
+    const submitButton = form.querySelector('button[type="submit"], input[type="submit"]');
+    
+    // Disable button and show a loading spinner to prevent double-clicks
+    if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...`;
+    }
+
+    try {
+        // Assumes you have a 'postData' helper function in your utils.js
+        const data = await postData(form.action, new FormData(form));
+        
+        if (data.success) {
+            // On success, the backend sends a redirect URL. The frontend's only job is to go there.
+            // The success message will be flashed by the backend on the new page.
+            window.location.href = data.redirect_url;
+        } else {
+            // If the server returns errors (e.g., validation failed), display them.
+            const errorMsg = data.errors 
+                ? Object.values(data.errors).flat().join('<br>') 
+                : (data.error || 'An unknown error occurred. Please check the form.');
+            
+            // Assumes you have a 'showNexusNotification' helper in utils.js
+            showNexusNotification('Submission Failed', errorMsg, 'danger');
+        }
+    } catch (error) {
+        console.error('AJAX form submission error:', error);
+        showNexusNotification('Network Error', 'Could not submit the form. Please check your connection.', 'danger');
+    } finally {
+        // Re-enable the button only if there was an error. On success, the page will redirect away.
+        if (submitButton) {
+            submitButton.disabled = false;
+            // Restore the original button text based on the form ID
+            const originalText = form.id === 'reviewRequestForm' ? 'Update Request' : 'Submit Request';
+            submitButton.innerHTML = originalText;
+        }
+    }
+}
+
+    // --- Review Request Form Dynamics ---
+    const reviewRequestForm = document.getElementById('reviewRequestForm'); // Assuming form has this ID in review.html
+    const statusSelect = reviewRequestForm ? reviewRequestForm.querySelector('select[name="status"]') : null;
+    const denialReasonGroup = reviewRequestForm ? reviewRequestForm.querySelector('#denialReasonGroup') : null; // Assuming a div wrapping denial_reason
+    const forwardToGroup = reviewRequestForm ? reviewRequestForm.querySelector('#forwardToUserGroup') : null; // Assuming a div wrapping forward_to_user_id
+
+    function toggleReviewFormFields() {
+        if (!statusSelect) return;
+
+        const selectedAction = statusSelect.value;
+
+        // Show/hide denial reason
+        if (denialReasonGroup) {
+            const denialTextarea = denialReasonGroup.querySelector('textarea');
+            if (selectedAction === 'Denied') {
+                denialReasonGroup.style.display = 'block';
+                if(denialTextarea) denialTextarea.required = true;
+            } else {
+                denialReasonGroup.style.display = 'none';
+                if(denialTextarea) denialTextarea.required = false;
+            }
+        }
+
+        // Show/hide forward to user selection
+        if (forwardToGroup) {
+            const forwardSelect = forwardToGroup.querySelector('select');
+            if (selectedAction === 'Forward') {
+                forwardToGroup.style.display = 'block';
+                if(forwardSelect) forwardSelect.required = true;
+            } else {
+                forwardToGroup.style.display = 'none';
+                if(forwardSelect) forwardSelect.required = false;
+            }
+        }
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', toggleReviewFormFields);
+        toggleReviewFormFields(); // Initial call to set correct visibility
+    }
+
+    // Add other request-specific JS logic here as needed
+    // e.g., AJAX form submissions for request actions if not using standard POSTs.
+});
+
+// Example of AJAX submission for a request action (conceptual, not fully wired yet)
+// async function handleRequestAction(formElement, action) {
+//     const submitButton = formElement.querySelector('button[type="submit"]');
+//     // ... (disable button, show spinner) ...
+//     const formData = new FormData(formElement);
+//     // Add action to formData if not already present from button value
+//     if (!formData.has('action')) {
+//         formData.append('action', action);
+//     }
+//
+//     try {
+//         const response = await fetch(formElement.action, {
+//             method: 'POST',
+//             body: formData,
+//             headers: {'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}
+//         });
+//         const responseData = await response.json();
+//         if (response.ok && responseData.success) {
+//             showNexusNotification('Success', responseData.message || 'Request updated.', 'success');
+//             if (responseData.redirect_url) {
+//                 window.location.href = responseData.redirect_url;
+//             } else {
+//                 // Or dynamically update parts of the page
+//             }
+//         } else {
+//             showNexusNotification('Error', responseData.error || 'Failed to update request.', 'error');
+//         }
+//     } catch (error) { /* ... error handling ... */ }
+//     finally { /* ... re-enable button ... */ }
+// }
+// Nexus School Management System - requests.js
+// Gemini 3 Pro Preview - Phase H.2 (Review Form Dynamics)
+
+"use strict";
+
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Nexus Requests JS Initialized.');
+  
+    // --- Global Form Submission Handler using Event Delegation ---
+    document.body.addEventListener('submit', function(event) {
+        const form = event.target;
+        // Check if the submitted form is one we want to handle with AJAX
+        if (form.matches('#submitRequestForm, #reviewRequestForm')) {
+            event.preventDefault();
+            handleAjaxFormSubmit(form); // Call our new function
+        }
+    });
+
+    // --- Review Request Form Field Toggling (existing logic) ---
+    const reviewRequestForm = document.getElementById('reviewRequestForm');
+    if (reviewRequestForm) {
+        initializeReviewRequestForm(reviewRequestForm);
+    }
+});
+
+    // Initialize review request form dynamics if the form exists on the page
+    if (document.getElementById('reviewRequestForm')) {
+        initializeReviewRequestForm();
+    }
+});
+
+/**
+ * Initializes dynamic visibility for fields in the Review Request Form.
+ */
+function initializeReviewRequestForm() {
+    const reviewForm = document.getElementById('reviewRequestForm');
+    const statusSelect = reviewForm ? reviewForm.querySelector('select[name="status"]') : null;
+    // Use more specific IDs for these groups if they don't have form-group wrappers
+    const denialReasonGroup = reviewForm ? document.getElementById('denialReasonGroup') : null;
+    const forwardToUserGroup = reviewForm ? document.getElementById('forwardToUserGroup') : null;
+
+    if (!statusSelect) {
+        // console.warn('Review request status select not found.');
+        return;
+    }
+
+    function toggleReviewFormFields() {
+        const selectedActionValue = statusSelect.value; // This is the 'value' of the selected option
+
+        // Show/hide denial reason
+        if (denialReasonGroup) {
+            const denialTextarea = denialReasonGroup.querySelector('textarea[name="denial_reason"]');
+            if (selectedActionValue === 'Denied') { // Check against the actual value from WTForms choices
+                denialReasonGroup.style.display = 'block';
+                if (denialTextarea) denialTextarea.required = true;
+            } else {
+                denialReasonGroup.style.display = 'none';
+                if (denialTextarea) denialTextarea.required = false;
+            }
+        }
+
+        // Show/hide forward to user selection
+        if (forwardToUserGroup) {
+            const forwardSelect = forwardToUserGroup.querySelector('select[name="forward_to_user_id"]');
+            if (selectedActionValue === 'Forward') { // Check against the actual value
+                forwardToUserGroup.style.display = 'block';
+                if (forwardSelect && forwardSelect.options.length > 1) { // Check if actual users are populated
+                     forwardSelect.required = true;
+                } else {
+                     if(forwardSelect) forwardSelect.required = false; // No users to select, so not required
+                }
+            } else {
+                forwardToUserGroup.style.display = 'none';
+                if (forwardSelect) forwardSelect.required = false;
+            }
+        }
+    }
+
+    statusSelect.addEventListener('change', toggleReviewFormFields);
+    // Initial call to set correct visibility based on pre-selected status (if any)
+    toggleReviewFormFields();
+}
+
+// Add other request-specific JS logic here as needed
+// e.g., AJAX form submissions for request actions if not using standard POSTs./**
+ * Nexus Actionable Intelligence Engine
+ * 
+ * This module provides a lightweight, event-driven analytics framework.
+ * It's designed to be privacy-conscious and backend-agnostic.
+ * 
+ * Usage from HTML/Jinja:
+ * <button onclick="NexusAnalytics.trackEvent('social_post_created', { club_id: 123, character_count: 280 })">Post</button>
+ */
+const NexusAnalytics = (function() {
+    'use strict';
+
+    // --- Configuration ---
+    const config = {
+        apiEndpoint: '/api/analytics/log', // The backend endpoint to send data to.
+        enabled: true, // Master switch to enable/disable all tracking.
+        debug: false, // Set to true to log events to the console instead of sending them.
+        batchInterval: 5000, // Send batched events every 5 seconds.
+        maxBatchSize: 20 // Send batch if it reaches this size before the interval.
+    };
+
+    let eventQueue = [];
+    let isInitialized = false;
+
+    /**
+     * Sends analytics data to the backend.
+     * @param {Array<Object>} batch - The batch of event objects to send.
+     */
+    function sendData(batch) {
+        if (!config.enabled) return;
+        if (batch.length === 0) return;
+
+        if (config.debug) {
+            console.log('--- Analytics Event Batch ---');
+            console.table(batch);
+            return;
+        }
+
+        const payload = {
+            events: batch,
+            client_timestamp: new Date().toISOString(),
+            url: window.location.href
+        };
+
+        // Use navigator.sendBeacon for reliable background sending if available.
+        if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            navigator.sendBeacon(config.apiEndpoint, blob);
+        } else {
+            // Fallback to fetch for older browsers.
+            fetch(config.apiEndpoint, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' },
+                keepalive: true // Attempt to continue request even if page unloads.
+            }).catch(error => console.error('Nexus Analytics Error:', error));
+        }
+    }
+    
+    /**
+     * Processes the event queue, sending batches of events.
+     */
+    function processQueue() {
+        if (eventQueue.length > 0) {
+            const batch = eventQueue.slice(0, config.maxBatchSize);
+            eventQueue = eventQueue.slice(config.maxBatchSize);
+            sendData(batch);
+        }
+    }
+
+    /**
+     * Initializes the analytics engine.
+     * Sets up automatic batch processing and tracks the initial page view.
+     */
+    function init(userConfig = {}) {
+        if (isInitialized) {
+            console.warn('NexusAnalytics already initialized.');
+            return;
+        }
+
+        // Merge user config with defaults.
+        Object.assign(config, userConfig);
+
+        // Start the batch processing interval.
+        setInterval(processQueue, config.batchInterval);
+
+        // Track initial page view.
+        trackEvent('page_view', { 
+            title: document.title,
+            path: window.location.pathname
+        });
+        
+        // Add a handler to send any remaining events when the page is closed.
+        window.addEventListener('beforeunload', () => {
+            processQueue();
+        });
+
+        isInitialized = true;
+        if(config.debug) console.log('Nexus Analytics Initialized.');
+    }
+
+    /**
+     * Public method to track a custom event.
+     * @param {string} eventName - The name of the event (e.g., 'button_click').
+     * @param {Object} [eventData={}] - A key-value object of custom data.
+     */
+    function trackEvent(eventName, eventData = {}) {
+        if (!isInitialized || !config.enabled) return;
+
+        if (typeof eventName !== 'string' || eventName.trim() === '') {
+            console.error('Nexus Analytics: eventName must be a non-empty string.');
+            return;
+        }
+
+        const event = {
+            name: eventName,
+            data: eventData,
+            timestamp: new Date().toISOString()
+        };
+
+        eventQueue.push(event);
+
+        // If the queue has reached max size, send immediately.
+        if (eventQueue.length >= config.maxBatchSize) {
+            processQueue();
+        }
+    }
+
+    // --- Public API ---
+    return {
+        init: init,
+        trackEvent: trackEvent
+    };
+})();
+
+// Automatically initialize on script load.
+// Configuration can be overridden by calling NexusAnalytics.init({ ... }) later.
+NexusAnalytics.init({
+    // In production, you might set debug: false
+    // debug: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+});// In mergedjs.txt, this is the new app.js
+
+/**
+ * app.js - Main Application Entrypoint
+ * This file initializes all core JavaScript modules for the Nexus platform.
+ */
+"use strict";
+
+// --- Main Application Initialization ---
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded. Initializing Nexus modules...');
+
+    // Initialize the social feed if the container exists on the page
+    if (document.getElementById('globalFeedContainer')) {
+        if (typeof nexusSocial !== 'undefined' && typeof nexusSocial.initGlobalFeed === 'function') {
+            console.log('Found globalFeedContainer, initializing nexusSocial...');
+            nexusSocial.initGlobalFeed({
+                feedContainerId: 'globalFeedContainer',
+                loadingPlaceholderId: 'globalFeedLoadingPlaceholder',
+                emptyPlaceholderId: 'globalFeedEmptyPlaceholder',
+                loadMoreTriggerId: 'loadMoreGlobalPostsTrigger',
+                createFormId: 'globalPostCreateForm'
+            });
+        } else {
+            console.error('nexusSocial object or initGlobalFeed function not found. Ensure social.js is loaded correctly before app.js.');
+        }
+    }
+    
+    // --- Other initializers can be added here in the future ---
+
+    console.log('Nexus Platform JS Core is active.');
+});// Content of static/js/libs/filepond/filepond.js
+// This is a dummy file for demonstration.
+// --- START: CORRECTED social.js ---
+"use strict";
+
+const nexusSocial = {
+    // --- Configuration for current feed view ---
+    config: {
+        feedType: null,
+        parentId: null,
+        currentPage: 1,
+        isLoadingMore: false,
+        apiEndpoints: {
+            global: {
+                fetchPosts: '/api/v1/global_posts',
+                createPost: '/api/v1/global_posts',
+                createComment: '/api/v1/global_posts/{postId}/comments',
+                toggleLike: '/api/v1/global_posts/{postId}/like',
+                deletePost: '/api/v1/global_posts/{postId}',
+                deleteComment: '/api/v1/global_comments/{commentId}',
+                fetchComments: '/api/v1/global_posts/{postId}/comments',
+                saveItem: '/api/v1/saved_items', // Added from a fragment
+            }
+        },
+        uiSelectors: {
+            feedContainer: null,
+            loadingPlaceholder: null,
+            emptyPlaceholder: null,
+            loadMoreTrigger: null,
+            createForm: null,
+        },
+        postTemplateFunction: null,
+        commentTemplateFunction: null
+    },
+
+    handleShare: function(buttonElement) {
+        const url = buttonElement.dataset.shareUrl;
+        if (navigator.share) {
+            navigator.share({ title: 'Check out this post from Nexus', url: url })
+                .catch(err => console.error("Share failed:", err));
+        } else if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => {
+                showNexusNotification('Link copied!', 'Link copied to clipboard.', 'success');
+            }).catch(err => {
+                showNexusNotification('Copy Failed', 'Could not copy link.', 'error');
+            });
+        } else {
+            window.open(url, '_blank');
+        }
+    },
+
+    observePostVisibility: function() {
+        if (!('IntersectionObserver' in window) || typeof nexusRealtimeManager === 'undefined') return;
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const postId = entry.target.dataset.postId;
+                const postType = entry.target.dataset.postType;
+                if (!postId) return;
+
+                if (entry.isIntersecting) {
+                    nexusRealtimeManager.joinPostRoom(postId, postType);
+                } else {
+                    nexusRealtimeManager.leavePostRoom(postId, postType);
+                }
+            });
+        }, { rootMargin: '150px 0px', threshold: 0.01 });
+
+        const mutationObserver = new MutationObserver(mutations => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === 1 && node.matches('.social-post-item')) observer.observe(node);
+                }
+                for (const node of mutation.removedNodes) {
+                    if (node.nodeType === 1 && node.matches('.social-post-item')) observer.unobserve(node);
+                }
+            }
+        });
+        if (this.config.uiSelectors.feedContainer) {
+            mutationObserver.observe(this.config.uiSelectors.feedContainer, { childList: true });
+        }
+    },
+
+    handleSaveItem: async function(buttonElement) {
+        const { itemId, itemType } = buttonElement.dataset;
+        const isSaved = buttonElement.classList.contains('active');
+        const endpoint = this.config.apiEndpoints.global.saveItem;
+
+        this.setButtonLoading(buttonElement, true, "");
+
+        try {
+            let responseData;
+            if (isSaved) {
+                // To unsave, we need a DELETE request helper. Assuming it exists.
+                // If not, this part needs a `deleteData` utility function in utils.js
+                // For now, let's assume it exists.
+                responseData = await deleteData(`${endpoint}?item_type=${itemType}&item_id=${itemId}`);
+            } else {
+                responseData = await postData(endpoint, { item_type: itemType, item_id: itemId });
+            }
+
+            if (responseData.success) {
+                buttonElement.classList.toggle('active', !isSaved);
+                const textElement = buttonElement.querySelector('.save-text');
+                if (textElement) textElement.textContent = isSaved ? 'Save' : 'Saved';
+                showNexusNotification(responseData.message || 'Updated!', 'success');
+            } else {
+                showNexusNotification(responseData.error || 'Failed to update.', 'danger');
+            }
+        } catch (error) {
+            showNexusNotification('Save Failed', 'Could not update save status.', 'danger');
+        } finally {
+            const originalText = buttonElement.classList.contains('active') ? 'Saved' : 'Save';
+            this.setButtonLoading(buttonElement, false, `<i class="bi bi-bookmark"></i> <span class="save-text">${originalText}</span>`);
+        }
+    },
+
+    handleLoadMoreComments: async function(buttonElement) {
+        const postId = buttonElement.dataset.postId;
+        const postType = buttonElement.dataset.postType;
+        let currentPage = parseInt(buttonElement.dataset.currentPage || '1');
+        
+        this.setButtonLoading(buttonElement, true, "Loading...");
+
+        try {
+            const endpoint = this.config.apiEndpoints[postType].fetchComments.replace('{postId}', postId);
+            const responseData = await getData(`${endpoint}?page=${currentPage + 1}`);
+
+            if (responseData.success && responseData.comments.length > 0) {
+                const commentsList = document.getElementById(`comments-list-${postType}_post-${postId}`);
+                responseData.comments.forEach(commentJson => {
+                    const commentElement = this.config.commentTemplateFunction(commentJson, postId, postType);
+                    commentsList.appendChild(commentElement);
+                });
+                buttonElement.dataset.currentPage = currentPage + 1;
+            }
+
+            if (!responseData.pagination.has_next) {
+                buttonElement.parentElement.classList.add('d-none');
+            }
+        } catch (error) {
+            showNexusNotification('Error', 'Could not load more comments.', 'error');
+        } finally {
+            this.setButtonLoading(buttonElement, false, "Load more comments");
+        }
+    },
+
+    initGlobalFeed: function(initialConfig) {
+        console.log('Initializing Global Feed...');
+        this.config.feedType = 'global';
+        this.config.uiSelectors.feedContainer = document.getElementById(initialConfig.feedContainerId);
+        this.config.uiSelectors.loadingPlaceholder = document.getElementById(initialConfig.loadingPlaceholderId);
+        this.config.uiSelectors.emptyPlaceholder = document.getElementById(initialConfig.emptyPlaceholderId);
+        this.config.uiSelectors.loadMoreTrigger = document.getElementById(initialConfig.loadMoreTriggerId);
+        this.config.uiSelectors.createForm = document.getElementById(initialConfig.createFormId);
+        
+        // The render functions must be defined within the nexusSocial object.
+        this.config.postTemplateFunction = this.renderGlobalPostItem.bind(this);
+        this.config.commentTemplateFunction = this.renderCommentItem.bind(this);
+
+        if (!this.config.uiSelectors.feedContainer) {
+            console.error("Global feed container not found:", initialConfig.feedContainerId);
+            return;
+        }
+
+        this.loadInitialPosts();
+        this.observePostVisibility();
+        this.setupGlobalEventListeners();
+        this.registerGlobalRealtimeHandlers();
+        // Global FilePond init should be handled by main.js
+    },
+    
+    handleGlobalPostCreateSubmit: async function(formElement) {
+        const submitButton = formElement.querySelector('.post-submit-btn');
+        if (!submitButton) return;
+        const originalButtonText = submitButton.innerHTML;
+        this.setButtonLoading(submitButton, true, "Posting...");
+
+        const formData = new FormData(formElement);
+        const endpoint = this.config.apiEndpoints.global.createPost;
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': formData.get('csrf_token') }
+            });
+
+            const responseData = await response.json();
+
+            if (response.ok && responseData.success && responseData.post_html) {
+                showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
+
+                this.config.uiSelectors.feedContainer.insertAdjacentHTML('afterbegin', responseData.post_html);
+
+                if (this.config.uiSelectors.emptyPlaceholder) {
+                    this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+                }
+
+                formElement.reset();
+                const pondInstance = typeof FilePond !== 'undefined' ? FilePond.find(formElement.querySelector('.filepond-input')) : null;
+                if (pondInstance) {
+                    pondInstance.removeFiles();
+                }
+                const textarea = formElement.querySelector('.post-content-textarea');
+                if (textarea) this.autoResizeTextarea(textarea, true);
+
+            } else {
+                showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
+            }
+        } catch (error) {
+            console.error('Error creating global post:', error);
+            showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
+        } finally {
+            this.setButtonLoading(submitButton, false, originalButtonText);
+        }
+    },
+
+    setupGlobalEventListeners: function() {
+        const self = this;
+
+        if (self.config.uiSelectors.createForm) {
+            self.config.uiSelectors.createForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                self.handleGlobalPostCreateSubmit(this);
+            });
+        }
+        
+        // This is a simplified, unified event listener for the feed container.
+        if (self.config.uiSelectors.feedContainer) {
+            self.config.uiSelectors.feedContainer.addEventListener('click', function(event) {
+                const likeButton = event.target.closest('.like-post-btn');
+                const shareButton = event.target.closest('.share-post-btn');
+                const saveButton = event.target.closest('.save-item-btn');
+                const loadMoreCommentsButton = event.target.closest('.load-more-comments-btn');
+                const deletePostButton = event.target.closest('.delete-post-btn');
+                const deleteCommentButton = event.target.closest('.delete-comment-btn');
+                
+                if (likeButton) self.handleGlobalLikeToggle(likeButton);
+                else if (shareButton) self.handleShare(shareButton);
+                else if (saveButton) self.handleSaveItem(saveButton);
+                else if (loadMoreCommentsButton) self.handleLoadMoreComments(loadMoreCommentsButton);
+                else if (deletePostButton) self.handleGlobalDeletePost(deletePostButton);
+                else if (deleteCommentButton) self.handleGlobalDeleteComment(deleteCommentButton);
+            });
+
+            self.config.uiSelectors.feedContainer.addEventListener('submit', function(event) {
+                const commentForm = event.target.closest('.comment-submission-form');
+                if (commentForm) {
+                    event.preventDefault();
+                    self.handleGlobalCommentCreateSubmit(commentForm);
+                }
+            });
+        }
+    },
+
+    // --- All other methods like loadInitialPosts, renderGlobalPostItem, etc., go here ---
+    // (Pasting a combined version of all the methods from your file below)
+
+    loadInitialPosts: async function() {
+        if (this.config.uiSelectors.loadingPlaceholder) this.config.uiSelectors.loadingPlaceholder.classList.remove('d-none');
+        if (this.config.uiSelectors.emptyPlaceholder) this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+        this.config.uiSelectors.feedContainer.innerHTML = '';
+        await this.fetchAndRenderPosts(1);
+        if (this.config.uiSelectors.loadingPlaceholder) this.config.uiSelectors.loadingPlaceholder.classList.add('d-none');
+        if (this.config.uiSelectors.feedContainer.children.length === 0 && this.config.uiSelectors.emptyPlaceholder) {
+            this.config.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+        }
+    },
+    fetchAndRenderPosts: async function(page, prepend = false) {
+        if (this.config.isLoadingMore && page > 1) return;
+        if (page > 1) this.config.isLoadingMore = true;
+        const loadMoreButton = this.config.uiSelectors.loadMoreTrigger?.querySelector('.load-more-btn');
+        if (loadMoreButton && page > 1) {
+            loadMoreButton.disabled = true;
+            loadMoreButton.querySelector('.spinner-border')?.classList.remove('d-none');
+        }
+        try {
+            const endpoint = this.config.apiEndpoints[this.config.feedType].fetchPosts;
+            const url = `${endpoint}?page=${page}`;
+            const responseData = await getData(url);
+            if (responseData.success && responseData.posts) {
+                if (responseData.posts.length > 0) {
+                    responseData.posts.forEach(postJson => {
+                        const postElement = this.config.postTemplateFunction(postJson, this.config.feedType);
+                        if (prepend) this.config.uiSelectors.feedContainer.prepend(postElement);
+                        else this.config.uiSelectors.feedContainer.appendChild(postElement);
+                    });
+                    this.config.currentPage = page;
+                    if (this.config.uiSelectors.emptyPlaceholder) this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+                } else if (page === 1) {
+                    if (this.config.uiSelectors.emptyPlaceholder) this.config.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+                }
+                if (this.config.uiSelectors.loadMoreTrigger) {
+                    this.config.uiSelectors.loadMoreTrigger.classList.toggle('d-none', !responseData.pagination.has_next);
+                }
+            }
+        } catch (error) {
+            console.error(`Error fetching posts:`, error);
+        } finally {
+            if (page > 1) this.config.isLoadingMore = false;
+            if (loadMoreButton && page > 1) {
+                loadMoreButton.disabled = false;
+                loadMoreButton.querySelector('.spinner-border')?.classList.add('d-none');
+            }
+        }
+    },
+    renderGlobalPostItem: function(postData, postType = 'global') {
+        const postDomId = `${postType}_post-${postData.id}`;
+        const currentUserIdString = document.body.dataset.currentUserId;
+        const canEditDelete = (postData.author && postData.author.id.toString() === currentUserIdString) || (window.currentUserRole && ['system_admin', 'hr_ceo'].includes(window.currentUserRole));
+        const div = document.createElement('div');
+        div.className = 'card social-post-item mb-3 shadow-sm';
+        div.id = postDomId;
+        div.dataset.postId = postData.id;
+        div.dataset.postType = postType;
+        div.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <a href="/user/${postData.author.id}" class="flex-shrink-0">
+                        <img src="${postData.author.profile_photo_url || '/static/img/placeholders/user_avatar_default.png'}" alt="${postData.author.full_name || postData.author.username}'s avatar" class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
+                    </a>
+                    <div class="flex-grow-1">
+                        <a href="/user/${postData.author.id}" class="fw-bold text-dark text-decoration-none font-heading">${postData.author.full_name || postData.author.username}</a>
+                        <div class="text-muted small">
+                            <i class="bi bi-clock"></i> 
+                            <span class="post-timestamp" title="${new Date(postData.timestamp).toLocaleString()}">${humanizeTimeDiff(postData.timestamp)}</span>
+                            ${postData.is_edited ? '<span class="fst-italic ms-1">(edited)</span>' : ''}
+                        </div>
+                    </div>
+                    ${canEditDelete ? `<div class="dropdown"><button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Post options"><i class="bi bi-three-dots-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end">${postData.author.id.toString() === currentUserIdString ? `<li><a class="dropdown-item edit-post-btn" href="#" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>` : ''}<li><button class="dropdown-item text-danger delete-post-btn" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-trash me-2"></i>Delete Post</button></li></ul></div>` : ''}
+                </div>
+                ${postData.content ? `<div class="post-content-text mb-3">${postData.content.replace(/\n/g, '<br>')}</div>` : ''}
+                ${postData.file ? `<div class="post-attachment mb-3">${postData.file.mimetype && postData.file.mimetype.startsWith('image/') ? `<a href="${postData.file.download_url}" data-bs-toggle="modal" data-bs-target="#viewFileModal" data-file-url="${postData.file.download_url}" data-file-mimetype="${postData.file.mimetype}" data-file-name="${postData.file.original_filename}"><img src="${postData.file.download_url}" class="img-fluid rounded border" alt="Attachment" style="max-height: 450px;"></a>` : (postData.file.mimetype && postData.file.mimetype.startsWith('video/') ? `<video controls class="img-fluid rounded border" style="max-height: 450px; width:100%;"><source src="${postData.file.download_url}" type="${postData.file.mimetype}"></video>` : `<div class="d-flex align-items-center p-2 border rounded-3 bg-light-subtle"><i class="bi bi-file-earmark-text-fill fs-2 me-2 text-secondary"></i><div class="flex-grow-1"><a href="${postData.file.download_url}" class="fw-semibold text-decoration-none stretched-link" target="_blank" download="${postData.file.original_filename}">${postData.file.original_filename}</a><div class="text-muted small">${(postData.file.size > 1024*1024) ? (postData.file.size / (1024*1024)).toFixed(2) + ' MB' : (postData.file.size / 1024).toFixed(1) + ' KB'}</div></div><a href="${postData.file.download_url}" class="btn btn-sm btn-outline-secondary ms-2" download="${postData.file.original_filename}"><i class="bi bi-download"></i></a></div>`)}</div>` : ''}
+                <div class="post-actions d-flex justify-content-start align-items-center gap-2 border-top pt-2 mt-2">
+                    <button class="btn btn-subtle btn-sm reaction-btn like-post-btn ${postData.current_user_liked ? 'active' : ''}" data-post-id="${postData.id}" data-post-type="${postType}" aria-pressed="${postData.current_user_liked}"><i class="bi ${postData.current_user_liked ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> <span class="like-text">${postData.current_user_liked ? 'Liked' : 'Like'}</span>(<span class="like-count">${postData.like_count || 0}</span>)</button>
+                    ${postData.allow_comments !== false ? `<button class="btn btn-subtle btn-sm comment-toggle-btn" data-bs-toggle="collapse" href="#commentsCollapse-${postDomId}" role="button"><i class="bi bi-chat-dots"></i> Comment (<span class="comment-count">${postData.comment_count || 0}</span>)</button>` : ''}
+                    <button class="btn btn-subtle btn-sm share-post-btn" data-post-id="${postData.id}" data-post-type="${postType}" data-share-url="${postData.share_url || '#'}"><i class="bi bi-share"></i> Share</button>
+                    <button class="btn btn-subtle btn-sm save-item-btn" data-item-id="${postData.id}" data-item-type="${postType}"><i class="bi bi-bookmark"></i> <span class="save-text">Save</span></button>
+                </div>
+            </div>
+            ${postData.allow_comments !== false ? `<div class="collapse comments-section-wrapper" id="commentsCollapse-${postDomId}"><div class="card-footer bg-light-subtle p-2 comments-section" id="comments-for-${postDomId}"><div class="text-center py-3 comments-loading-placeholder d-none"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div><div class="comments-list" id="comments-list-${postDomId}"></div><div class="load-more-comments-container text-center my-2 d-none"><button class="btn btn-link btn-sm load-more-comments-btn" data-post-id="${postData.id}" data-post-type="${postType}">Load more comments</button></div><div class="social-content-form-card card mb-2 border-0 shadow-none p-0"><div class="card-body p-0"><form method="POST" action="${this.config.apiEndpoints[postType].createComment.replace('{postId}', postData.id)}" id="commentForm-${postDomId}" class="social-content-submission-form comment-submission-form" data-form-type="global_comment_create" data-post-id="${postData.id}"><input type="hidden" name="csrf_token" value="${document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}"><div class="d-flex align-items-start"><div class="flex-shrink-0 me-2"><img src="${window.currentUserAvatarUrl || '/static/img/placeholders/user_avatar_default.png'}" alt="Your avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover;"></div><div class="flex-grow-1"><textarea name="content" class="form-control post-content-textarea comment-input" placeholder="Write a thoughtful comment..." rows="1" id="commentTextarea-${postDomId}"></textarea><div class="d-flex justify-content-end align-items-center mt-2"><button type="submit" class="btn btn-primary btn-sm post-submit-btn comment-submit-btn"><span class="spinner-border spinner-border-sm d-none me-1" role="status"></span>Reply</button></div></div></div></form></div></div></div></div>` : ''}
+        `;
+        return div;
+    },
+    renderCommentItem: function(commentData, postId, postType = 'global') {
+        const commentDomId = `comment-${postType}-${commentData.id}`;
+        const currentUserIdString = document.body.dataset.currentUserId;
+        const canEdit = commentData.author && commentData.author.id.toString() === currentUserIdString;
+        const canDelete = canEdit || (window.currentUserRole && ['system_admin', 'hr_ceo'].includes(window.currentUserRole));
+        const div = document.createElement('div');
+        div.className = 'social-comment-item d-flex mb-2 pt-2 pb-2 border-bottom border-light-subtle';
+        div.id = commentDomId;
+        div.dataset.commentId = commentData.id;
+        div.innerHTML = `<a href="/user/${commentData.author.id}" class="me-2 flex-shrink-0"><img src="${commentData.author.profile_photo_url || '/static/img/placeholders/user_avatar_default.png'}" alt="${commentData.author.full_name || commentData.author.username}" class="rounded-circle" width="32" height="32" style="object-fit: cover;"></a><div class="flex-grow-1"><div class="comment-bubble bg-light-subtle p-2 rounded-3"><div class="d-flex justify-content-between align-items-center mb-1"><a href="/user/${commentData.author.id}" class="text-decoration-none"><small class="fw-bold text-dark font-heading">${commentData.author.full_name || commentData.author.username}</small></a>${(canEdit || canDelete) ? `<div class="dropdown comment-actions ms-auto"><button class="btn btn-sm btn-link text-muted py-0 px-1" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu dropdown-menu-end">${canEdit ? `<li><a class="dropdown-item edit-comment-btn" href="#" data-comment-id="${commentData.id}" data-post-id="${postId}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit</a></li>` : ''}${canDelete ? `<li><button class="dropdown-item text-danger delete-comment-btn" data-comment-id="${commentData.id}" data-post-id="${postId}" data-post-type="${postType}"><i class="bi bi-trash me-2"></i>Delete</button></li>` : ''}</ul></div>` : ''}</div><p class="mb-0 comment-content-text text-dark-emphasis small" id="comment-content-${commentDomId}">${commentData.content.replace(/\n/g, '<br>')}</p></div><div class="d-flex justify-content-between align-items-center mt-1"><small class="text-muted ms-1 comment-timestamp" title="${new Date(commentData.timestamp).toLocaleString()}">${humanizeTimeDiff(commentData.timestamp)}${commentData.is_edited ? '<span class="fst-italic ms-1">(edited)</span>' : ''}</small><div></div></div></div>`;
+        return div;
+    },
+    handleGlobalCommentCreateSubmit: async function(formElement) {
+        const postId = formElement.dataset.postId;
+        const contentTextarea = formElement.querySelector('textarea[name="content"]');
+        const content = contentTextarea.value.trim();
+        if (!content) return;
+        const submitButton = formElement.querySelector('.post-submit-btn');
+        const originalButtonText = submitButton.textContent;
+        this.setButtonLoading(submitButton, true);
+        const endpoint = this.config.apiEndpoints.global.createComment.replace('{postId}', postId);
+        try {
+            const responseData = await postData(endpoint, { content: content });
+            if (responseData.success && responseData.comment) {
+                contentTextarea.value = ''; this.autoResizeTextarea(contentTextarea, true);
+                const commentsList = document.getElementById(`comments-list-global_post-${postId}`);
+                if (commentsList) {
+                    const commentElement = this.config.commentTemplateFunction(responseData.comment, postId, 'global');
+                    commentsList.appendChild(commentElement);
+                    const postEl = document.getElementById(`global_post-${postId}`);
+                    const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
+                    if(countEl) countEl.textContent = responseData.post_comment_count;
+                }
+            }
+        } catch (error) {
+            showNexusNotification('Network Error', `Could not post comment: ${error.message}`, 'error');
+        } finally {
+            this.setButtonLoading(submitButton, false, originalButtonText);
+        }
+    },
+    handleGlobalLikeToggle: async function(buttonElement) {
+        const postId = buttonElement.dataset.postId;
+        const endpoint = this.config.apiEndpoints.global.toggleLike.replace('{postId}', postId);
+        const icon = buttonElement.querySelector('i.bi');
+        const countSpan = buttonElement.querySelector('.like-count');
+        const likeText = buttonElement.querySelector('.like-text');
+        const wasActive = buttonElement.classList.contains('active');
+        let currentCount = parseInt(countSpan.textContent);
+        buttonElement.classList.toggle('active', !wasActive);
+        if (icon) icon.className = !wasActive ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+        if (likeText) likeText.textContent = !wasActive ? 'Liked' : 'Like';
+        countSpan.textContent = !wasActive ? currentCount + 1 : Math.max(0, currentCount - 1);
+        try {
+            const responseData = await postData(endpoint, {});
+            if (responseData.success) {
+                countSpan.textContent = responseData.like_count;
+                buttonElement.classList.toggle('active', responseData.liked);
+                if (icon) icon.className = responseData.liked ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+                if (likeText) likeText.textContent = responseData.liked ? 'Liked' : 'Like';
+            } else { // Revert on server error
+                buttonElement.classList.toggle('active', wasActive);
+                if (icon) icon.className = wasActive ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+                if (likeText) likeText.textContent = wasActive ? 'Liked' : 'Like';
+                countSpan.textContent = currentCount;
+            }
+        } catch (error) { // Revert on network error
+             buttonElement.classList.toggle('active', wasActive);
+             if (icon) icon.className = wasActive ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+             if (likeText) likeText.textContent = wasActive ? 'Liked' : 'Like';
+             countSpan.textContent = currentCount;
+        }
+    },
+    handleGlobalDeletePost: async function(buttonElement) {
+        const postId = buttonElement.dataset.postId;
+        const result = await Swal.fire({ title: 'Delete Post?', text: "This post will be permanently removed.", icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, delete it!'});
+        if (result.isConfirmed) {
+            const endpoint = this.config.apiEndpoints.global.deletePost.replace('{postId}', postId);
+            try {
+                const responseData = await postData(endpoint, {}); // Changed from a custom delete helper to postData
+                if (responseData.success) {
+                    showNexusNotification('Deleted!', responseData.message || 'Post deleted.', 'success');
+                    document.getElementById(`global_post-${postId}`)?.remove();
+                     if (this.config.uiSelectors.feedContainer.children.length === 0 && this.config.uiSelectors.emptyPlaceholder) {
+                        this.config.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+                    }
+                } else {
+                    showNexusNotification('Delete Error', responseData.error || 'Failed to delete post.', 'error');
+                }
+            } catch (error) {
+                showNexusNotification('Network Error', 'Could not delete post.', 'error');
+            }
+        }
+    },
+    handleGlobalDeleteComment: async function(buttonElement) {
+        const commentId = buttonElement.dataset.commentId;
+        const postId = buttonElement.dataset.postId;
+        const result = await Swal.fire({ title: 'Delete Comment?', text: "This comment will be removed.", icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, delete it!' });
+        if (result.isConfirmed) {
+            const endpoint = this.config.apiEndpoints.global.deleteComment.replace('{commentId}', commentId);
+            try {
+                const responseData = await postData(endpoint, {}); // Changed from a custom delete helper to postData
+                if (responseData.success) {
+                    showNexusNotification('Deleted!', responseData.message || 'Comment removed.', 'success');
+                    document.getElementById(`comment-global-${commentId}`)?.remove();
+                    const postEl = document.getElementById(`global_post-${postId}`);
+                    const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
+                    if(countEl && responseData.post_comment_count !== undefined) countEl.textContent = responseData.post_comment_count;
+                } else {
+                    showNexusNotification('Delete Error', responseData.error || 'Failed to delete comment.', 'error');
+                }
+            } catch (error) {
+                showNexusNotification('Network Error', 'Could not delete comment.', 'error');
+            }
+        }
+    },
+    registerGlobalRealtimeHandlers: function() {
+        if (typeof nexusRealtimeManager !== 'undefined') {
+            nexusRealtimeManager.on('new_comment', (data) => {
+                if (data.post_id && document.getElementById(`global_post-${data.post_id}`)) {
+                    const commentsList = document.getElementById(`comments-list-global_post-${data.post_id}`);
+                    if (commentsList && !document.getElementById(`comment-global-${data.comment_data.id}`)) {
+                        if(data.comment_html) {
+                            commentsList.insertAdjacentHTML('beforeend', data.comment_html);
+                        } else if (data.comment_data) {
+                            const commentElement = this.config.commentTemplateFunction(data.comment_data, data.post_id, 'global');
+                            commentsList.appendChild(commentElement);
+                        }
+                        const postEl = document.getElementById(`global_post-${data.post_id}`);
+                        const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
+                        if(countEl && data.new_comment_count !== undefined) {
+                            countEl.textContent = data.new_comment_count;
+                        }
+                    }
+                }
+            });
+            nexusRealtimeManager.on('like_update', (data) => {
+                if (data.post_id && document.getElementById(`global_post-${data.post_id}`)) {
+                    const postEl = document.getElementById(`global_post-${data.post_id}`);
+                    const countSpan = postEl?.querySelector('.like-post-btn .like-count');
+                    if(countSpan && data.new_like_count !== undefined) {
+                        countSpan.textContent = data.new_like_count;
+                    }
+                }
+            });
+        }
+    },
+    autoResizeTextarea: function(textarea, reset = false) {
+        if (!textarea) return;
+        if (reset) textarea.style.height = 'auto';
+        textarea.style.height = 'auto';
+        let newHeight = textarea.scrollHeight;
+        const maxHeight = 150;
+        if (newHeight > maxHeight) {
+            newHeight = maxHeight;
+            textarea.style.overflowY = 'auto';
+        } else {
+            textarea.style.overflowY = 'hidden';
+        }
+        textarea.style.height = newHeight + 'px';
+    },
+    setButtonLoading: function(button, isLoading, loadingText = "Loading...") {
+        if (!button) return;
+        const originalText = button.dataset.originalText || button.innerHTML;
+        if (!button.dataset.originalText) button.dataset.originalText = originalText;
+        if (isLoading) {
+            button.disabled = true;
+            button.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ${loadingText}`;
+        } else {
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalText;
+            delete button.dataset.originalText;
+        }
+    }
+};
+
+window.nexusSocial = nexusSocial;
+
+// Helper for humanizing time (client-side equivalent of Jinja filter)
+function humanizeTimeDiff(isoTimestamp) {
+    if (!isoTimestamp) return '';
+    const date = new Date(isoTimestamp);
+    const now = new Date();
+    const seconds = Math.round((now - date) / 1000);
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.round(minutes / 60);
+    const days = Math.round(hours / 24);
+
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+// --- END: CORRECTED social.js ---"use strict";
+
+/**
+ * ===================================================================
+ * main.js - Main Application Initialization Script
+ * ===================================================================
+ * This script runs after the DOM is fully loaded. It's responsible for
+ * initializing all core UI components for the Nexus application.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Nexus Core JS Initialized. Version 2.0');
+
+    // --- Call all initialization functions here ---
+    
+    initializeBootstrapComponents();
+    initializeFlatpickr();
+    initializeTomSelect();
+    setupThemeSwitcher();
+    setupSidebarToggle();
+    
+    // Check for and initialize optional components from other files
+    if (typeof initializeAllFilePondInputs === 'function') {
+        initializeAllFilePondInputs();
+    }
+    if (typeof initializeFilePreviewModal === 'function') {
+        initializeFilePreviewModal();
+    }
+});
+
+
+/**
+ * Initializes standard Bootstrap components like Tooltips and Popovers.
+ */
+function initializeBootstrapComponents() {
+    // Tooltips
+    const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+    // Popovers
+    const popoverTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl));
+}
+
+
+/**
+ * Initializes all elements with Flatpickr classes.
+ */
+function initializeFlatpickr() {
+    flatpickr(".flatpickr-date", {
+        altInput: true,
+        altFormat: "F j, Y",
+        dateFormat: "Y-m-d",
+        allowInput: true
+    });
+    flatpickr(".flatpickr-datetime", {
+        enableTime: true,
+        altInput: true,
+        altFormat: "F j, Y H:i",
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        allowInput: true
+    });
+    flatpickr(".flatpickr-time", {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        allowInput: true
+    });
+}
+
+
+/**
+ * Initializes all elements with the 'tom-select' class.
+ */
+function initializeTomSelect() {
+    const tomSelectElements = document.querySelectorAll('.tom-select');
+    tomSelectElements.forEach(el => {
+        new TomSelect(el, {
+            create: el.dataset.allowCreate === 'true',
+            persist: false,
+        });
+    });
+}
+
+
+/**
+ * Manages light/dark mode based on user preference and local storage.
+ */
+function setupThemeSwitcher() {
+    const themeSwitcherButton = document.getElementById('themeSwitcher');
+    if (!themeSwitcherButton) return;
+
+    const htmlElement = document.documentElement;
+
+    const getPreferredTheme = () => {
+        const storedTheme = localStorage.getItem('nexus-theme');
+        if (storedTheme) {
+            return storedTheme;
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    };
+
+    const updateSwitcherIcon = (theme) => {
+        const icon = themeSwitcherButton.querySelector('i.bi');
+        if (icon) {
+            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        }
+    };
+    
+    const setTheme = (theme) => {
+        htmlElement.setAttribute('data-bs-theme', theme);
+        localStorage.setItem('nexus-theme', theme);
+        updateSwitcherIcon(theme);
+    };
+
+    // Set the initial theme on page load
+    setTheme(getPreferredTheme());
+
+    // Add click listener to the button
+    themeSwitcherButton.addEventListener('click', () => {
+        const currentTheme = htmlElement.getAttribute('data-bs-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+    });
+}
+
+
+/**
+ * Manages the collapsible sidebar, its state, and the mobile overlay/backdrop.
+ */
+function setupSidebarToggle() {
+    const sidebar = document.getElementById('sidebarMenu');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarCloseButton = document.getElementById('sidebarCloseButton');
+    const backdrop = document.querySelector('.sidebar-backdrop');
+    const body = document.body;
+    const SIDEBAR_COLLAPSED_KEY = 'nexusSidebarCollapsedState';
+
+    if (!sidebar || !sidebarToggle) return;
+
+    const setSidebarState = (isCollapsed) => {
+        if (isCollapsed) {
+            body.classList.add('sidebar-is-collapsed');
+        } else {
+            body.classList.remove('sidebar-is-collapsed');
+        }
+        sidebarToggle.setAttribute('aria-expanded', !isCollapsed);
+    };
+
+    const toggleSidebar = () => {
+        const isCurrentlyCollapsed = body.classList.contains('sidebar-is-collapsed');
+        setSidebarState(!isCurrentlyCollapsed);
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(!isCurrentlyCollapsed));
+    };
+
+    // Event Listeners
+    sidebarToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleSidebar();
+    });
+
+    if (sidebarCloseButton) {
+        sidebarCloseButton.addEventListener('click', () => {
+            setSidebarState(true);
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true');
+        });
+    }
+    
+    if (backdrop) {
+        backdrop.addEventListener('click', () => {
+            setSidebarState(true);
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true');
+        });
+    }
+
+    // Set initial state on page load without animation flash
+    const storedState = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+    const initiallyCollapsed = (storedState !== null) 
+        ? (storedState === 'true') 
+        : (window.innerWidth < 768); // Default to collapsed on mobile
+
+    body.style.transition = 'none'; // Temporarily disable transitions on body
+    setSidebarState(initiallyCollapsed);
+    
+    setTimeout(() => {
+        body.style.transition = ''; // Re-enable transitions
+    }, 50);
+}/**
+ * ui.js
+ * Contains general UI enhancements for the entire application.
+ */
+export function initializeUI() {
+    // Auto-expanding textareas from Phase 3, now modularized.
+    document.querySelectorAll('.content-textarea').forEach(textarea => {
+        textarea.style.height = 'auto'; // Recalculate on load
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+        textarea.addEventListener('input', function () {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    });
+
+    console.log('UI Module Initialized.');
+}// static/js/socketHandlers.js (Evolved from socket-client.js)
+"use strict";
+
+const socket = io();
+const eventCallbacks = {}; // Store registered callbacks for specific events
+
+// --- Core Connection Handling ---
+socket.on('connect', () => {
+    console.log('Nexus Realtime: Connected - ID:', socket.id);
+    // Optional: If backend needs user identification upon connection for presence, etc.
+    // if (typeof currentUserId !== 'undefined') { // Assuming currentUserId is globally available or passed
+    //     socket.emit('user_online_status', { userId: currentUserId, status: 'online' });
+    // }
+});
+
+socket.on('disconnect', (reason) => {
+    console.warn('Nexus Realtime: Disconnected - Reason:', reason);
+    // Handle specific disconnect reasons if necessary (e.g., server-initiated)
+    if (reason === 'io server disconnect') {
+        socket.connect(); // Attempt to reconnect if server initiated
+    }
+});
+
+socket.on('error', (error) => {
+    console.error('Nexus Realtime: Socket Error -', error);
+    // Optionally, use showNexusNotification from utils.js for user feedback on persistent errors
+    // showNexusNotification('Real-time Connection Issue', 'Experiencing problems with live updates.', 'warning');
+});
+
+// --- Generic Event Listener and Dispatcher ---
+// This function will be used internally by the specific event handlers below
+// or by specific event listeners registered by other modules.
+function handleGenericEvent(eventName, data) {
+    if (eventCallbacks[eventName]) {
+        eventCallbacks[eventName].forEach(callback => {
+            try {
+                callback(data);
+            } catch (e) {
+                console.error(`Error in callback for event ${eventName}:`, e, 'Data:', data);
+            }
+        });
+    }
+}
+
+// --- Existing Social Event Handlers (Retained & Managed) ---
+socket.on('new_comment', (data) => {
+    console.log('Nexus Realtime: Received new_comment', data);
+    handleGenericEvent('new_comment', data); // Dispatch to registered callbacks
+    // Original direct DOM manipulation from socket-client.js can be moved to social.js
+    // and registered as a callback via onNewComment().
+});
+
+socket.on('like_update', (data) => {
+    console.log('Nexus Realtime: Received like_update', data);
+    handleGenericEvent('like_update', data);
+    // Original direct DOM manipulation from socket-client.js can be moved to social.js.
+});
+
+// --- NEW Event Handlers (to be added as per Wonder Proposal & future phases) ---
+// Example:
+// socket.on('new_global_post', (data) => {
+//     console.log('Nexus Realtime: Received new_global_post', data);
+//     handleGenericEvent('new_global_post', data);
+// });
+// socket.on('typing_indicator_dm', (data) => handleGenericEvent('typing_indicator_dm', data));
+// ... other social event listeners ...
+
+// --- Public API for this Module ---
+const realtimeManager = {
+    // Functions to emit events TO the server (from existing socket-client.js)
+    joinPostRoom: function(postId, roomType = 'global_post') { // roomType for flexibility
+        if (socket.connected) {
+            socket.emit('join_post_room', { post_id: postId, room_type: roomType });
+            console.log(`Nexus Realtime: Emitted join_post_room for ${roomType}-${postId}`);
+        } else {
+            console.warn('Nexus Realtime: Cannot join room, socket not connected.');
+        }
+    },
+    leavePostRoom: function(postId, roomType = 'global_post') {
+        if (socket.connected) {
+            socket.emit('leave_post_room', { post_id: postId, room_type: roomType });
+            console.log(`Nexus Realtime: Emitted leave_post_room for ${roomType}-${postId}`);
+        }
+    },
+    // NEW: Functions for other modules to subscribe to specific events
+    on: function(eventName, callback) {
+        if (!eventCallbacks[eventName]) {
+            eventCallbacks[eventName] = [];
+        }
+        eventCallbacks[eventName].push(callback);
+        console.log(`Nexus Realtime: Callback registered for event '${eventName}'`);
+    },
+    // NEW: Functions for other modules to emit custom events (if needed, less common for client->server this way)
+    // emitToServer: function(eventName, data) {
+    //     if (socket.connected) {
+    //         socket.emit(eventName, data);
+    //     }
+    // }
+    // Expose the raw socket if absolutely necessary for advanced, direct use (use with caution)
+    // getSocket: function() { return socket; }
+};
+
+console.log('Nexus Realtime Manager Initialized.');
+
+// Export if using ES6 modules (recommended if app.js is type="module")
+// export default realtimeManager; 
+// If not using modules yet, make it globally available (e.g., window.nexusRealtimeManager = realtimeManager;)
+// For now, assuming global or to be bundled appropriately by Flask-Assets
+window.nexusRealtimeManager = realtimeManager;// Nexus School Management System - utils.js
+// Gemini 3 Pro Preview - Phase A.1 (Initial Version)
+// This file will contain shared JavaScript utility functions.
+
+"use strict";
+
+/**
+ * Displays a SweetAlert2 notification.
+ * @param {string} title - The title of the alert.
+ * @param {string} text - The main text/content of the alert.
+ * @param {string} icon - Type of icon (e.g., 'success', 'error', 'warning', 'info', 'question').
+ * @param {string} confirmButtonText - Text for the confirm button.
+ */
+function showNexusNotification(title, text, icon = 'info', confirmButtonText = 'OK') {
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: title,
+            html: text, // Use html to allow for simple HTML tags in text
+            icon: icon,
+            confirmButtonText: confirmButtonText,
+            customClass: {
+                confirmButton: 'btn btn-primary px-4 nexus-swal-button', // Custom class for BS styling
+                popup: 'nexus-swal-popup',
+                title: 'nexus-swal-title',
+                htmlContainer: 'nexus-swal-html-container',
+            },
+            buttonsStyling: false // Use custom Bootstrap styling via customClass
+        });
+    } else {
+        // Fallback to standard alert if SweetAlert2 is not loaded
+        alert(title + (text ? '\n\n' + text : ''));
+        console.warn('SweetAlert2 (Swal) is not defined. Using native alert as fallback.');
+    }
+}
+/**
+ * Initializes all FilePond instances on the page.
+ * Looks for input elements with class 'filepond-input'.
+ * Assumes FilePond CSS and JS are loaded globally from base.html.
+ */
+function initializeAllFilePondInputs() {
+    // Check if the FilePond library is available
+    if (typeof FilePond === 'undefined') {
+        if (document.querySelectorAll('input.filepond-input').length > 0) {
+            console.warn('FilePond library is not loaded, but .filepond-input elements exist.');
+        }
+        return;
+    }
+
+    // Register any plugins you are using globally
+    FilePond.registerPlugin(
+        FilePondPluginFileValidateType,
+        FilePondPluginFileValidateSize,
+        FilePondPluginImagePreview
+    );
+
+    // Find all file inputs that should be enhanced
+    const filePondInputs = document.querySelectorAll('input.filepond-input[type="file"]');
+    
+    filePondInputs.forEach(inputElement => {
+        // Prevent re-initializing an already processed element
+        if (inputElement.filepond) {
+            return;
+        }
+
+        // Create a FilePond instance on the element
+        FilePond.create(inputElement, {
+            // Read options from data-attributes for flexibility
+            labelIdle: `Drag & Drop your file or <span class="filepond--label-action">Browse</span>`,
+            maxFileSize: inputElement.dataset.maxFileSize || '3MB',
+            acceptedFileTypes: inputElement.dataset.acceptedFileTypes ? JSON.parse(inputElement.dataset.acceptedFileTypes) : null,
+            // Add other global FilePond options here if needed
+        });
+    });
+
+    if (filePondInputs.length > 0) {
+        console.log(`Initialized ${filePondInputs.length} FilePond input(s).`);
+    }
+}
+
+/**
+ * Initializes and handles the global file preview modal (#viewFileModal).
+ * Listens for the 'show.bs.modal' event to populate content dynamically.
+ */
+function initializeFilePreviewModal() {
+    const modalElement = document.getElementById('viewFileModal');
+    if (!modalElement) return;
+
+    const modalTitle = modalElement.querySelector('#viewFileModalLabel');
+    const modalBody = modalElement.querySelector('#viewFileModalBody');
+    const downloadBtn = modalElement.querySelector('#filePreviewModalDownloadBtn');
+
+    modalElement.addEventListener('show.bs.modal', function (event) {
+        const triggerButton = event.relatedTarget;
+        const fileUrl = triggerButton.dataset.fileUrl;
+        const fileName = triggerButton.dataset.fileName || 'file';
+        const fileMimeType = triggerButton.dataset.fileMimetype || '';
+
+        // Reset and prepare the modal
+        modalTitle.textContent = fileName;
+        modalBody.innerHTML = `<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>`;
+        downloadBtn.href = fileUrl;
+        downloadBtn.setAttribute('download', fileName);
+
+        // Generate the correct preview based on file type
+        let previewHTML = '';
+        if (fileMimeType.startsWith('image/')) {
+            previewHTML = `<img src="${fileUrl}" class="img-fluid rounded" alt="Preview of ${fileName}">`;
+        } else if (fileMimeType.startsWith('video/')) {
+            previewHTML = `<video src="${fileUrl}" class="img-fluid rounded" controls autoplay>Your browser does not support video.</video>`;
+        } else if (fileMimeType === 'application/pdf') {
+            previewHTML = `<iframe src="${fileUrl}" style="width:100%; height:75vh;" frameborder="0"></iframe>`;
+        } else {
+            previewHTML = `<div class="p-4 text-center"><i class="bi bi-file-earmark-text-fill display-1 text-secondary"></i><p class="mt-3">No preview available for this file type.</p></div>`;
+        }
+        modalBody.innerHTML = previewHTML;
+    });
+    
+    // Clear the modal body when it's hidden to stop videos/iframes from playing
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        modalBody.innerHTML = '';
+    });
+    
+    console.log("Global File Preview Modal Initialized.");
+}
+
+/**
+ * Performs an asynchronous POST request with JSON data.
+ * @param {string} url - The URL to send the POST request to.
+ * @param {object} data - The JavaScript object to send as JSON.
+ * @returns {Promise<object>} - A promise that resolves with the JSON response.
+ * @throws {Error} - Throws an error if the network response is not ok or if parsing fails.
+ */
+async function postData(url = '', data = {}) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const isFormData = data instanceof FormData;
+
+    const headers = {};
+    if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+    }
+    // Don't set Content-Type for FormData; the browser does it correctly with the boundary.
+    if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: isFormData ? data : JSON.stringify(data)
+        });
+
+        const responseData = await response.json();
+        if (!response.ok) {
+            // Extract a clean error message from the server's JSON response if possible
+            const errorMessage = responseData.error || responseData.message || `HTTP error! Status: ${response.status}`;
+            throw new Error(errorMessage);
+        }
+        return responseData;
+    } catch (error) {
+        // Re-throw the error so the calling function's .catch() block can handle it
+        console.error(`Error in postData to ${url}:`, error);
+        throw error;
+    }
+}
+/**
+ * Performs an asynchronous GET request.
+ * @param {string} url - The URL to send the GET request to.
+ * @returns {Promise<object>} - A promise that resolves with the JSON response.
+ * @throws {Error} - Throws an error if the network response is not ok or if parsing fails.
+ */
+async function getData(url = '') {
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                // CSRF typically not needed for GET, but include if your setup requires it for some reason
+                // 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            console.error('Fetch error (getData):', response.status, responseData);
+            const errorMessage = responseData.error || responseData.message || `HTTP error! Status: ${response.status}`;
+            throw new Error(errorMessage);
+        }
+        return responseData;
+    } catch (error) {
+        console.error('Error in getData:', error.message);
+        showNexusNotification('Request Failed', `An error occurred: ${error.message}`, 'error');
+        throw error;
+    }
+}
+
+
+/**
+ * Debounce function to limit the rate at which a function can fire.
+ * @param {Function} func - The function to debounce.
+ * @param {number} delay - The delay in milliseconds.
+ * @returns {Function} - The debounced function.
+ */
+function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    };
+}
+// In static/js/utils.js
+
+// ... (existing functions like showNexusNotification, postData, getData, debounce) ...
+
+// --- Chart.js Analytics Display Functions ---
+const commonChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false, // Allows setting height via CSS or container
+    plugins: {
+        legend: {
+            position: 'top',
+            labels: {
+                font: { family: "'Open Sans', sans-serif", size: 12 },
+                color: getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim() || '#5a6268'
+            }
+        },
+        tooltip: {
+            bodyFont: { family: "'Open Sans', sans-serif" },
+            titleFont: { family: "'Poppins', sans-serif", weight: '500' },
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--nexus-dark').trim() || '#212529',
+            titleColor: getComputedStyle(document.documentElement).getPropertyValue('--nexus-light').trim() || '#f8f9fa',
+            bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--nexus-light').trim() || '#f8f9fa',
+            borderColor: getComputedStyle(document.documentElement).getPropertyValue('--nexus-border-color').trim(),
+            borderWidth: 1,
+            padding: 10,
+            boxPadding: 4
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            ticks: {
+                font: { family: "'Open Sans', sans-serif", size: 11 },
+                color: getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim()
+            },
+            grid: {
+                color: getComputedStyle(document.documentElement).getPropertyValue('--nexus-border-color').trim(),
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim()
+            }
+        },
+        x: {
+            ticks: {
+                font: { family: "'Open Sans', sans-serif", size: 11 },
+                color: getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim()
+            },
+            grid: {
+                display: false, // Often cleaner to hide x-axis grid lines for bar/line
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim()
+            }
+        }
+    }
+};
+
+// Global storage for chart instances to prevent duplicates and allow updates/destruction
+window.nexusCharts = window.nexusCharts || {};
+
+/**
+ * Fetches analytics data and renders a Chart.js chart.
+ * @param {string} analyticsType - The type/endpoint for analytics data (e.g., 'attendance', 'performance').
+ * @param {string} chartTitle - The title to be used for the chart legend/dataset label.
+ * @param {string} chartContainerId - The ID of the div element that will contain the canvas.
+ * @param {string} [defaultChartType='bar'] - The default Chart.js type (e.g., 'bar', 'line', 'pie', 'doughnut').
+ */
+async function fetchAndDisplayAnalytics(analyticsType, chartTitle, chartContainerId, defaultChartType = 'bar') {
+    const chartContainer = document.getElementById(chartContainerId);
+    const canvasId = chartContainerId.replace('Container', ''); // e.g., attendanceChart
+
+    if (!chartContainer) {
+        console.error(`Chart container #${chartContainerId} not found for analytics type: ${analyticsType}`);
+        return;
+    }
+
+    // Clear previous chart or placeholder and recreate canvas
+    if (window.nexusCharts[canvasId]) {
+        window.nexusCharts[canvasId].destroy();
+    }
+    chartContainer.innerHTML = `<canvas id="${canvasId}"></canvas>`; // Recreate canvas to ensure clean state
+    const canvasElement = document.getElementById(canvasId);
+    if (!canvasElement) {
+        console.error(`Canvas element #${canvasId} could not be created.`);
+        chartContainer.innerHTML = `<div class="text-center text-danger p-3"><i class="bi bi-x-octagon-fill fs-2"></i><p>Chart canvas error.</p></div>`;
+        return;
+    }
+    const ctx = canvasElement.getContext('2d');
+
+    // Show loading state
+    chartContainer.innerHTML = `
+        <div class="content-placeholder d-flex flex-column justify-content-center align-items-center" style="min-height: 200px;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted small">Loading ${chartTitle}...</p>
+        </div>`;
+
+    try {
+        const data = await getData(`/analytics/${analyticsType}`); // getData from utils.js
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        if (data.labels && (data.data || data.datasets)) {
+            let chartType = data.chart_type || defaultChartType;
+            let specificChartOptions = JSON.parse(JSON.stringify(commonChartOptions)); // Deep clone
+
+            // Type-specific option overrides
+            if (chartType === 'doughnut' || chartType === 'pie') {
+                specificChartOptions.plugins.legend.position = 'right';
+                delete specificChartOptions.scales.x; // No x-axis for pie/doughnut
+                delete specificChartOptions.scales.y; // No y-axis
+            } else if (chartType === 'line') {
+                 specificChartOptions.scales.x.grid.display = true; // Show x-grid for line usually
+            }
+            
+            // Update colors in options based on current theme (if needed dynamically)
+            specificChartOptions.plugins.legend.labels.color = getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim();
+            specificChartOptions.plugins.tooltip.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--nexus-dark').trim(); // Note: tooltip bg might be better fixed
+            specificChartOptions.plugins.tooltip.titleColor = getComputedStyle(document.documentElement).getPropertyValue('--nexus-light').trim();
+            specificChartOptions.plugins.tooltip.bodyColor = getComputedStyle(document.documentElement).getPropertyValue('--nexus-light').trim();
+            specificChartOptions.plugins.tooltip.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--nexus-border-color').trim();
+
+            if (specificChartOptions.scales.y) {
+                specificChartOptions.scales.y.ticks.color = getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim();
+                specificChartOptions.scales.y.grid.color = getComputedStyle(document.documentElement).getPropertyValue('--nexus-border-color').trim();
+                specificChartOptions.scales.y.grid.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim();
+            }
+            if (specificChartOptions.scales.x) {
+                specificChartOptions.scales.x.ticks.color = getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim();
+                 specificChartOptions.scales.x.grid.borderColor = getComputedStyle(document.documentElement).getPropertyValue('--nexus-text-secondary').trim();
+            }
+
+
+            // Re-clear container and add canvas back for Chart.js
+            chartContainer.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+            const finalCtx = document.getElementById(canvasId).getContext('2d');
+
+            // Define some color palettes for charts
+            const nexusColorPalette = [
+                'rgba(13, 71, 161, 0.7)',   // Primary
+                'rgba(0, 121, 107, 0.7)',  // Info (Teal)
+                'rgba(255, 193, 7, 0.7)',  // Warning
+                'rgba(25, 118, 210, 0.7)', // Secondary
+                'rgba(220, 53, 69, 0.7)',  // Danger
+                'rgba(108, 117, 125, 0.7)' // Dark Grey (Bootstrap Dark)
+            ];
+            const nexusBorderPalette = [
+                'rgb(13, 71, 161)',
+                'rgb(0, 121, 107)',
+                'rgb(255, 193, 7)',
+                'rgb(25, 118, 210)',
+                'rgb(220, 53, 69)',
+                'rgb(108, 117, 125)'
+            ];
+
+
+            let chartDataStructure;
+            if (data.datasets) { // For multi-dataset charts like grouped bar or multiple lines
+                chartDataStructure = {
+                    labels: data.labels,
+                    datasets: data.datasets.map((dataset, index) => ({
+                        ...dataset, // Spread existing dataset properties (label, data)
+                        backgroundColor: dataset.backgroundColor || nexusColorPalette[index % nexusColorPalette.length],
+                        borderColor: dataset.borderColor || nexusBorderPalette[index % nexusBorderPalette.length],
+                        borderWidth: dataset.borderWidth || (chartType === 'line' ? 2 : 1),
+                        fill: dataset.fill !== undefined ? dataset.fill : (chartType === 'line' ? false : undefined), // Line charts often not filled by default
+                        tension: chartType === 'line' ? 0.4 : undefined, // Smooth lines
+                    }))
+                };
+            } else { // For single dataset charts
+                chartDataStructure = {
+                    labels: data.labels,
+                    datasets: [{
+                        label: chartTitle,
+                        data: data.data,
+                        backgroundColor: (chartType === 'doughnut' || chartType === 'pie') ? nexusColorPalette : nexusColorPalette[0],
+                        borderColor: (chartType === 'doughnut' || chartType === 'pie') ? '#fff' : nexusBorderPalette[0],
+                        borderWidth: (chartType === 'doughnut' || chartType === 'pie') ? 2 : 1,
+                        tension: chartType === 'line' ? 0.4 : undefined,
+                    }]
+                };
+            }
+
+            window.nexusCharts[canvasId] = new Chart(finalCtx, {
+                type: chartType,
+                data: chartDataStructure,
+                options: specificChartOptions
+            });
+        } else {
+            chartContainer.innerHTML = `<div class="text-center text-muted p-3 content-placeholder"><i class="bi bi-bar-chart-fill fs-2"></i><p class="mt-2">No data available to display for ${chartTitle}.</p></div>`;
+        }
+    } catch (error) {
+        console.error(`Error loading ${analyticsType} analytics for chart ${canvasId}:`, error);
+        chartContainer.innerHTML = `<div class="text-center text-danger p-3 content-placeholder"><i class="bi bi-wifi-off fs-2"></i><p class="mt-2">Could not load ${chartTitle}.</p><small>${error.message}</small></div>`;
+    }
+}
+// Add towards the end of utils.js
+
+/**
+ * Initializes all FilePond instances on the page.
+ * Looks for input elements with class 'filepond-input'.
+ * Assumes FilePond CSS and JS are loaded globally.
+ */
+function initializeAllFilePondInputs() {
+    const filePondInputs = document.querySelectorAll('input.filepond-input[type="file"]');
+    if (typeof FilePond === 'undefined') {
+        if (filePondInputs.length > 0) {
+            console.warn('FilePond library is not loaded, but .filepond-input elements exist.');
+        }
+        return;
+    }
+
+    // Register FilePond plugins (examples, adjust as needed for your project)
+    // FilePond.registerPlugin(
+    //     FilePondPluginFileValidateType,
+    //     FilePondPluginImagePreview,
+    //     FilePondPluginImageExifOrientation,
+    //     FilePondPluginFileValidateSize,
+    //     FilePondPluginImageEdit // if you plan to use it
+    // );
+
+    filePondInputs.forEach(inputElement => {
+        const options = {
+            labelIdle: `Drag & Drop your files or <span class="filepond--label-action">Browse</span>`,
+            // Example: Set name attribute for the field if FilePond doesn't pick it up from input
+            // name: inputElement.name || 'filepond',
+            allowMultiple: inputElement.hasAttribute('multiple'),
+            maxFiles: inputElement.hasAttribute('multiple') ? (inputElement.dataset.maxFiles || 5) : 1,
+            // Server-side validation is primary, but client-side hints are good UX
+            // maxFileSize: inputElement.dataset.maxFileSize || '3MB', // e.g. '3MB', '500KB'
+            // acceptedFileTypes: inputElement.dataset.acceptedFileTypes ? JSON.parse(inputElement.dataset.acceptedFileTypes) : null, // e.g. ['image/png', 'image/jpeg']
+            // fileValidateTypeDetectType: (source, type) => new Promise((resolve, reject) => { /* more robust type detection */ resolve(type); })
+        };
+
+        // If FilePond is used for direct server uploads (less common with WTForms, usually prepares for main form)
+        // options.server = {
+        //     url: '/api/filepond/upload', // Your backend endpoint for FilePond uploads
+        //     process: {
+        //         headers: {
+        //             'X-CSRFToken': getCsrfToken() // Assuming getCsrfToken() exists in utils.js
+        //         },
+        //         onload: (response) => {
+        //             // response is the server response for the uploaded file (e.g., its ID or path)
+        //             // inputElement.value = response; // Set hidden input or actual input value
+        //             return response;
+        //         },
+        //         onerror: (response) => {
+        //             showNexusNotification('Upload Error', 'Failed to upload file.', 'error');
+        //             return null;
+        //         }
+        //     },
+        //     revert: (uniqueFileId, load, error) => {
+        //         // Logic to tell the server to remove the uploaded file
+        //         // postData('/api/filepond/revert', { fileId: uniqueFileId })
+        //         //    .then(() => load())
+        //         //    .catch(err => error('Could not revert file'));
+        //         console.warn('FilePond revert not fully implemented for server.', uniqueFileId);
+        //         load(); // Call load to indicate revert is done client-side
+        //     }
+        // };
+        
+        const pond = FilePond.create(inputElement, options);
+
+        // If using FilePond with a standard form that also has other fields,
+        // you typically don't use FilePond's server. Instead, FilePond prepares
+        // the file data, and it gets submitted with the main form.
+        // If the input has a 'name' attribute, FilePond will often use that.
+        // For WTForms, ensure the input element's name matches the FileField name.
+    });
+    if (filePondInputs.length > 0) {
+        console.log(`Initialized ${filePondInputs.length} FilePond input(s).`);
+    }
+}
+
+// Assuming getCsrfToken is defined or will be:
+function getCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+// In DOMContentLoaded listener
+document.addEventListener('DOMContentLoaded', function () {
+    // ... other initializations ...
+
+    if (typeof initializeFilePreviewModal === 'function') {
+        initializeFilePreviewModal(); // Call the new function
+    } else {
+        console.warn('initializeFilePreviewModal function not found. File previews in modal will not work.');
+    }
+    
+    // ... rest of main.js ...
+});
+// static/js/utils.js
+
+// ... (existing content of utils.js) ...
+
+/**
+ * Initializes and handles the global file preview modal.
+ */
+function initializeFilePreviewModal() {
+    const modalElement = document.getElementById('viewFileModal');
+    if (!modalElement) {
+        console.warn('File preview modal element #viewFileModal not found.');
+        return;
+    }
+
+    const modalTitleElement = modalElement.querySelector('#filePreviewModalLabel');
+    const modalBodyElement = modalElement.querySelector('#filePreviewModalBody');
+    const downloadButton = modalElement.querySelector('#filePreviewModalDownloadBtn');
+    const modalInfoElement = modalElement.querySelector('#filePreviewModalInfo');
+
+
+    modalElement.addEventListener('show.bs.modal', function (event) {
+        const triggerElement = event.relatedTarget;
+        if (!triggerElement) return;
+
+        const fileUrl = triggerElement.dataset.fileUrl;
+        const fileMimetype = (triggerElement.dataset.fileMimetype || '').toLowerCase();
+        const fileName = triggerElement.dataset.fileName || 'File';
+        const fileSize = triggerElement.dataset.fileSize; // In bytes
+
+        if (modalTitleElement) modalTitleElement.textContent = fileName;
+        if (modalBodyElement) modalBodyElement.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading preview...</span></div>';
+        if (modalInfoElement) modalInfoElement.textContent = '';
+
+
+        if (downloadButton) {
+            downloadButton.href = fileUrl || '#';
+            downloadButton.download = fileName;
+            let downloadText = 'Download';
+            if (fileSize) {
+                const sizeInBytes = parseInt(fileSize);
+                let displaySize;
+                if (sizeInBytes > 1024 * 1024) {
+                    displaySize = (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+                } else if (sizeInBytes > 1024) {
+                    displaySize = (sizeInBytes / 1024).toFixed(1) + ' KB';
+                } else {
+                    displaySize = sizeInBytes + ' Bytes';
+                }
+                // Update button text (assuming <i> is first child)
+                const iconEl = downloadButton.querySelector('i.bi-download');
+                if(iconEl && iconEl.nextSibling) iconEl.nextSibling.textContent = `Download (${displaySize})`;
+                else downloadButton.textContent = `Download (${displaySize})`;
+
+                if(modalInfoElement) modalInfoElement.textContent = `Type: ${fileMimetype || 'Unknown'} - Size: ${displaySize}`;
+
+            } else {
+                 const iconEl = downloadButton.querySelector('i.bi-download');
+                if(iconEl && iconEl.nextSibling) iconEl.nextSibling.textContent = `Download`;
+                else downloadButton.textContent = `Download`;
+
+                if(modalInfoElement) modalInfoElement.textContent = `Type: ${fileMimetype || 'Unknown'}`;
+            }
+        }
+
+        if (!fileUrl) {
+            if (modalBodyElement) modalBodyElement.innerHTML = '<p class="text-danger my-auto">File URL not provided.</p>';
+            return;
+        }
+        
+        let previewHTML = '';
+        if (fileMimetype.startsWith('image/')) {
+            previewHTML = `<img src="${fileUrl}" class="img-fluid rounded" alt="Preview of ${fileName}" style="max-height: 75vh; object-fit: contain;">`;
+        } else if (fileMimetype.startsWith('video/')) {
+            previewHTML = `<video controls class="img-fluid rounded" style="max-height: 75vh; max-width: 100%;">
+                               <source src="${fileUrl}" type="${fileMimetype}">
+                               Your browser does not support the video tag.
+                           </video>`;
+        } else if (fileMimetype.startsWith('audio/')) {
+            previewHTML = `<div class="my-auto w-100 px-3">
+                                <p class="text-center mb-2"><i class="bi bi-file-earmark-music-fill display-3 text-secondary"></i></p>
+                                <audio controls class="w-100 mt-2">
+                                    <source src="${fileUrl}" type="${fileMimetype}">
+                                    Your browser does not support the audio element.
+                                </audio>
+                           </div>`;
+        } else if (fileMimetype === 'application/pdf') {
+            // Using an iframe for better PDF rendering control within the modal
+            previewHTML = `<iframe src="${fileUrl}" width="100%" style="min-height: 70vh; border: none;" title="PDF Preview: ${fileName}">
+                               <p class="text-muted mt-3">PDF preview not available. 
+                                  <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" download="${fileName}">Download PDF directly</a>.
+                               </p>
+                           </iframe>`;
+        } else {
+            previewHTML = `<div class="p-4 text-center my-auto">
+                               <i class="bi bi-file-earmark-text-fill display-1 text-secondary mb-3"></i>
+                               <p class="lead">No direct preview available for this file type.</p>
+                               <p class="text-muted">Filename: ${fileName}</p>
+                           </div>`;
+        }
+        if (modalBodyElement) {
+            // A slight delay for large PDF objects to prevent modal jumpiness
+            if (fileMimetype === 'application/pdf') {
+                setTimeout(() => { modalBodyElement.innerHTML = previewHTML; }, 100);
+            } else {
+                modalBodyElement.innerHTML = previewHTML;
+            }
+        }
+    });
+
+     modalElement.addEventListener('hidden.bs.modal', function () {
+        // Clear body when modal is hidden to free resources (e.g. video/pdf objects)
+        if (modalBodyElement) modalBodyElement.innerHTML = '<p class="text-muted">Loading preview...</p>';
+        if (modalTitleElement) modalTitleElement.textContent = 'File Preview';
+        if (modalInfoElement) modalInfoElement.textContent = '';
+        if (downloadButton) {
+            const iconEl = downloadButton.querySelector('i.bi-download');
+            if(iconEl && iconEl.nextSibling) iconEl.nextSibling.textContent = `Download`;
+            else downloadButton.textContent = `Download`;
+            downloadButton.href = '#';
+        }
+    });
+
+    console.log("Nexus File Preview Modal Initialized.");
+}
+
+// Add the call to this new initializer in main.js// Nexus School Management System - notifications.js
+// Gemini 3 Pro Preview - Phase D.1
+
+"use strict";
+
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Nexus Notifications JS Initialized.');
+
+    const markAllReadButton = document.getElementById('markAllReadBtn');
+    if (markAllReadButton) {
+        markAllReadButton.addEventListener('click', handleMarkAllNotificationsRead);
+    }
+
+    // Event delegation for dynamically added notification items (e.g., via AJAX polling)
+    // or for items already on the page.
+    document.body.addEventListener('click', function(event) {
+        // Individual "Mark as Read" button on a notification item
+        const markReadBtn = event.target.closest('.mark-notification-read-btn');
+        if (markReadBtn) {
+            event.preventDefault();
+            const notificationId = markReadBtn.dataset.notificationId;
+            if (notificationId) {
+                handleMarkSingleNotificationRead(notificationId, markReadBtn.closest('.notification-item'));
+            }
+        }
+
+        // Clicking on the notification item itself to mark as read (if link_url is # or primary action is AJAX)
+        const notificationItem = event.target.closest('.notification-item.unread-notification');
+        if (notificationItem && notificationItem.getAttribute('href') === '#') { // Only if it's a non-navigating item
+            event.preventDefault();
+            const notificationId = notificationItem.dataset.notificationId;
+            if (notificationId) {
+                handleMarkSingleNotificationRead(notificationId, notificationItem);
+                // If there's a real link_url, browser navigation will happen after this.
+                // If link_url is not '#', the AJAX call will still fire but browser navigates.
+                // Consider if navigation should happen only *after* successful AJAX for non-'#' links.
+            }
+        } else if (notificationItem && notificationItem.getAttribute('href') !== '#') {
+             // If it's an unread notification with a real link, mark it as read optimistically
+             // before navigation or let backend handle it on page load of linked URL.
+             // For now, backend handles on 'view_notifications' page load.
+             // If link is clicked from dropdown, it should become read.
+             const notificationId = notificationItem.dataset.notificationId;
+             if (notificationId) {
+                // Send a quick beacon or AJAX to mark as read without waiting for response
+                // This is more advanced; for now, viewing /notifications marks them.
+             }
+        }
+    });
+
+    // Start polling for new notifications
+    if (document.getElementById('notificationsDropdown')) { // Only poll if the dropdown exists
+        startNotificationPolling();
+    }
+});
+
+async function handleMarkAllNotificationsRead() {
+    const button = document.getElementById('markAllReadBtn');
+    if (button && button.disabled) return; // Prevent multiple clicks
+
+    if (button) button.disabled = true;
+    const originalButtonText = button ? button.innerHTML : '';
+    if (button) button.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Marking...`;
+
+    try {
+        // Assumes utils.js and postData function are available
+        const response = await postData('/notifications/mark-all-read'); // Backend route
+        if (response.success) {
+            showNexusNotification('Success', response.message || 'All notifications marked as read.', 'success');
+            // Visually update all notification items on the current page
+            document.querySelectorAll('.notification-item.unread-notification').forEach(item => {
+                item.classList.remove('unread-notification', 'list-group-item-primary', 'bg-primary-subtle', 'border-primary-subtle');
+                item.classList.add('list-group-item-light');
+                item.querySelector('.text-primary.fw-bold')?.remove(); // Remove "New" badge
+            });
+            updateNavbarNotificationCount(0); // Update navbar count
+            if (button) button.disabled = true; // Keep disabled as all are now read
+        } else {
+            showNexusNotification('Error', response.error || 'Failed to mark all notifications as read.', 'error');
+            if (button) button.disabled = false;
+        }
+    } catch (error) {
+        console.error("Error marking all notifications read:", error);
+        showNexusNotification('Error', `An error occurred: ${error.message}`, 'error');
+        if (button) button.disabled = false;
+    } finally {
+         if (button) button.innerHTML = originalButtonText;
+         // Re-check if button should be disabled (if some items failed to mark, for example)
+         const unreadCount = document.querySelectorAll('.notification-item.unread-notification').length;
+         if (button) button.disabled = (unreadCount === 0);
+    }
+}
+
+async function handleMarkSingleNotificationRead(notificationId, notificationElement) {
+    if (!notificationElement || !notificationElement.classList.contains('unread-notification')) {
+        // Already read or element not found
+        return;
+    }
+
+    try {
+        const response = await postData(`/notifications/mark-read/${notificationId}`);
+        if (response.success) {
+            if (notificationElement) {
+                notificationElement.classList.remove('unread-notification', 'list-group-item-primary', 'bg-primary-subtle', 'border-primary-subtle');
+                notificationElement.classList.add('list-group-item-light');
+                notificationElement.querySelector('.text-primary.fw-bold')?.remove(); // Remove "New" badge
+            }
+            // Decrement navbar count
+            const currentCount = parseInt(document.getElementById('notificationsDropdown')?.querySelector('.badge')?.textContent || '0');
+            updateNavbarNotificationCount(Math.max(0, currentCount - 1));
+        } else {
+            // Silently fail or show small error, as this might happen in background
+            console.warn(`Failed to mark notification ${notificationId} as read: ${response.error}`);
+        }
+    } catch (error) {
+        console.error(`Error marking notification ${notificationId} read:`, error);
+    }
+}
+
+let notificationPollInterval;
+let lastNotificationTimestamp = Date.now(); // Initialize with current time
+
+function startNotificationPolling(interval = 30000) { // Poll every 30 seconds
+    console.log('Notification polling started.');
+    // Initial fetch
+    fetchNewNotifications();
+
+    // Clear any existing interval
+    if (notificationPollInterval) {
+        clearInterval(notificationPollInterval);
+    }
+    notificationPollInterval = setInterval(fetchNewNotifications, interval);
+}
+
+function stopNotificationPolling() {
+    if (notificationPollInterval) {
+        clearInterval(notificationPollInterval);
+        notificationPollInterval = null;
+        console.log('Notification polling stopped.');
+    }
+}
+
+async function fetchNewNotifications() {
+    const notificationsDropdown = document.getElementById('notificationsDropdown');
+    const notificationItemsContainer = document.getElementById('notification-items-container'); // In navbar dropdown
+
+    if (!notificationsDropdown || !notificationItemsContainer) return;
+
+    try {
+        // Assumes utils.js and getData function are available
+        const data = await getData(`/notifications/check-new?since=${lastNotificationTimestamp}`);
+
+        if (data.error) {
+            console.error('Error fetching new notifications:', data.error);
+            // Potentially stop polling if server error persists
+            return;
+        }
+
+        lastNotificationTimestamp = data.latestTimestamp || Date.now();
+
+        if (data.newNotifications && data.newNotifications.length > 0) {
+            // Prepend new notifications to the dropdown
+            let hasNewUnread = false;
+            data.newNotifications.forEach(htmlSnippet => {
+                // Create a temporary div to parse the snippet
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlSnippet.trim();
+                const newNotificationElement = tempDiv.firstChild;
+
+                if (newNotificationElement) {
+                    // Check if it's actually unread before prepending
+                    if (newNotificationElement.classList.contains('unread-notification')) {
+                        hasNewUnread = true;
+                    }
+                    notificationItemsContainer.prepend(newNotificationElement);
+                }
+            });
+
+            // Remove "No new notifications" placeholder if it exists and we added new items
+            const placeholder = notificationItemsContainer.querySelector('a.dropdown-item small.text-muted');
+            if (placeholder && placeholder.textContent.includes("No new notifications")) {
+                placeholder.parentElement.remove();
+            }
+
+
+            // Limit the number of items in the dropdown
+            const maxItemsInDropdown = 10;
+            while (notificationItemsContainer.children.length > maxItemsInDropdown) {
+                notificationItemsContainer.removeChild(notificationItemsContainer.lastChild);
+            }
+
+            // Update the main unread count in the navbar
+            // The backend's `check_new_notifications` should ideally send the *total* current unread count
+            // For now, we'll estimate based on what was fetched.
+            // A more robust way is to fetch the total unread count separately or have it in the poll response.
+            const currentBadge = notificationsDropdown.querySelector('.badge');
+            if (currentBadge) {
+                 // For simplicity, let's assume the backend will provide an updated total unread count
+                 // with a separate API call or in the polling response.
+                 // For now, just add the number of new notifications to the existing count.
+                 // This is not perfectly accurate if some were read elsewhere.
+                 // Ideally, the /notifications/check-new endpoint should return the new totalUnreadCount.
+                 // Let's assume data.totalUnreadCount exists.
+                 if (typeof data.totalUnreadCount === 'number') {
+                     updateNavbarNotificationCount(data.totalUnreadCount);
+                 } else if (hasNewUnread) { // Fallback: crudely increment if new unread items arrived
+                    const existingCount = parseInt(currentBadge.textContent || '0');
+                    updateNavbarNotificationCount(existingCount + data.newNotifications.filter(n => n.includes('unread-notification')).length);
+                 }
+            } else if (data.totalUnreadCount > 0 || (data.newNotifications && data.newNotifications.length > 0 && hasNewUnread)) {
+                // Create badge if it doesn't exist and there are new notifications
+                 const newBadge = document.createElement('span');
+                 newBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                 newBadge.textContent = data.totalUnreadCount || data.newNotifications.filter(n => n.includes('unread-notification')).length;
+                 const visuallyHidden = document.createElement('span');
+                 visuallyHidden.className = 'visually-hidden';
+                 visuallyHidden.textContent = 'unread notifications';
+                 newBadge.appendChild(visuallyHidden);
+                 notificationsDropdown.appendChild(newBadge);
+            }
+
+            if (hasNewUnread) {
+                 showNexusNotification('New Notification!', `${data.newNotifications.length} new notification(s) received.`, 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error polling for notifications:', error);
+        // Optionally, display a subtle error to the user or stop polling after too many errors
+    }
+}
+
+function updateNavbarNotificationCount(count) {
+    const notificationsDropdown = document.getElementById('notificationsDropdown');
+    if (!notificationsDropdown) return;
+
+    let badge = notificationsDropdown.querySelector('.badge');
+    if (count > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+            const visuallyHidden = document.createElement('span');
+            visuallyHidden.className = 'visually-hidden';
+            visuallyHidden.textContent = 'unread notifications';
+            badge.appendChild(visuallyHidden);
+            notificationsDropdown.appendChild(badge);
+        }
+        badge.textContent = count;
+        // Ensure visually hidden text is still there if we just update textContent
+        if (!badge.querySelector('.visually-hidden')) {
+             const visuallyHidden = document.createElement('span');
+             visuallyHidden.className = 'visually-hidden';
+             visuallyHidden.textContent = 'unread notifications';
+             badge.appendChild(visuallyHidden);
+        }
+    } else {
+        if (badge) {
+            badge.remove();
+        }
+    }
+    // Update the Mark All Read button state on the /notifications page
+    const markAllReadButtonPage = document.getElementById('markAllReadBtn');
+    if(markAllReadButtonPage) {
+        markAllReadButtonPage.disabled = (count === 0);
+    }
+}
+
+// Make functions globally available if needed by inline JS or other scripts, or keep them module-scoped.
+// window.handleMarkAllNotificationsRead = handleMarkAllNotificationsRead;
+// window.handleMarkSingleNotificationRead = handleMarkSingleNotificationRead;// Nexus School Management System - chat.js
+// Gemini 3 Pro Preview - Phase D.3
+
+"use strict";
+
+let currentChatTargetUserId = null;
+let currentChatUserId = null;
+let messagePollIntervalId = null;
+let lastMessageTimestamp = 0; // Timestamp of the last received/fetched message for polling
+const CHAT_POLL_INTERVAL = 5000; // Poll every 5 seconds for new messages
+
+// DOM Elements (to be populated in initializeChat)
+let chatWindowMessages = null;
+let chatMessageForm = null;
+let chatMessageInput = null;
+let sendChatMessageBtn = null;
+let typingIndicator = null;
+
+/**
+ * Handles the chat message form submission with file support.
+ * @param {Event} event - The form submission event.
+
+async function handleSendMessage(event) {
+    event.preventDefault();
+    if (!currentChatTargetUserId) return;
+
+    const content = chatMessageInput.value.trim();
+    const file = dmFileInput.files[0];
+
+    if (!content && !file) {
+        showNexusNotification('Empty Message', 'Cannot send an empty message or file.', 'warning');
+        return;
+    }
+    
+    const originalButtonText = sendChatMessageBtn.innerHTML;
+    sendChatMessageBtn.disabled = true;
+    sendChatMessageBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...`;
+
+    const formData = new FormData(chatMessageForm);
+    // The file is already included by FormData because its input has a 'name' attribute.
+    
+    try {
+        const response = await fetch(chatMessageForm.action, {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success && data.message_data) {
+            appendMessageToChat(data.message_data, currentChatUserId);
+            chatMessageForm.reset();
+            if(document.getElementById('dmFilePreviewArea')) {
+                document.getElementById('dmFilePreviewArea').innerHTML = ''; // Clear preview
+            }
+            chatMessageInput.style.height = 'auto';
+            lastMessageTimestamp = new Date(data.message_data.timestamp).getTime();
+        } else {
+            showNexusNotification('Send Error', data.error || 'Failed to send message.', 'error');
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showNexusNotification('Send Error', `A network error occurred: ${error.message}`, 'error');
+    } finally {
+        sendChatMessageBtn.disabled = false;
+        sendChatMessageBtn.innerHTML = originalButtonText;
+    }
+}
+    // Mark messages from this user as read (could be an API call)
+    // This is more complex as it requires knowing which messages were unread *before* opening.
+    // For now, assume backend handles "is_read" update when messages are fetched for `universal_chat.html`
+    // or via a dedicated "mark as read" API endpoint if needed.
+    // A simple approach: if this chat is active, consider messages from targetUser as "seen"
+    // markMessagesAsReadFromTarget(targetUserId); // Placeholder for more robust logic
+}
+
+/**
+ * Scrolls the chat window to the bottom.
+ * @param {boolean} [force=false] - Force scroll even if user might have scrolled up.
+ */
+function scrollToChatBottom(force = false) {
+    if (chatWindowMessages) {
+        // For flex-direction: column-reverse, scroll top is effectively the bottom.
+        // We want to ensure new messages are visible.
+        // If the user hasn't scrolled up significantly, auto-scroll.
+        const threshold = 100; // Pixels from bottom to trigger auto-scroll
+        const isScrolledToBottom = chatWindowMessages.scrollTop < threshold; // For column-reverse, scrollTop is near 0 when at bottom
+
+        if (force || isScrolledToBottom) {
+            chatWindowMessages.scrollTop = 0; // Scroll to the top (which is visually the bottom for column-reverse)
+        }
+    }
+}
+
+/**
+ * Handles the chat message form submission.
+ * @param {Event} event - The form submission event.
+ */
+async function handleSendMessage(event) {
+    event.preventDefault();
+    if (!chatMessageInput || !currentChatTargetUserId) return;
+
+    const content = chatMessageInput.value.trim();
+    if (!content) {
+        showNexusNotification('Empty Message', 'Cannot send an empty message.', 'warning');
+        return;
+    }
+    if (content.length > 2000) {
+        showNexusNotification('Message Too Long', 'Messages are limited to 2000 characters.', 'warning');
+        return;
+    }
+
+    const originalButtonText = sendChatMessageBtn.innerHTML;
+    sendChatMessageBtn.disabled = true;
+    sendChatMessageBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...`;
+    chatMessageInput.disabled = true;
+
+    // Optimistic UI update (optional, but improves perceived performance)
+    // const optimisticMessageData = {
+    //     id: 'temp-' + Date.now(), // Temporary ID
+    //     sender_id: currentChatUserId,
+    //     sender: { /* current_user basic info */ full_name: 'You', profile_photo_url: null /* get from current_user */ },
+    //     content: content,
+    //     timestamp: new Date().toISOString(), // Use ISO string for consistency with backend
+    //     is_optimistic: true
+    // };
+    // appendMessageToChat(optimisticMessageData, currentChatUserId);
+
+    try {
+        // Assumes utils.js and postData function are available
+        // The backend route /chat/user/<target_user_id> should handle POST requests
+        const response = await postData(chatMessageForm.action, { message: content });
+
+        if (response.success && response.message_data) {
+            // If using optimistic update, remove the temporary message and add the confirmed one
+            // document.getElementById(optimisticMessageData.id)?.remove();
+            // appendMessageToChat(response.message_data, currentChatUserId);
+            
+            // If not using optimistic, just clear input and let polling fetch it
+            // However, for better UX, we should append the sent message immediately
+            // The backend should return the created message object.
+            appendMessageToChat(response.message_data, currentChatUserId);
+            chatMessageInput.value = '';
+            chatMessageInput.style.height = 'auto'; // Reset textarea height
+            lastMessageTimestamp = new Date(response.message_data.timestamp).getTime(); // Update timestamp
+        } else {
+            // Remove optimistic message if it failed
+            // document.getElementById(optimisticMessageData.id)?.remove();
+            showNexusNotification('Send Error', response.error || 'Failed to send message. Please try again.', 'error');
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        // document.getElementById(optimisticMessageData.id)?.remove();
+        showNexusNotification('Send Error', `An error occurred: ${error.message}`, 'error');
+    } finally {
+        sendChatMessageBtn.disabled = false;
+        sendChatMessageBtn.innerHTML = originalButtonText;
+        chatMessageInput.disabled = false;
+        chatMessageInput.focus();
+    }
+}
+/**
+ * Appends a new message to the chat window, handling text and files.
+ * @param {object} messageData - The message data object.
+ * @param {number} currentUserId - The ID of the current user.
+ 
+function appendMessageToChat(messageData, currentUserId) {
+    if (!chatWindowMessages || !messageData) return;
+
+    const isSender = messageData.sender_id === currentUserId;
+    const senderName = messageData.sender ? (messageData.sender.full_name || messageData.sender.username) : "Unknown User";
+    let senderAvatar = messageData.sender?.profile_photo_url ? `/static/${messageData.sender.profile_photo_url}` : '/static/img/placeholders/user_avatar_default.png';
+
+    const messageWrapper = document.createElement('div');
+    messageWrapper.className = `chat-message-wrapper d-flex mb-3 ${isSender ? 'justify-content-end' : 'justify-content-start'}`;
+    if (messageData.id) messageWrapper.id = `message-${messageData.id}`;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message d-flex flex-column ${isSender ? 'sent align-items-end' : 'received align-items-start'}`;
+    messageDiv.style.maxWidth = '75%';
+
+    const innerFlex = document.createElement('div');
+    innerFlex.className = `d-flex align-items-end ${isSender ? 'flex-row-reverse' : ''}`;
+
+    if (!isSender) {
+        const img = document.createElement('img');
+        img.src = senderAvatar;
+        img.alt = senderName;
+        img.className = 'rounded-circle me-2 shadow-sm';
+        img.width = 30; img.height = 30; img.style.objectFit = 'cover';
+        innerFlex.appendChild(img);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble p-2 px-3 shadow-sm';
+    
+    if (messageData.file_details) {
+        const file = messageData.file_details;
+        const fileSizeHuman = file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : `${(file.size / 1024).toFixed(1)} KB`;
+        let iconClass = 'bi-file-earmark-text'; // Default icon
+        if (file.mimetype && file.mimetype.startsWith('image/')) iconClass = 'bi-file-earmark-image';
+        if (file.mimetype && file.mimetype.startsWith('video/')) iconClass = 'bi-file-earmark-play';
+
+        const fileHTML = `
+            <a href="${file.download_url}" target="_blank" class="text-decoration-none text-body" title="Download ${file.original_filename}">
+                <div class="d-flex align-items-center">
+                    <i class="bi ${iconClass} fs-3 me-2"></i>
+                    <div>
+                        <div class="fw-bold text-truncate">${file.original_filename}</div>
+                        <small class="text-muted">${fileSizeHuman}</small>
+                    </div>
+                </div>
+            </a>
+        `;
+        const fileDiv = document.createElement('div');
+        fileDiv.innerHTML = fileHTML;
+        if(messageData.content) { fileDiv.classList.add('mb-2'); } // Add margin if there is text too
+        bubble.appendChild(fileDiv);
+    }
+
+    if (messageData.content) {
+        const contentP = document.createElement('p');
+        contentP.className = 'mb-0 message-content';
+        contentP.textContent = messageData.content;
+        bubble.appendChild(contentP);
+    }
+    
+    innerFlex.appendChild(bubble);
+    messageDiv.appendChild(innerFlex);
+
+    const timestampSmall = document.createElement('small');
+    timestampSmall.className = `message-timestamp text-muted mt-1 ${isSender ? 'me-1' : 'ms-1'}`;
+    const dateObj = new Date(messageData.timestamp);
+    timestampSmall.title = dateObj.toLocaleString();
+    timestampSmall.innerHTML = `${!isSender ? `<span class="fw-medium">${senderName.split(' ')[0]}</span> • ` : ''}${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    messageDiv.appendChild(timestampSmall);
+
+    messageWrapper.appendChild(messageDiv);
+
+    const placeholder = chatWindowMessages.querySelector('.text-center.text-muted');
+    if (placeholder) { placeholder.remove(); }
+
+    chatWindowMessages.prepend(messageWrapper);
+    scrollToChatBottom(true);
+}
+/**
+ * Starts polling for new messages.
+ */
+function startMessagePolling() {
+    if (!currentChatTargetUserId) return;
+
+    console.log(`Starting message polling for chat with ${currentChatTargetUserId}. Last timestamp: ${new Date(lastMessageTimestamp).toISOString()}`);
+    stopMessagePolling(); // Clear any existing interval
+
+    // Initial fetch immediately
+    fetchNewMessages();
+
+    messagePollIntervalId = setInterval(fetchNewMessages, CHAT_POLL_INTERVAL);
+}
+
+/**
+ * Stops polling for new messages.
+ */
+function stopMessagePolling() {
+    if (messagePollIntervalId) {
+        clearInterval(messagePollIntervalId);
+        messagePollIntervalId = null;
+        console.log('Message polling stopped.');
+    }
+}
+
+/**
+ * Fetches new messages from the server since the last known timestamp.
+ */
+async function fetchNewMessages() {
+    if (!currentChatTargetUserId || !chatWindowMessages) return;
+
+    // Construct the API endpoint URL
+    // Assumes a backend route like /chat/api/messages/<int:other_user_id>/new?since=<timestamp_ms>
+    const apiUrl = `/chat/api/messages/${currentChatTargetUserId}/new?since=${lastMessageTimestamp}`;
+
+    try {
+        const data = await getData(apiUrl); // Assumes utils.js and getData are available
+
+        if (data.error) {
+            console.error('Error fetching new messages:', data.error);
+            // Potentially stop polling if server error persists (e.g., auth failure)
+            if (data.stop_polling) stopMessagePolling();
+            return;
+        }
+
+        if (data.messages && data.messages.length > 0) {
+            data.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // Ensure ascending order
+            data.messages.forEach(msg => {
+                // Check if message already exists (e.g., from optimistic update or previous poll)
+                if (!document.getElementById(`message-${msg.id}`)) {
+                    appendMessageToChat(msg, currentChatUserId);
+                }
+            });
+            // Update lastMessageTimestamp with the timestamp of the newest message received
+            lastMessageTimestamp = new Date(data.messages[data.messages.length - 1].timestamp).getTime();
+        }
+        // Update lastMessageTimestamp even if no new messages, to keep server 'since' fresh
+        if (data.latest_timestamp) {
+             lastMessageTimestamp = Math.max(lastMessageTimestamp, data.latest_timestamp);
+        }
+
+
+    } catch (error) {
+        console.error('Error polling for new messages:', error);
+        // Decide if polling should stop, e.g., after multiple consecutive errors
+    }
+}
+
+// Clean up polling when the user navigates away from the chat page
+// This requires detecting page unload or route changes if using a Single Page App (SPA)
+// For traditional navigation, this isn't strictly necessary but good practice.
+window.addEventListener('beforeunload', () => {
+    stopMessagePolling();
+});
+
+// Placeholder for "is typing" functionality
+// function handleTyping() {
+//     // Send "typing" event to server via SocketIO or a quick AJAX ping
+//     // Server then broadcasts to the target_user
+// }
+// function displayTypingIndicator(username) {
+//     if (typingIndicator) typingIndicator.textContent = `${username} is typing...`;
+// }
+// function clearTypingIndicator() {
+//     if (typingIndicator) typingIndicator.textContent = '';
+// }// Nexus School Management System - talent_club.js
+"use strict";
+
+/**
+ * Loads content for a specific tab on the club profile page via AJAX.
+ * This is called by the Alpine.js component in club_profile.html.
+ * @param {string} clubId - The ID of the club.
+ * @param {string} tabName - The name of the tab to load (e.g., 'feed', 'media').
+ */
+async function loadTabContent(clubId, tabName) {
+    const container = document.getElementById('tab-content-container');
+    if (!container) {
+        console.error('Error: The #tab-content-container element was not found on the page.');
+        return;
+    }
+    
+    // Display a loading spinner immediately
+    container.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>`;
+
+    try {
+        const response = await fetch(`/talent_club/${clubId}/content/${tabName}`);
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
+        
+        const html = await response.text();
+        container.innerHTML = html;
+        
+        // After loading the content, if it's the feed, we must initialize its JavaScript.
+        if (tabName === 'feed') {
+            initializeTCFeed(clubId); // Assumes initializeTCFeed is defined in this file
+        }
+    } catch (error) {
+        console.error(`Error loading tab content for '${tabName}':`, error);
+        container.innerHTML = `<div class="alert alert-danger text-center">Could not load content. Please refresh the page and try again.</div>`;
+    }
+}
+
+/**
+ * Handles form submissions for TC Leader admin actions (e.g., unban) via AJAX.
+ * @param {HTMLFormElement} form - The submitted form element.
+ */
+async function handleTCMemberActionFormSubmit(form) {
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalButtonText = submitButton.innerHTML;
+
+    // Show loading state
+    submitButton.disabled = true;
+    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processing...`;
+
+    try {
+        const data = await postData(form.action, new FormData(form)); // Assumes postData in utils.js
+        if (data.success) {
+            showNexusNotification(data.message || 'Action successful!', 'success');
+            // Reload the page after a short delay to show the updated status
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showNexusNotification(data.error || 'The action could not be completed.', 'danger');
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
+    } catch (error) {
+        showNexusNotification('A server error occurred. Please try again.', 'danger');
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonText;
+    }
+}
+// Make this function globally accessible so Alpine.js can call it from the template.
+window.loadTabContent = loadTabContent;.
+
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('Nexus Talent Club JS Initialized.');
+
+    // Event delegation for Talent Club actions (follow, unfollow, etc.)
+// At the top of talent_club.js, inside the DOMContentLoaded listener
+
+document.body.addEventListener('submit', async function(event) {
+    const commentForm = event.target.closest('.tc-comment-form');
+    if (commentForm) {
+        event.preventDefault();
+        await handleTCCommentSubmit(commentForm);
+    }
+    
+    // ADD THIS PART
+    const memberActionForm = event.target.closest('.tc-member-action-form');
+    if(memberActionForm) {
+        event.preventDefault();
+        await handleTCMemberActionFormSubmit(memberActionForm);
+    }
+});
+
+        // Note: TC Leader voting is typically handled by standard form submission,
+        // not AJAX by default in this script.
+    });
+
+    // If initializeTcUserPickers was intended for OTHER pickers,
+    // it could be called here, but ensure it doesn't re-initialize
+    // 'mentioned_member_ids_picker'.
+    // initializeTcUserPickers(); // Call if it has other purposes.
+});
+
+/**
+ * Registers real-time event handlers for the Talent Club system.
+ */
+function registerTCRealtimeHandlers() {
+    // Ensure the global realtime manager from socketHandlers.js is ready
+    if (typeof nexusRealtimeManager === 'undefined') {
+        console.warn("nexusRealtimeManager not found. Real-time updates for TC are disabled.");
+        return;
+    }
+
+    console.log("Registering Talent Club real-time event handlers.");
+
+    // Listen for a new post in a specific club's feed
+    nexusRealtimeManager.subscribe('tc_new_feed_post', (data) => {
+        const feedContainer = document.getElementById(`tcFeedContainer-${data.club_id}`);
+        // Only prepend if the user is viewing that specific feed and the post isn't already there
+        if (feedContainer && !document.getElementById(`tc_feed_post-${data.post_id}`)) {
+            feedContainer.insertAdjacentHTML('afterbegin', data.post_html);
+            showNexusNotification(`New post in ${data.club_name}!`, 'info', { autoClose: 5000 });
+        }
+    });
+
+    // Listen for a new comment on a post the user might be viewing
+    nexusRealtimeManager.subscribe('tc_new_comment', (data) => {
+        const commentsList = document.getElementById(`tc-comments-list-${data.post_id}`);
+        if (commentsList && !document.getElementById(`comment-${data.comment_id}`)) {
+            // Remove the 'no comments yet' placeholder if it exists
+            const noCommentsYet = commentsList.querySelector('.no-comments-yet');
+            if (noCommentsYet) noCommentsYet.remove();
+            
+            commentsList.insertAdjacentHTML('beforeend', data.comment_html);
+            
+            // Update the comment count badge
+            const commentToggleBtn = document.querySelector(`[href="#tcCommentsCollapse-${data.post_id}"] .badge`);
+            if(commentToggleBtn) {
+                commentToggleBtn.textContent = data.new_comment_count;
+            }
+        }
+    });
+
+    // You can add more listeners here for reactions, deleted posts, etc.
+}
+
+// Ensure the handlers are registered once the socket connection is established.
+// This should be at the bottom of the main DOMContentLoaded event listener.
+document.addEventListener('realtimeManagerReady', registerTCRealtimeHandlers);
+
+async function handleTalentClubAction(clubId, action, buttonElement) {
+    if (!clubId || !action) return;
+
+    const originalButtonHTML = buttonElement.innerHTML;
+    buttonElement.disabled = true;
+    buttonElement.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Working...`;
+
+    let apiUrl = `/talent_club/${clubId}/${action.replace('_club', '')}`;
+
+    try {
+        const responseData = await postData(apiUrl, {});
+
+        if (responseData.success) {
+            showNexusNotification('Success!', responseData.message || 'Action completed successfully.', 'success');
+
+            if (action === 'follow_club') {
+                buttonElement.innerHTML = '<i class="bi bi-bell-slash-fill me-1"></i> Following';
+                buttonElement.classList.remove('btn-primary');
+                buttonElement.classList.add('btn-info');
+                buttonElement.dataset.action = 'unfollow_club';
+            } else if (action === 'unfollow_club') {
+                buttonElement.innerHTML = '<i class="bi bi-bell-fill me-1"></i> Follow';
+                buttonElement.classList.remove('btn-info', 'btn-outline-secondary');
+                buttonElement.classList.add('btn-primary');
+                buttonElement.dataset.action = 'follow_club';
+            } else if (action === 'leave_club') {
+                const clubCard = buttonElement.closest('.talent-club-card');
+                if (clubCard && clubCard.parentElement && clubCard.parentElement.classList.contains('col')) {
+                    clubCard.parentElement.remove();
+                } else {
+                     window.location.reload();
+                }
+            }
+
+            if (typeof responseData.new_total_engagement === 'number') {
+                const cardElement = buttonElement.closest('.talent-club-card');
+                const engagementElement = cardElement?.querySelector('small.text-muted i.bi-people-fill')?.nextSibling;
+                if (engagementElement && engagementElement.nodeType === Node.TEXT_NODE) {
+                    engagementElement.textContent = ` ${responseData.new_total_engagement} Engaged`;
+                }
+            }
+        } else {
+            showNexusNotification('Action Failed', responseData.error || 'Could not complete action.', 'error');
+            buttonElement.innerHTML = originalButtonHTML;
+        }
+    } catch (error) {
+        console.error(`Error performing TC action '${action}' for club ${clubId}:`, error);
+        showNexusNotification('Error', `An unexpected error occurred: ${error.message}`, 'error');
+        buttonElement.innerHTML = originalButtonHTML;
+    } finally {
+        if (action !== 'leave_club' || (responseData && !responseData.success)) {
+            buttonElement.disabled = false;
+        }
+    }
+}
+
+// --- TC Feed specific JS ---
+// (Moved from social.js as these are specific to Talent Club Feed)
+
+let currentTCClubId = null;
+let currentTCFeedPage = 1;
+let isLoadingTCPosts = false;
+
+function initializeTCFeed(clubId, userId) {
+    console.log(`Initializing TC Feed for Club ID: ${clubId}`);
+    currentTCClubId = clubId;
+    currentTCFeedPage = 1;
+
+    const loadMoreButton = document.querySelector(`#loadMoreTcPostsTrigger-${clubId} .load-more-tc-posts-btn`);
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', function() {
+            loadMoreTcFeedPosts(clubId, this);
+        });
+    }
+
+    const feedContainer = document.getElementById(`tcFeedContainer-${clubId}`);
+    if (feedContainer) {
+        feedContainer.addEventListener('submit', async function(event) {
+            const commentForm = event.target.closest('.tc-comment-form');
+            if (commentForm) {
+                event.preventDefault();
+                await handleTCCommentSubmit(commentForm);
+            }
+        });
+
+        feedContainer.addEventListener('click', async function(event) {
+            const reactionBtn = event.target.closest('.tc-reaction-btn');
+            if (reactionBtn) { event.preventDefault(); await handleTCReactionClick(reactionBtn); }
+
+            const deletePostBtn = event.target.closest('.delete-tc-feed-post-btn');
+            if (deletePostBtn) { event.preventDefault(); await handleDeleteTCFeedPost(deletePostBtn); }
+
+            const deleteCommentBtn = event.target.closest('.delete-comment-btn');
+            if (deleteCommentBtn && event.target.closest('.tc-feed-post-item')) {
+                event.preventDefault(); await handleDeleteTCFeedComment(deleteCommentBtn);
+            }
+        });
+    }
+}
+window.initializeTCFeed = initializeTCFeed; // Make global if called from inline script
+
+async function loadMoreTcFeedPosts(clubId, buttonElement) {
+    if (isLoadingTCPosts) return;
+    isLoadingTCPosts = true;
+    currentTCFeedPage++;
+
+    const originalButtonHTML = buttonElement.innerHTML;
+    buttonElement.disabled = true;
+    buttonElement.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Loading...`;
+
+    let responseData = null; // To access in finally block
+    try {
+        responseData = await getData(`/talent_club/${clubId}/feed/posts?page=${currentTCFeedPage}`);
+        const feedContainer = document.getElementById(`tcFeedContainer-${clubId}`);
+        const loadMoreTrigger = document.getElementById(`loadMoreTcPostsTrigger-${clubId}`);
+
+        if (responseData.success && responseData.posts_html && feedContainer) {
+            if(loadMoreTrigger) loadMoreTrigger.remove();
+            feedContainer.insertAdjacentHTML('beforeend', responseData.posts_html);
+        } else if (responseData.success && responseData.posts_html === '') {
+            if(loadMoreTrigger) loadMoreTrigger.innerHTML = '<p class="text-muted small text-center mt-3">No more posts to load.</p>';
+        } else {
+            showNexusNotification('Error', responseData.error || 'Could not load more posts.', 'error');
+            currentTCFeedPage--;
+        }
+    } catch (error) {
+        showNexusNotification('Load Error', `Failed to load more posts: ${error.message}`, 'error');
+        currentTCFeedPage--;
+    } finally {
+        isLoadingTCPosts = false;
+        const currentTriggerButton = document.querySelector(`#loadMoreTcPostsTrigger-${clubId} .load-more-tc-posts-btn`);
+        if(currentTriggerButton) { // If a new trigger button was added with the posts_html
+            currentTriggerButton.disabled = !(responseData && responseData.has_next_page);
+            currentTriggerButton.dataset.currentPage = currentTCFeedPage;
+             if (!(responseData && responseData.has_next_page)) {
+                 currentTriggerButton.classList.add('d-none'); // Hide if no next page
+                 if (!document.querySelector(`#loadMoreTcPostsTrigger-${clubId} .end-of-feed-msg`)){
+                    currentTriggerButton.parentElement.insertAdjacentHTML('beforeend', '<p class="text-muted small mt-2 end-of-feed-msg">End of feed.</p>');
+                 }
+            }
+        } else if (buttonElement && !(responseData && responseData.has_next_page)) { // If old button is still there and no next page
+            buttonElement.classList.add('d-none');
+             if (!buttonElement.parentElement.querySelector('.end-of-feed-msg')){
+                 buttonElement.parentElement.insertAdjacentHTML('beforeend', '<p class="text-muted small mt-2 end-of-feed-msg">End of feed.</p>');
+             }
+        } else if (buttonElement) { // Re-enable if there might be more pages but new button wasn't added
+            buttonElement.innerHTML = originalButtonHTML;
+            buttonElement.disabled = false;
+        }
+    }
+}
+
+async function handleTCCommentSubmit(form) {
+    const postId = form.dataset.postId;
+    const submitButton = form.querySelector('.tc-comment-submit-btn');
+    const textarea = form.querySelector('.comment-input');
+    const content = textarea.value.trim();
+    if (!content) { showNexusNotification('Empty Comment', 'Cannot post an empty comment.', 'warning'); return; }
+
+    const originalButtonHTML = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+    try {
+        const responseData = await postData(`/talent_club/feed/posts/${postId}/comment`, { content });
+        if (responseData.success && responseData.comment_html) {
+            textarea.value = ''; textarea.style.height = 'auto';
+            const commentsList = document.getElementById(`tc-comments-list-${postId}`);
+            const noCommentsYet = commentsList?.querySelector('.no-comments-yet');
+            if (noCommentsYet) noCommentsYet.remove();
+            commentsList?.insertAdjacentHTML('beforeend', responseData.comment_html);
+            const commentToggleBtn = document.querySelector(`[href="#tcCommentsCollapse-${postId}"] .badge`);
+            if(commentToggleBtn) commentToggleBtn.textContent = parseInt(commentToggleBtn.textContent || '0') + 1;
+        } else {
+            showNexusNotification('Comment Error', responseData.error || 'Failed to post comment.', 'error');
+        }
+    } catch (error) {
+        showNexusNotification('Comment Error', `An unexpected error occurred: ${error.message}`, 'error');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonHTML;
+    }
+}
+
+async function handleTCReactionClick(buttonElement) {
+    const postId = buttonElement.dataset.postId;
+    const emoji = buttonElement.dataset.reactionEmoji;
+    const countSpan = buttonElement.querySelector('.reaction-count');
+    let currentCount = parseInt(countSpan.textContent || '0');
+    const isActive = buttonElement.classList.toggle('active');
+
+    if(isActive) { buttonElement.classList.add('btn-primary', 'text-white'); buttonElement.classList.remove('btn-outline-secondary'); }
+    else { buttonElement.classList.remove('btn-primary', 'text-white'); buttonElement.classList.add('btn-outline-secondary'); }
+    countSpan.textContent = isActive ? currentCount + 1 : Math.max(0, currentCount - 1);
+
+    try {
+        const responseData = await postData(`/talent_club/feed/posts/${postId}/react`, { emoji });
+        if (responseData.success) {
+            if (typeof responseData.new_count === 'number') countSpan.textContent = responseData.new_count;
+            if (typeof responseData.user_reacted === 'boolean') {
+                if(responseData.user_reacted) {
+                    buttonElement.classList.add('active', 'btn-primary', 'text-white');
+                    buttonElement.classList.remove('btn-outline-secondary');
+                } else {
+                    buttonElement.classList.remove('active', 'btn-primary', 'text-white');
+                    buttonElement.classList.add('btn-outline-secondary');
+                }
+            }
+        } else { // Revert on server error
+            buttonElement.classList.toggle('active');
+            countSpan.textContent = currentCount;
+            if(buttonElement.classList.contains('btn-primary')) {buttonElement.classList.remove('btn-primary','text-white'); buttonElement.classList.add('btn-outline-secondary');}
+            else {buttonElement.classList.add('btn-primary','text-white'); buttonElement.classList.remove('btn-outline-secondary');}
+            showNexusNotification('Reaction Error', responseData.error || 'Failed to apply reaction.', 'error');
+        }
+    } catch (error) { // Revert on fetch error
+        buttonElement.classList.toggle('active');
+        countSpan.textContent = currentCount;
+        if(buttonElement.classList.contains('btn-primary')) {buttonElement.classList.remove('btn-primary','text-white'); buttonElement.classList.add('btn-outline-secondary');}
+        else {buttonElement.classList.add('btn-primary','text-white'); buttonElement.classList.remove('btn-outline-secondary');}
+        showNexusNotification('Reaction Error', `An unexpected error: ${error.message}`, 'error');
+    }
+}
+
+async function handleDeleteTCFeedPost(buttonElement) {
+    const postId = buttonElement.dataset.postId;
+    const result = await Swal.fire({ title: 'Delete Post?', text: "This action cannot be undone.", icon: 'warning', showCancelButton: true, confirmButtonColor: 'var(--nexus-danger)', cancelButtonColor: 'var(--nexus-secondary)', confirmButtonText: 'Yes, delete it!', customClass: {popup: 'nexus-swal-popup', title: 'nexus-swal-title', htmlContainer: 'nexus-swal-html-container', confirmButton: 'btn btn-danger mx-1', cancelButton: 'btn btn-secondary mx-1'}, buttonsStyling: false });
+    if (result.isConfirmed) {
+        try {
+            const responseData = await postData(`/talent_club/feed/posts/${postId}/delete`, {});
+            if (responseData.success) {
+                showNexusNotification('Deleted!', responseData.message || 'Post removed.', 'success');
+                document.getElementById(`tc_feed_post-${postId}`)?.remove();
+            } else { showNexusNotification('Error!', responseData.error || 'Failed to delete post.', 'error');}
+        } catch (error) { showNexusNotification('Error!', `Could not delete post: ${error.message}`, 'error');}
+    }
+}
+
+async function handleDeleteTCFeedComment(buttonElement) {
+    const commentId = buttonElement.dataset.commentId;
+    const postId = buttonElement.dataset.postId;
+    const result = await Swal.fire({ title: 'Delete Comment?', text: "This comment will be removed.", icon: 'warning', showCancelButton: true, /* ... Swal options ... */ });
+    if (result.isConfirmed) {
+        try {
+            const responseData = await postData(`/talent_club/feed/posts/${postId}/comments/${commentId}/delete`, {});
+            if (responseData.success) {
+                showNexusNotification('Deleted!', responseData.message || 'Comment removed.', 'success');
+                document.getElementById(`comment-${commentId}`)?.remove();
+                const commentToggleBtn = document.querySelector(`[href="#tcCommentsCollapse-${postId}"] .badge`);
+                if(commentToggleBtn) commentToggleBtn.textContent = Math.max(0, parseInt(commentToggleBtn.textContent || '0') - 1);
+            } else { showNexusNotification('Error!', responseData.error || 'Failed to delete comment.', 'error');}
+        } catch (error) { showNexusNotification('Error!', `Could not delete comment: ${error.message}`, 'error');}
+    }
+}
+
+
+// --- TC Community Chat specific JS ---
+// (Moved from social.js as these are specific to Talent Club Community)
+
+let currentTCCommunityGroupId = null;
+// Consider defining CHAT_POLL_INTERVAL in utils.js or pass as param
+const TC_COMMUNITY_POLL_INTERVAL = 7000; // e.g., 7 seconds
+let tcCommunityMessagePollIntervalId = null;
+let lastTCCommunityMessageTimestamp = 0;
+
+function initializeTCCommunityChat(communityGroupId, userId) {
+    console.log(`Initializing TC Community Chat for Group ID: ${communityGroupId}`);
+    currentTCCommunityGroupId = communityGroupId;
+    // currentChatUserId (from chat.js) could be used or pass userId as param if needed for shared functions.
+
+    const chatWindow = document.getElementById(`tcCommunityChatWindowMessages-${communityGroupId}`);
+    const messageForm = document.getElementById(`tcCommunityMessageForm-${communityGroupId}`); // Ensure form has this ID
+
+    if (!chatWindow || !messageForm) {
+        console.warn('TC Community chat UI elements not found.');
+        return;
+    }
+
+    const lastMsgEl = chatWindow.querySelector('.chat-message-wrapper:last-child .message-timestamp');
+    if (lastMsgEl && lastMsgEl.title) {
+        try {
+            lastTCCommunityMessageTimestamp = new Date(lastMsgEl.title.replace(' UTC', '')).getTime();
+        } catch(e) { lastTCCommunityMessageTimestamp = Date.now() - (TC_COMMUNITY_POLL_INTERVAL * 2); }
+    } else {
+        lastTCCommunityMessageTimestamp = Date.now() - (TC_COMMUNITY_POLL_INTERVAL * 2);
+    }
+
+    if (chatWindow) chatWindow.scrollTop = 0; // Scroll to bottom (top for column-reverse)
+
+    messageForm.addEventListener('submit', handleTCCommunityMessageSubmit);
+
+    startTCCommunityMessagePolling();
+}
+window.initializeTCCommunityChat = initializeTCCommunityChat; // Make global
+
+async function handleTCCommunityMessageSubmit(event) {
+    event.preventDefault();
+    const form = event.target;
+    const contentTextarea = form.querySelector('.post-content-textarea');
+    const fileInput = form.querySelector('.filepond-input'); // Or your actual file input name/class
+    const submitButton = form.querySelector('.post-submit-btn');
+
+    const formData = new FormData(form); // FormData handles text and FilePond-enhanced file inputs
+
+    // Client-side validation (similar to social.js post submit)
+    const pondInstance = fileInput ? FilePond.find(fileInput) : null;
+    const hasFiles = pondInstance ? pondInstance.getFiles().length > 0 : (fileInput ? fileInput.files.length > 0 : false);
+    if (!formData.get('content')?.trim() && !hasFiles) {
+        showNexusNotification('Missing Content', 'Please provide text or attach a file.', 'warning');
+        return;
+    }
+
+    const originalButtonHTML = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Sending...`;
+
+    try {
+        const response = await fetch(form.action, { method: 'POST', body: formData, headers: {'X-CSRFToken':getCsrfToken()} });
+        const responseData = await response.json();
+        if (response.ok && responseData.success && responseData.post_data) { // Expect post_data
+            appendTCCommunityMessage(responseData.post_data, window.currentChatUserId || {{ current_user.id | tojson }}); // Use global or pass ID
+            form.reset();
+            if(contentTextarea) contentTextarea.style.height = 'auto';
+            if (pondInstance) pondInstance.removeFiles();
+            lastTCCommunityMessageTimestamp = new Date(responseData.post_data.timestamp).getTime();
+        } else {
+            showNexusNotification('Error', responseData.error || 'Failed to send message.', 'error');
+        }
+    } catch (error) {
+        showNexusNotification('Error', `Message send failed: ${error.message}`, 'error');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalButtonHTML;
+    }
+}
+
+function appendTCCommunityMessage(msgData, currentUserId) {
+    const chatWindow = document.getElementById(`tcCommunityChatWindowMessages-${currentTCCommunityGroupId}`);
+    if (!chatWindow) return;
+    // Use a shared function or duplicate logic from chat.js's appendMessageToChat,
+    // adapting for TC Community message structure and HTML partial if different.
+    // For now, assuming _chat_message_item.html is compatible.
+    const messageHTML = renderChatMessageItem(msgData, currentUserId); // Assumes this function exists
+    const placeholder = chatWindow.querySelector('.text-center.text-muted');
+    if (placeholder) placeholder.remove();
+    chatWindow.insertAdjacentHTML('afterbegin', messageHTML); // Prepend for column-reverse
+    chatWindow.scrollTop = 0;
+}
+
+// You'll need this function if it's not already in utils.js or globally available
+// This is a simplified version of what might be in chat.js or a shared utility
+function renderChatMessageItem(messageData, currentUserId) {
+    const isSender = messageData.sender_id === currentUserId;
+    const senderName = messageData.sender ? (messageData.sender.full_name || messageData.sender.username) : "System";
+    let senderAvatar = messageData.sender?.profile_photo_url ? `/static/${messageData.sender.profile_photo_url}` : '/static/img/placeholders/user_avatar_default.png';
+    const timestamp = new Date(messageData.timestamp);
+    const timeString = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    let fileHTML = '';
+    if (messageData.file) {
+        fileHTML = `
+            <div class="post-attachment mt-2">
+                <a href="${messageData.file.download_url}" target="_blank" class="d-flex align-items-center p-2 rounded bg-light-subtle text-decoration-none border">
+                    <i class="bi bi-file-earmark-arrow-down-fill fs-4 me-2 text-primary"></i>
+                    <div>
+                        <strong class="text-dark">${messageData.file.original_filename}</strong>
+                        <small class="d-block text-muted">${(messageData.file.size / 1024).toFixed(1)} KB</small>
+                    </div>
+                </a>
+            </div>`;
+    }
+
+    return `
+        <div class="chat-message-wrapper d-flex mb-3 ${isSender ? 'justify-content-end' : 'justify-content-start'}" id="message-${messageData.id}">
+            <div class="chat-message d-flex flex-column ${isSender ? 'sent align-items-end' : 'received align-items-start'}" style="max-width: 75%;">
+                <div class="d-flex align-items-end ${isSender ? 'flex-row-reverse' : ''}">
+                    ${!isSender ? `<img src="${senderAvatar}" alt="${senderName}" class="rounded-circle me-2 shadow-sm" style="width: 30px; height: 30px; object-fit: cover;">` : ''}
+                    <div class="message-bubble p-2 px-3 shadow-sm">
+                        <p class="mb-0 message-content">${messageData.content ? escapeHTML(messageData.content) : ''}</p>
+                        ${fileHTML}
+                    </div>
+                </div>
+                <small class="message-timestamp text-muted mt-1 ${isSender ? 'me-1' : 'ms-1'}" title="${timestamp.toLocaleString('en-CA', { timeZone: 'UTC' })} UTC">
+                    ${!isSender ? `<span class="fw-medium">${senderName.split(' ')[0]}</span> • ` : ''}${timeString}
+                </small>
+            </div>
+        </div>`;
+}
+function escapeHTML(str) { // Basic HTML escaping
+    return str.replace(/[&<>"']/g, function (match) {
+        return { '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[match];
+    });
+}
+function getCsrfToken() { // Helper to get CSRF token
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+
+async function fetchNewTCCommunityMessages() {
+    if (!currentTCCommunityGroupId) return;
+    const apiUrl = `/talent_club/api/community/${currentTCCommunityGroupId}/messages/new?since=${lastTCCommunityMessageTimestamp}`;
+    try {
+        const data = await getData(apiUrl);
+        if (data.messages && data.messages.length > 0) {
+            data.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            data.messages.forEach(msg => {
+                if (!document.getElementById(`message-${msg.id}`)) {
+                    appendTCCommunityMessage(msg, window.currentChatUserId || {{ current_user.id | tojson }}); // Ensure current user ID is available
+                }
+            });
+            lastTCCommunityMessageTimestamp = new Date(data.messages[data.messages.length - 1].timestamp).getTime();
+        }
+        if (data.latest_timestamp) {
+             lastTCCommunityMessageTimestamp = Math.max(lastTCCommunityMessageTimestamp, data.latest_timestamp);
+        }
+    } catch (error) { console.error('Error polling TC Community messages:', error); }
+}
+
+function startTCCommunityMessagePolling() {
+    console.log('TC Community message polling started.');
+    stopTCCommunityMessagePolling(); // Clear existing before starting new
+    fetchNewTCCommunityMessages(); // Initial fetch
+    tcCommunityMessagePollIntervalId = setInterval(fetchNewTCCommunityMessages, TC_COMMUNITY_POLL_INTERVAL);
+}
+
+function stopTCCommunityMessagePolling() {
+    if (tcCommunityMessagePollIntervalId) {
+        clearInterval(tcCommunityMessagePollIntervalId);
+        tcCommunityMessagePollIntervalId = null;
+        console.log('TC Community message polling stopped.');
+    }
+}
+window.addEventListener('beforeunload', stopTCCommunityMessagePolling);/**
+ * tasks.js - Handles dynamic interactions for the Task System.
+ * - Assignee picker for task creation.
+ * - AJAX form submissions for status updates and reviews.
+ */
+
+/**
+ * Initializes a modern, unified assignee picker using TomSelect.
+ * This is used on the task creation page.
+ * @param {object} options - Configuration options.
+ */
+function initializeModernAssigneePicker(options) {
+    const pickerElement = document.getElementById(options.pickerId);
+    const hiddenInputElement = document.getElementById(options.hiddenInputId);
+
+    if (!pickerElement || !hiddenInputElement) {
+        console.error('Assignee picker or hidden input element not found.');
+        return;
+    }
+
+    new TomSelect(pickerElement, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: 'text',
+        optgroupField: 'group',
+        lockOptgroupColumns: true,
+        plugins: ['remove_button', 'optgroup_columns'],
+        render: {
+            option: function(data, escape) {
+                let icon = '';
+                if (data.type === 'user') icon = '<i class="bi bi-person-fill text-primary me-2"></i>';
+                else if (data.type === 'role') icon = '<i class="bi bi-people-fill text-info me-2"></i>';
+                else if (data.type === 'grade_section') icon = '<i class="bi bi-easel2-fill text-success me-2"></i>';
+                return `<div class="d-flex align-items-center">
+                            ${icon}
+                            <div>
+                                <div class="text-dark">${escape(data.text)}</div>
+                                <div class="text-muted small">${escape(data.subtext)}</div>
+                            </div>
+                        </div>`;
+            },
+            item: function(data, escape) {
+                let icon = '';
+                if (data.type === 'user') icon = '<i class="bi bi-person-fill text-primary me-2"></i>';
+                else if (data.type === 'role') icon = '<i class="bi bi-people-fill text-info me-2"></i>';
+                else if (data.type === 'grade_section') icon = '<i class="bi bi-easel2-fill text-success me-2"></i>';
+                return `<div class="d-flex align-items-center" title="${escape(data.subtext)}">${icon}<span>${escape(data.text)}</span></div>`;
+            }
+        },
+        load: function(query, callback) {
+            if (!query.length || query.length < 2) return callback();
+            // Assumes fetchData is defined in utils.js
+            fetchData(`${options.searchUrl}?q=${encodeURIComponent(query)}`)
+                .then(json => callback(json))
+                .catch(() => callback());
+        },
+        onChange: function(value) {
+            const selectedItems = this.items.map(itemId => {
+                const itemData = this.options[itemId];
+                return `${itemData.type}:${itemData.id}`;
+            });
+            hiddenInputElement.value = selectedItems.join(',');
+        },
+    });
+}
+
+
+// --- FIX: ADDED NEW FUNCTIONS FOR TASK DETAIL PAGE ---
+
+/**
+ * Handles the AJAX submission for a form on the task detail page.
+ * @param {Event} event - The form submission event.
+ * @param {string} formType - A string to describe the form for logging (e.g., 'Status Update').
+ */
+async function handleTaskFormSubmit(event, formType) {
+    event.preventDefault();
+    const form = event.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+
+    // Disable button to prevent double-submission
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+        // Assumes postData helper from utils.js is available
+        const data = await postData(form.action, formData);
+        
+        if (data.success) {
+            showNexusNotification(`${formType} submitted successfully! Refreshing page...`, 'success');
+            // Backend provides a redirect URL on success
+            setTimeout(() => {
+                window.location.href = data.redirect_url;
+            }, 1000); // Small delay to let user see success message
+        } else {
+            // Handle form validation errors returned from the server
+            const errorMsg = data.errors ? Object.values(data.errors).flat().join(' ') : 'An unknown error occurred.';
+            showNexusNotification(errorMsg, 'danger');
+        }
+    } catch (error) {
+        console.error(`Error submitting task ${formType.toLowerCase()}:`, error);
+        showNexusNotification('A network or server error occurred. Please try again.', 'danger');
+    } finally {
+        if (submitButton) submitButton.disabled = false;
+    }
+}
+
+/**
+ * Initializes event listeners for the task detail page forms.
+ */
+function initializeTaskDetailInteractions() {
+    const updateForm = document.getElementById('updateUserTaskStatusForm');
+    if (updateForm) {
+        updateForm.addEventListener('submit', (event) => handleTaskFormSubmit(event, 'Status Update'));
+    }
+
+    const reviewForm = document.getElementById('reviewUserTaskStatusForm');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', (event) => handleTaskFormSubmit(event, 'Review'));
+    }
+}
+
+// Global initializer
+document.addEventListener('DOMContentLoaded', () => {
+    // This will run on any page, but the forms will only be found on user_task_detail.html.
+    initializeTaskDetailInteractions();
+    
+    // Note: initializeModernAssigneePicker is called from an inline script in create.html
+    // where its specific options (like searchUrl) are available from the backend.
+});

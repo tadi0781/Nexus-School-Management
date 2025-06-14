@@ -1,0 +1,113 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Select Notification Recipients{% endblock %}
+
+{% block content %}
+<form id="recipient-selection-form" method="POST" action="{{ url_for('compose_notification') }}">
+    
+    {# This renders the CSRF token from our new CSRFOnlyForm #}
+    {{ form.hidden_tag() }}
+
+    {# We now MANUALLY add the hidden input for our recipient IDs. #}
+    <input type="hidden" id="recipient_id_list" name="recipient_id_list" value="">
+
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="page-title font-heading mb-0">
+            <i class="bi bi-people-fill me-2 text-primary"></i>Select Recipients
+        </h1>
+        <div class="d-flex align-items-center">
+            <input type="search" id="recipient-search-bar" class="form-control me-3" placeholder="Search for anyone...">
+            <button type="submit" class="btn btn-success flex-shrink-0">
+                <i class="bi bi-arrow-right-circle-fill me-1"></i>
+                Proceed (<span id="selected-count">0</span>)
+            </button>
+        </div>
+    </div>
+
+    <div class="accordion" id="recipient-groups-accordion">
+        {% for category_title, groups in grouped_recipients.items() %}
+            {% if groups %}
+                <div class="accordion-item recipient-group-card">
+                    <h2 class="accordion-header" id="heading-{{ category_title|replace(' ', '-')|lower }}">
+                        <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ category_title|replace(' ', '-')|lower }}" aria-expanded="{{ 'true' if loop.first else 'false' }}">
+                            {{ category_title }}
+                        </button>
+                    </h2>
+                    <div id="collapse-{{ category_title|replace(' ', '-')|lower }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" data-bs-parent="#recipient-groups-accordion">
+                        <div class="accordion-body">
+                            {% for group_name, users in groups.items() %}
+                                {% include 'partials/_recipient_group.html' %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</form>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    // The JavaScript does not need to change, as it still finds the elements by their IDs.
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('recipient-selection-form');
+        const searchBar = document.getElementById('recipient-search-bar');
+        const selectedCountEl = document.getElementById('selected-count');
+        const hiddenInput = document.getElementById('recipient_id_list');
+
+        const updateSelectedCount = () => {
+            const checkedCount = form.querySelectorAll('.recipient-checkbox:checked').length;
+            selectedCountEl.textContent = checkedCount;
+        };
+
+        const handleSelectionChange = (e) => {
+            if (e.target.matches('.select-all-group')) {
+                const groupContainer = e.target.closest('.recipient-group-container');
+                const isChecked = e.target.checked;
+                groupContainer.querySelectorAll('.recipient-checkbox').forEach(checkbox => {
+                    if (checkbox.closest('.recipient-list-item').style.display !== 'none') {
+                        checkbox.checked = isChecked;
+                    }
+                });
+            }
+            updateSelectedCount();
+        };
+
+        const handleSearch = () => {
+            const searchTerm = searchBar.value.toLowerCase().trim();
+            document.querySelectorAll('.recipient-group-card').forEach(groupCard => {
+                let groupHasVisibleMatch = false;
+                groupCard.querySelectorAll('.recipient-list-item').forEach(item => {
+                    const name = item.dataset.name.toLowerCase();
+                    const username = item.dataset.username.toLowerCase();
+                    const isVisible = name.includes(searchTerm) || username.includes(searchTerm);
+                    item.style.display = isVisible ? '' : 'none';
+                    if (isVisible) {
+                        groupHasVisibleMatch = true;
+                    }
+                });
+                groupCard.style.display = groupHasVisibleMatch ? '' : 'none';
+            });
+        };
+
+        const handleSubmit = (e) => {
+            e.preventDefault();
+            const checkedBoxes = form.querySelectorAll('.recipient-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Please select at least one recipient.');
+                return;
+            }
+            const recipientIds = Array.from(checkedBoxes).map(cb => cb.value);
+            hiddenInput.value = recipientIds.join(',');
+            form.submit();
+        };
+
+        form.addEventListener('change', handleSelectionChange);
+        form.addEventListener('submit', handleSubmit);
+        searchBar.addEventListener('input', handleSearch);
+
+        updateSelectedCount();
+    });
+</script>
+{% endblock %}

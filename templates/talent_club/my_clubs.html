@@ -4,13 +4,10 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <!-- Page Header -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">My Talent Clubs</h1>
-        <!-- A button to discover new clubs could go here -->
-    </div>
+        </div>
     
-    <!-- Club Cards Grid -->
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
         {# Here we reuse the _tc_club_card_item partial.
            Assume it's adapted from the group card as previously specified.
@@ -23,7 +20,7 @@
             <div class="text-center p-5 bg-light rounded">
                 <h4 class="text-muted">You haven't joined any clubs yet.</h4>
                 <p>Go explore and find a club that interests you!</p>
-                <a href="{{ url_for('discover_clubs') }}" class="btn btn-primary">Discover Clubs</a>
+                <a href="{{ url_for('talent_club_discover') }}" class="btn btn-primary">Discover Clubs</a>
             </div>
         </div>
         {% endfor %}

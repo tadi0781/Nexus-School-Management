@@ -1,22 +1,22 @@
+--- START OF FULL CORRECTED FILE: dashboard.html ---
+
 {% extends "layout/base.html" %}
+{# Import the reusable macros from the dedicated file #}
+{% from "_macros.html" import render_stat_card, render_quick_links, render_recent_activity with context %}
 
 {% block page_title %}System Administration{% endblock %}
 
 {% block content_header %}
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="page-title font-heading mb-0">
-            <i class="bi bi-hdd-network-fill me-2 text-primary"></i>System Administration
-        </h1>
-        <div class="btn-toolbar mb-2 mb-md-0">
-            {# Example: Button to go to CLI command info or a system health page #}
-            {# <a href="#" class="btn btn-sm btn-outline-info me-2">
-                <i class="bi bi-terminal-fill me-1"></i> System Tools
-            </a> #}
-            <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-person-gear me-1"></i> My Settings
-            </a>
-        </div>
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="page-title font-heading mb-0">
+        <i class="bi bi-hdd-network-fill me-2 text-primary"></i>System Administration
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-person-gear me-1"></i> My Settings
+        </a>
     </div>
+</div>
 {% endblock %}
 
 {% block content %}
@@ -34,42 +34,44 @@
         </div>
     </div>
 
-    {# Main Stats Cards Row - Tailored for System Admin #}
+    {# Main Stats Cards Row - CORRECTED with trailing commas for valid syntax #}
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 mb-4">
         {{ render_stat_card(
             card_title="Total Active Users",
-            card_value=total_active_users | default(0), {# Backend provides this #}
+            card_value=total_active_users | default(0),
             card_icon="bi-people-fill",
             card_color_class="text-primary",
-            card_url="#" {# Link to User Management Page #}
+            card_url="#",
         ) }}
 
         {{ render_stat_card(
             card_title="System Roles",
-            card_value=total_roles | default(0), {# Backend provides this count #}
+            card_value=total_roles | default(0),
             card_icon="bi-person-rolodex",
             card_color_class="text-info",
-            card_url="#" {# Link to Role Management Page #}
+            card_url="#",
         ) }}
 
         {{ render_stat_card(
             card_title="Database Size",
-            card_value=db_size | default("N/A"), {# Backend might provide this (conceptual) #}
+            card_value=db_size | default("N/A"),
             card_icon="bi-database-fill-gear",
             card_color_class="text-success",
-            card_url="#"
+            card_url="#",
         ) }}
 
         {{ render_stat_card(
             card_title="Recent Log Events",
-            card_value=recent_log_count | default(0), {# Backend might provide this count #}
+            card_value=recent_log_count | default(0),
             card_icon="bi-file-earmark-text-fill",
             card_color_class="text-warning",
-            card_url="#" {# Link to System Logs Page #}
+            card_url="#",
         ) }}
     </div>
 
+    {# Main Content Area with proper Grid Layout #}
     <div class="row g-4">
+        
         {# Left Column: Quick Links & System Status #}
         <div class="col-lg-4 col-xl-3">
             {% set admin_quick_links = [
@@ -81,138 +83,29 @@
                 {'url': "#" , 'text': 'View System Logs', 'icon': 'bi-journal-text', 'color_class': 'text-danger'},
                 {'url': url_for('create_task'), 'text': 'Create System Task', 'icon': 'bi-plus-square-dotted', 'color_class': 'text-primary'}
             ] %}
-            {{ render_quick_links(admin_quick_links) }}
-
-            {# System Health/Status Placeholder #}
-            <div class="card shadow-sm mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0 font-heading"><i class="bi bi-heart-pulse-fill me-2 text-success"></i>System Status</h5>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled">
-                        <li class="d-flex justify-content-between mb-2"><span>Database Connection:</span> <span class="badge bg-success-subtle text-success-emphasis p-2">Operational</span></li>
-                        <li class="d-flex justify-content-between mb-2"><span>Mail Server:</span> <span class="badge bg-secondary-subtle text-secondary-emphasis p-2">Not Configured</span></li>
-                        <li class="d-flex justify-content-between"><span>Background Tasks:</span> <span class="badge bg-success-subtle text-success-emphasis p-2">Running</span></li>
-                    </ul>
-                </div>
-            </div>
+            {{ render_quick_links("Quick Actions", admin_quick_links) }}
         </div>
 
-        {# Right Column: Recent Admin Activities & Critical Alerts #}
+        {# Right Column: Main Content / Activity Feed etc. #}
         <div class="col-lg-8 col-xl-9">
-            {{ render_recent_activity(recent_admin_activities) }} {# Assuming recent_admin_activities is passed #}
-
-            {# Critical System Alerts Placeholder #}
-            <div class="card shadow-sm mt-4 border-danger">
-                <div class="card-header bg-danger-subtle text-danger-emphasis">
-                    <h5 class="mb-0 font-heading"><i class="bi bi-exclamation-triangle-fill me-2"></i>Critical System Alerts</h5>
-                </div>
-                <div class="card-body text-center text-muted content-placeholder">
-                    <i class="bi bi-shield-fill-exclamation fs-1 mb-2"></i>
-                    <p>No critical alerts at this time.</p>
+            <div class="card shadow-sm">
+                <div class="card-body text-center p-5">
+                    <p class="text-muted">Main content area for future charts, tables, or detailed reports.</p>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-{# Macros - ideally in _macros.html #}
-{% macro render_stat_card(card_title, card_value, card_icon, card_color_class, card_url=None, card_url_text='View Details', card_id=None) %}
-<div class="col">
-    <div class="card dashboard-stat-card h-100 shadow-sm" {% if card_id %}id="{{ card_id }}"{% endif %}>
-        <div class="card-body d-flex align-items-center">
-            <div class="stat-icon display-4 me-3 {{ card_color_class | default('text-primary') }}">
-                <i class="bi {{ card_icon | default('bi-bar-chart-line-fill') }}"></i>
-            </div>
-            <div class="stat-content">
-                <h6 class="card-subtitle mb-1 text-muted text-uppercase font-body" style="font-size: 0.8rem;">{{ card_title }}</h6>
-                <p class="card-text display-6 fw-bold mb-0 font-heading">{{ card_value }}</p>
-            </div>
-        </div>
-        {% if card_url %}
-        <a href="{{ card_url }}" class="card-footer text-decoration-none text-muted bg-light-subtle hover-bg-light">
-            <small>{{ card_url_text }} <i class="bi bi-arrow-right-short ms-1"></i></small>
-        </a>
-        {% endif %}
     </div>
-</div>
-{% endmacro %}
 
-{% macro render_quick_links(links) %}
-    {% if links and links | length > 0 %}
-    <div class="card shadow-sm dashboard-quick-links-card">
-        <div class="card-header">
-            <h5 class="mb-0 font-heading"><i class="bi bi-lightning-charge-fill me-2"></i>Quick Actions</h5>
-        </div>
-        <div class="list-group list-group-flush">
-            {% for link in links %}
-                <a href="{{ link.url | default('#') }}" class="list-group-item list-group-item-action d-flex align-items-center py-3">
-                    <i class="bi {{ link.icon | default('bi-link-45deg') }} fs-5 me-3 {{ link.color_class | default('text-primary') }}" style="min-width: 24px;"></i>
-                    <span class="fw-medium">{{ link.text | default('Link') }}</span>
-                    <i class="bi bi-chevron-right ms-auto text-muted small"></i>
-                </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-{% endmacro %}
-
-{% macro render_recent_activity(activities) %}
-<div class="card shadow-sm recent-activity-card">
-    <div class="card-header">
-        <h5 class="mb-0 font-heading"><i class="bi bi-clock-history me-2"></i>Recent Admin Activity</h5>
-    </div>
-    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-        {% if activities and activities | length > 0 %}
-            <ul class="list-unstyled">
-                {% for activity in activities %}
-                    <li class="d-flex align-items-start mb-3 pb-3 border-bottom">
-                        <div class="activity-icon me-3">
-                            <span class="badge bg-{{ activity.badge_color | default('dark') }} p-2 rounded-circle"> {# Darker default for admin #}
-                                <i class="bi {{ activity.icon | default('bi-terminal') }} fs-5 text-white"></i>
-                            </span>
-                        </div>
-                        <div class="activity-content">
-                            <p class="mb-1 text-dark">{{ activity.text | safe }}</p>
-                            <small class="text-muted">
-                                <i class="bi bi-calendar3 me-1"></i>
-                                {{ activity.timestamp | datetimeformat('%b %d, %Y %I:%M %p') if activity.timestamp else 'Just now' }}
-                            </small>
-                            {% if activity.url %}
-                                <a href="{{ activity.url }}" class="ms-2 small text-decoration-none">Details <i class="bi bi-arrow-up-right-square"></i></a>
-                            {% endif %}
-                        </div>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <div class="text-center text-muted p-3">
-                <i class="bi bi-hdd-rack fs-1 mb-2"></i>
-                <p>No recent administrative activity logged.</p>
-            </div>
-        {% endif %}
-    </div>
-    {% if activities and activities | length > 5 %}
-    <a href="#" class="card-footer text-center text-decoration-none text-muted bg-light-subtle hover-bg-light"> {# Link to full admin log page #}
-        <small>View Full Admin Log <i class="bi bi-arrow-right-short ms-1"></i></small>
-    </a>
-    {% endif %}
 </div>
-{% endmacro %}
 {% endblock %}
 
 {% block body_scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Placeholder for any System Admin dashboard specific JS
-        // e.g., AJAX calls to fetch system health or real-time log snippets
         console.log('System Admin Dashboard JS loaded.');
-
-        // Example: Simulate fetching system status for the placeholder card
-        // setTimeout(function() {
-        //     const dbStatus = document.querySelector('#systemStatusDb');
-        //     if(dbStatus) dbStatus.innerHTML = '<span class="badge bg-success-subtle text-success-emphasis p-2">Operational</span>';
-        // }, 1500);
     });
 </script>
 {% endblock %}
+
+--- END OF FULL CORRECTED FILE ---

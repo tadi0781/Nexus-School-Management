@@ -1,17 +1,14 @@
+<!-- START OF FILE: templates/layout/_sidebar.html -->
 <nav id="sidebarMenu" class="nexus-sidebar">
     <div class="sidebar-sticky pt-3">
         {# Sidebar Close Button for mobile #}
-        {# AFTER - CORRECTED #} <button type="button" class="btn-close float-end mb-2 me-2" id="sidebarCloseButton" aria-label="Close sidebar"></button>
+        <button type="button" class="btn-close float-end mb-2 me-2 d-md-none" id="sidebarCloseButton" aria-label="Close sidebar"></button>
         <div style="clear:both;"></div>
 
         {% if current_user.is_authenticated %}
             {# 1. Profile Info Block #}
             <div class="px-3 mb-3 text-center">
-                {% if current_user.profile_photo_url %}
-                    <img src="{{ url_for('static', filename=current_user.profile_photo_url) }}" alt="{{ current_user.username }}" class="rounded-circle mb-2" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--nexus-border-color);">
-                {% else %}
-                    <i class="bi bi-person-circle text-secondary" style="font-size: 80px;"></i>
-                {% endif %}
+                <img src="{{ url_for('static', filename=(current_user.profile_photo_url or 'img/placeholders/user_avatar_default.png')) }}" alt="{{ current_user.username }}" class="rounded-circle mb-2" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--nexus-border-color);">
                 <h6 class="mb-0 mt-2 font-heading">{{ current_user.full_name or current_user.username }}</h6>
                 <small class="text-muted">{{ current_user.role.name.replace('_', ' ') | title if current_user.role else 'N/A' }}</small>
             </div>
@@ -22,30 +19,70 @@
 
                 {# 2. Universal Core Links (for all roles) #}
                 <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'role_redirect' or request.endpoint.endswith('_dashboard') else '' }}" href="{{ url_for('role_redirect') }}">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'role_redirect' or (request.endpoint and request.endpoint.endswith('_dashboard')) else '' }}" href="{{ url_for('role_redirect') }}">
                         <i class="bi bi-speedometer2"></i>
                         Dashboard
                     </a>
                 </li>
 
-                {# 3. Universal Social & Communication Links #}
-                <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                    <span>Engage & Connect</span>
-                </li>
+                {# 3. Universal Social & Communication Links (Now with correct role checks) #}
+                {% if current_user.role and current_user.role.name not in ['government', 'system_admin'] %}
+                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
+                        <span>Engage & Connect</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'social_feed_placeholder' else '' }}" href="{{ url_for('social_feed_placeholder') }}">
+                            <i class="bi bi-globe2"></i>
+                            Nexus Pulse
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint in ['contacts_list', 'contact_results', 'universal_chat'] else '' }}" href="{{ url_for('contacts_list') }}">
+                            <i class="bi bi-chat-dots-fill"></i>
+                            Chat / Contacts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+    <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_group_') else '' }}" href="{{ url_for('social_group_list') }}">
+        <i class="bi bi-people-fill"></i> Groups
+    </a>
+</li>
+{# --- ADDED: "Create" Dropdown Menu --- #}
+{% if current_user.role.name in ['teacher', 'hr_ceo', 'student'] %} {# Roles that can create content #}
+<li class="nav-item dropdown">
+    <a class="nav-link dropdown-toggle" href="#" id="createDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-plus-square-fill"></i>
+        Create
+    </a>
+    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="createDropdown">
+        <li>
+            <a class="dropdown-item" href="{{ url_for('create_social_channel') }}">
+                <i class="bi bi-broadcast-pin me-2"></i>New Channel
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" href="{{ url_for('create_social_group') }}">
+                <i class="bi bi-people-fill me-2"></i>New Group
+            </a>
+        </li>
+    </ul>
+</li>
+{% endif %}
+{# --- END: "Create" Dropdown Menu --- #}
+                     <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_channel_') else '' }}" href="{{ url_for('social_channel_list') }}">
+                            <i class="bi bi-broadcast-pin"></i> Channels
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_group_') else '' }}" href="{{ url_for('social_group_list') }}">
+                            <i class="bi bi-people-fill"></i> Groups
+                        </a>
+                    </li>
+                {% endif %}
+                
                 <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'social_feed_placeholder' else '' }}" href="{{ url_for('social_feed_placeholder') }}">
-                        <i class="bi bi-globe2"></i>
-                        Nexus Pulse
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'contacts_list' or request.endpoint == 'universal_chat' else '' }}" href="{{ url_for('contacts_list') }}">
-                        <i class="bi bi-chat-dots-fill"></i>
-                        Chat / Contacts
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'view_notifications' else '' }}" href="{{ url_for('view_notifications') }}">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['view_notifications', 'notification_recipient_groups', 'send_notification_to_group'] else '' }}" href="{{ url_for('view_notifications') }}">
                         <i class="bi bi-bell-fill"></i>
                         Notifications
                         {% if unread_notifications_count and unread_notifications_count > 0 %}
@@ -82,23 +119,9 @@
                             <i class="bi bi-list-task"></i> My Tasks
                         </a>
                     </li>
-
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Social & Clubs</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint.startswith('social_channel_') or request.endpoint == 'view_my_channel_organization' else '' }}" href="{{ url_for('social_channel_list') }}">
-                            <i class="bi bi-broadcast-pin"></i> Channels
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint.startswith('social_group_') else '' }}" href="{{ url_for('social_group_list') }}">
-                            <i class="bi bi-people-fill"></i> Groups
-                        </a>
-                    </li>
                     {% if current_user.is_tc_member %}
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint.startswith('talent_club_') else '' }}" href="{{ url_for('talent_club_dashboard_member_view') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('talent_club_') else '' }}" href="{{ url_for('talent_club_dashboard_member_view') }}">
                             <i class="bi bi-trophy-fill"></i> Talent Club
                         </a>
                     </li>
@@ -126,7 +149,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'student_database_index' or request.endpoint == 'student_database_block' else '' }}" href="{{ url_for('student_database_index') }}">
+                        <a class="nav-link {{ 'active' if request.endpoint in ['student_database_index', 'student_database_block'] else '' }}" href="{{ url_for('student_database_index') }}">
                             <i class="bi bi-person-lines-fill"></i> Student Database
                         </a>
                     </li>
@@ -218,11 +241,18 @@
                             <i class="bi bi-card-list"></i> Assigned Tasks
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'requests_inbox' else '' }}" href="{{ url_for('requests_inbox') }}">
-                            <i class="bi bi-envelope-paper-fill"></i> Requests Inbox
-                        </a>
-                    </li>
+                    <!-- START OF MODIFIED BLOCK -->
+
+{# This link will now appear for 'hr_ceo', 'school_executive', and 'government' roles. #}
+{% if current_user.role and current_user.role.name in ['hr_ceo', 'school_executive', 'government'] %}
+<li class="nav-item">
+    <a class="nav-link {{ 'active' if request.endpoint == 'requests_inbox' else '' }}" href="{{ url_for('requests_inbox') }}">
+        <i class="bi bi-envelope-paper-fill"></i> Requests Inbox
+    </a>
+</li>
+{% endif %}
+
+<!-- END OF MODIFIED BLOCK -->
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'hr_ceo_initiate_request' else '' }}" href="{{ url_for('hr_ceo_initiate_request') }}">
                             <i class="bi bi-send-plus-fill"></i> Initiate Request
@@ -235,18 +265,24 @@
                     <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
                         <span>Submissions</span>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'my_assets' else '' }}" href="{{ url_for('my_assets') }}">
-                            <i class="bi bi-folder-symlink-fill"></i> My Added Assets
-                        </a>
-                    </li>
-                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'report_asset_general' else '' }}" href="{{ url_for('report_asset_general') }}">
-                            <i class="bi bi-exclamation-triangle-fill"></i> Report General Issue
-                        </a>
-                    </li>
-                    {# Check permissions for the request system #}
-                    {% if permissions and permissions.can_create_request %}
+                    <!-- REPLACE WITH THIS -->
+{% if (current_user.role.name == 'student' and current_user.is_leader) or 
+      (current_user.role.name == 'talent_club' and current_user.is_tc_leader) or 
+      (current_user.role.name in ['teacher', 'librarian']) %}
+<li class="nav-item">
+    <a class="nav-link {{ 'active' if request.endpoint == 'add_asset' or request.endpoint == 'my_assets' else '' }}" href="{{ url_for('add_asset') }}">
+        <i class="bi bi-plus-circle-dotted"></i> Add Asset
+    </a>
+</li>
+{% endif %}
+                     <!-- REPLACE WITH THIS -->
+<li class="nav-item">
+   {# FIX: The href now correctly points to the 'report_asset_general' route. #}
+   <a class="nav-link {{ 'active' if request.endpoint == 'report_asset_general' else '' }}" href="{{ url_for('report_asset_general') }}">
+       <i class="bi bi-exclamation-triangle-fill"></i> Report General Issue
+   </a>
+</li>
+                    {% if permissions is defined and permissions.can_create_request %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'submit_request' else '' }}" href="{{ url_for('submit_request') }}">
                             <i class="bi bi-file-earmark-plus-fill"></i> Submit Request
@@ -278,3 +314,4 @@
         {% endif %}
     </div>
 </nav>
+<!-- END OF FILE: templates/layout/_sidebar.html -->

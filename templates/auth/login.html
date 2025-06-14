@@ -20,7 +20,7 @@
                     {% include 'layout/_flash_messages.html' %}
 
                     <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}" novalidate>
-                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF token #}
+                        {{ form.csrf_token }} {# CORRECTED LINE #}
 
                         <div class="mb-3">
                             {{ form.username.label(class="form-label") }}

@@ -13,26 +13,43 @@
 <div class="row">
     <div class="col-lg-8 mx-auto">
         
-        <div class="mb-4" id="globalPostCreateContainer">
-            {# This include assumes you have a WTForm for creating Global Posts passed from your Python route #}
-            {# And that _social_content_form.html is ready to use it #}
-            {% if global_post_create_form %} {# Check if the form object exists #}
-                {% with 
-                    form = global_post_create_form,
-                    submit_url = url_for('create_global_post'), {# YOUR BACKEND API FOR CREATING GLOBAL POSTS #}
-                    placeholder_text = "Share something with the community...",
-                    submit_button_text = "Post",
-                    form_id = "globalPostCreateForm",
-                    file_input_name = "attached_file", {# Matches PostContentForm field name #}
-                    textarea_id = "globalPostTextarea",
-                    allow_file_upload = True {# Enable file upload for global posts #}
-                %}
-                    {% include "partials/_social_content_form.html" %}
-                {% endwith %}
-            {% else %}
-                <p class="text-muted">Post creation form is unavailable at the moment.</p>
-            {% endif %}
+        {# UPDATE: Post creation form is now inside a card for better styling #}
+        <div class="card mb-4" id="globalPostCreateContainer">
+            <div class="card-body">
+                {% if global_post_create_form %}
+                    {% with 
+                        form = global_post_create_form,
+                        submit_url = url_for('create_global_post'),
+                        placeholder_text = "Share something with the community...",
+                        submit_button_text = "Post",
+                        form_id = "globalPostCreateForm",
+                        textarea_id = "globalPostTextarea",
+                        file_input_name = "attached_file",
+                        allow_file_upload = True
+                    %}
+                        {% include "partials/_social_content_form.html" %}
+                    {% endwith %}
+                {% else %}
+                    <p class="text-muted">Post creation form is unavailable. Please contact an administrator.</p>
+                {% endif %}
+            </div>
         </div>
+
+        {# UPDATE: Added filter tabs for the feed #}
+        <div class="feed-filters mb-3">
+            <ul class="nav nav-pills nav-fill">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.args.get('filter', 'all') == 'all' %}active{% endif %}" 
+                       aria-current="page" 
+                       href="{{ url_for('social_feed_placeholder', filter='all') }}">All Posts</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.args.get('filter') == 'following' %}active{% endif %}" 
+                       href="{{ url_for('social_feed_placeholder', filter='following') }}">Following</a>
+                </li>
+            </ul>
+        </div>
+
 
         <div id="globalFeedContainer" class="social-feed-container">
             <div class="text-center py-5 content-placeholder" id="globalFeedLoadingPlaceholder">
@@ -56,30 +73,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-    {{ super() }}
-    {# Ensure social.js is loaded, which will contain nexusSocial.initGlobalFeed #}
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // The backend route for feed.html needs to pass 'global_post_create_form'
-            // For JS initialization, assuming your backend API for fetching posts is '/api/v1/global_posts'
-            if (typeof nexusSocial !== 'undefined' && typeof nexusSocial.initGlobalFeed === 'function') {
-                nexusSocial.initGlobalFeed({
-                    feedContainerId: 'globalFeedContainer',
-                    loadingPlaceholderId: 'globalFeedLoadingPlaceholder',
-                    emptyPlaceholderId: 'globalFeedEmptyPlaceholder',
-                    loadMoreTriggerId: 'loadMoreGlobalPostsTrigger',
-                    createFormId: 'globalPostCreateForm', // ID of the post creation form
-                    apiEndpointFetchPosts: '{{ url_for("get_global_posts") }}', // API to get posts
-                    apiEndpointCreatePost: '{{ url_for("create_global_post") }}', // API to create posts
-                    // We will use client-side rendering for post items based on JSON data.
-                    // So, no need for 'postItemPartialUrl'
-                });
-            } else {
-                console.error('nexusSocial or nexusSocial.initGlobalFeed is not defined. Ensure social.js is correctly loaded and structured.');
-            }
-        });
-    </script>
 {% endblock %}

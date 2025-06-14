@@ -139,7 +139,7 @@
             {% set librarian_quick_links = [
                 {'url': url_for('checkout_book'), 'text': 'Checkout a Book', 'icon': 'bi-cart-plus-fill', 'color_class': 'text-primary'},
                 {'url': url_for('list_checkouts'), 'text': 'Manage All Checkouts', 'icon': 'bi-journals', 'color_class': 'text-success'},
-                {'url': url_for('librarian_attendance'), 'text': 'View Student Attendance', 'icon': 'bi-calendar3-week-fill', 'color_class': 'text-info'},
+                {'url': url_for('librarian_attendance_dashboard'), 'text': 'View Student Attendance', 'icon': 'bi-calendar3-week-fill', 'color_class': 'text-info'},
                 {'url': url_for('my_tasks'), 'text': 'My Tasks', 'icon': 'bi-list-task', 'color_class': 'text-secondary'},
                 {'url': url_for('submit_request'), 'text': 'Submit a Request', 'icon': 'bi-file-earmark-plus-fill', 'color_class': 'text-warning', 'condition': permissions and permissions.can_create_request }
             ] %}

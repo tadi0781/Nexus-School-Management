@@ -1,62 +1,61 @@
-{# templates/partials/_social_content_form.html (Revised for Flexibility) #}
-{#
-    Context:
-    - form: WTForm instance (e.g., PostContentForm)
-    - submit_url: URL for form submission
-    - placeholder_text
-    - submit_button_text
-    - form_id: Unique ID for the form element
-    - textarea_id: Unique ID for the textarea
-    - file_input_name: Name attribute for the file input (must match WTForm field name)
-    - is_comment_form: (Boolean) True if this is for a compact comment input
-    - allow_file_upload: (Boolean, default True for posts, False for comments initially)
-#}
-{% set allow_file_upload = allow_file_upload if allow_file_upload is defined else (not is_comment_form if is_comment_form is defined else true) %}
-{% set is_comment_form_flag = is_comment_form if is_comment_form is defined else false %}
+{# templates/partials/_social_content_form.html #}
 
-<div class="social-content-form-card card {{ 'mb-2 border-0 shadow-none p-0' if is_comment_form_flag else 'mb-3 shadow-sm' }}">
-    <div class="card-body {{ 'p-0' if is_comment_form_flag else ('p-3' if not is_comment_form_flag else '') }}">
-        <form method="POST" action="{{ submit_url }}" id="{{ form_id }}" class="social-content-submission-form" enctype="multipart/form-data" data-form-type="{{ 'global_post_create' if not is_comment_form_flag else 'global_comment_create' }}">
-            {{ form.hidden_tag() }} {# Includes CSRF token #}
+<div class="card social-content-form-card mb-3 shadow-sm">
+    <div class="card-body p-3">
+        {# This form tag now correctly receives its ID from the parent template #}
+        <form
+            method="POST"
+            action="{{ submit_url_val }}"
+            id="{{ form_id_val }}"
+            class="social-content-submission-form {{ form_class_val | default('') }}"
+            enctype="multipart/form-data"
+            data-form-type="global_post_create"
+        >
+
+            {# This is the most reliable way to include the CSRF token for WTForms #}
+            {{ form.csrf_token }}
+
             <div class="d-flex align-items-start">
-                <div class="flex-shrink-0 me-2">
-                    <img src="{{ current_user.profile_photo_url or url_for('static', filename='img/placeholders/user_avatar_default.png') }}" 
-                         alt="{{ current_user.full_name or current_user.username }}'s avatar" 
-                         class="rounded-circle" 
-                         width="{{ '32' if is_comment_form_flag else '40' }}" 
-                         height="{{ '32' if is_comment_form_flag else '40' }}"
-                         style="object-fit: cover;">
+                <div class="flex-shrink-0 me-3">
+                    <img
+                        src="{{ current_user.profile_photo_url or url_for('static', filename='img/placeholders/user_avatar_default.png') }}"
+                        alt="{{ current_user.full_name }}'s avatar"
+                        class="rounded-circle"
+                        width="40"
+                        height="40"
+                        style="object-fit: cover;"
+                    >
                 </div>
                 <div class="flex-grow-1">
-                    {{ form.content(class="form-control post-content-textarea", placeholder=placeholder_text, rows="1" if is_comment_form_flag else "2", "aria-label"=placeholder_text, id=textarea_id, autocomplete="off") }}
-                    {% if form.content.errors %}
-                        {% for error in form.content.errors %}
-                            <div class="invalid-feedback d-block small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    {% endif %}
+                    {# Render the textarea manually to ensure all attributes are correct #}
+                    <textarea
+                        name="content"
+                        class="form-control post-content-textarea border-0 shadow-none bg-light"
+                        rows="2"
+                        placeholder="{{ placeholder_text_val | default('Share something...') }}"
+                        aria-label="Post content"
+                        id="{{ textarea_id_val | default('post-content-textarea') }}"
+                        autocomplete="off"
+                    ></textarea>
+                </div>
+            </div>
 
-                    {% if allow_file_upload and form.attached_file %}
-                    <div class="mt-2 post-attachment-area">
-                        {# Ensure the name attribute here matches your WTForm FileField name #}
-                        {{ form.attached_file(class="filepond-input", name=file_input_name, 
-                                               data_max_file_size="16MB", 
-                                               data_accepted_file_types='["image/*", "video/*", "application/pdf", ".doc", ".docx", ".txt", ".xls", ".xlsx", ".ppt", ".pptx"]'
-                                             ) }}
-                        {% if form.attached_file.errors %}
-                            {% for error in form.attached_file.errors %}
-                                <div class="text-danger small mt-1">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    
-                    <div class="d-flex justify-content-end align-items-center mt-2">
-                        <button type="submit" class="btn btn-primary post-submit-btn {{ 'btn-sm' if is_comment_form_flag else '' }}">
-                            <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
-                            {{ submit_button_text }}
-                        </button>
+            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                <div>
+                    {# Manually render file input for better FilePond compatibility #}
+                    <div class="filepond-container-wrapper">
+                        <input
+                            type="file"
+                            class="filepond-input"
+                            name="{{ file_input_name_val | default('attached_file') }}"
+                            id="filepond-{{ form_id_val }}"
+                        >
                     </div>
                 </div>
+                <button type="submit" class="btn btn-primary post-submit-btn">
+                    <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                    {{ submit_button_text_val | default('Post') }}
+                </button>
             </div>
         </form>
     </div>

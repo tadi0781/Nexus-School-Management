@@ -1,0 +1,4 @@
+{# templates/partials/social_actions/_share_button.html #}
+<button class="btn btn-subtle btn-sm share-post-btn" data-post-id="{{ post.id }}" data-post-type="global" data-share-url="{{ post.get_share_url() or '#' }}">
+    <i class="bi bi-share"></i> Share
+</button>

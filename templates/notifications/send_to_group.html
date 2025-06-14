@@ -1,5 +1,6 @@
 {% extends "layout/base.html" %}
-{% from "_form_helpers.html" import render_field %} {# Assumes you have a form helper macro #}
+{# CORRECTED: Simplified the import path and removed the incorrect "macros/" subdirectory #}
+{% from "_form_helpers.html" import render_field with context %}
 
 {% block page_title %}{{ title }}{% endblock %}
 
@@ -24,14 +25,14 @@
                     <h5 class="mb-0">Compose Message</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="">
+                    <form method="POST" action="{{ url_for('send_notification_to_group', filter_type=filter_type, filter_value=filter_value) }}">
                         {{ form.hidden_tag() }}
                         
                         {{ render_field(form.content, rows=5, placeholder="Enter your notification message here...") }}
                         {{ render_field(form.link_url, placeholder="e.g., https://example.com/some/link") }}
 
                         <div class="d-grid mt-4">
-                             <button type="submit" class="btn btn-primary btn-lg">
+                             <button type="submit" class="btn btn-primary btn-lg" {% if not recipients %}disabled{% endif %}>
                                 <i class="bi bi-send-check-fill me-2"></i>Send to {{ recipients|length }} Recipient(s)
                             </button>
                         </div>
@@ -59,8 +60,8 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="card-body text-center text-muted">
-                    No recipients found in this group.
+                <div class="card-body text-center text-muted p-4">
+                    <p class="mb-0">No active recipients found in this group.</p>
                 </div>
                 {% endif %}
             </div>

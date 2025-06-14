@@ -1,0 +1,6 @@
+{# templates/partials/social_actions/_comment_button.html #}
+{% set post_dom_id = 'global_post-' ~ post.id %}
+<button class="btn btn-subtle btn-sm comment-toggle-btn" data-bs-toggle="collapse" href="#commentsCollapse-{{ post_dom_id }}" role="button" aria-expanded="false" aria-controls="commentsCollapse-{{ post_dom_id }}">
+    <i class="bi bi-chat-dots"></i> Comment 
+    (<span class="comment-count">{{ post.comment_count or 0 }}</span>)
+</button>

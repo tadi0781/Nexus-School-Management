@@ -1,14 +1,14 @@
 {% extends "layout/base.html" %}
-{% from "_form_helpers.html" import render_field %} {# Assumes you have a form helper macro #}
+{% from "_form_helpers.html" import render_field %}
 
-{% block page_title %}{{ title }}{% endblock %}
+{% block page_title %}Compose Notification{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
             <h1 class="page-title font-heading mb-4">
-                <a href="{{ url_for('notification_recipient_groups') }}" class="btn btn-sm btn-outline-secondary me-3" title="Back to Recipient Groups">
+                <a href="{{ url_for('select_recipients') }}" class="btn btn-sm btn-outline-secondary me-3" title="Back to Recipient Selection">
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <i class="bi bi-send me-2 text-primary"></i>{{ title }}
@@ -24,14 +24,16 @@
                     <h5 class="mb-0">Compose Message</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="">
+                    <form method="POST" action="{{ url_for('send_final_notification') }}">
                         {{ form.hidden_tag() }}
+                        {# This hidden input carries the selected IDs to the final POST request #}
+                        <input type="hidden" name="recipient_id_list" value="{{ recipient_id_list }}">
                         
                         {{ render_field(form.content, rows=5, placeholder="Enter your notification message here...") }}
                         {{ render_field(form.link_url, placeholder="e.g., https://example.com/some/link") }}
 
                         <div class="d-grid mt-4">
-                             <button type="submit" class="btn btn-primary btn-lg">
+                             <button type="submit" class="btn btn-primary btn-lg" {% if not recipients %}disabled{% endif %}>
                                 <i class="bi bi-send-check-fill me-2"></i>Send to {{ recipients|length }} Recipient(s)
                             </button>
                         </div>
@@ -44,7 +46,7 @@
         <div class="col-lg-5">
             <div class="card shadow-sm">
                 <div class="card-header">
-                    <h5 class="mb-0">Recipients ({{ recipients|length }})</h5>
+                    <h5 class="mb-0">Confirm Recipients ({{ recipients|length }})</h5>
                 </div>
                 {% if recipients %}
                 <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
@@ -59,8 +61,8 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="card-body text-center text-muted">
-                    No recipients found in this group.
+                <div class="card-body text-center text-muted p-4">
+                    <p class="mb-0">No recipients were selected.</p>
                 </div>
                 {% endif %}
             </div>

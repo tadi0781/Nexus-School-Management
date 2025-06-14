@@ -1,0 +1,75 @@
+{# templates/macros/_form_helpers.html #}
+
+{# --- MACRO: render_field ---
+   Renders a single form field with a label, input, errors, and help text,
+   styled for Bootstrap 5.
+   - field: The WTForms field object (e.g., form.username)
+   - kwargs: Any additional attributes to add to the input tag (e.g., placeholder, class)
+#}
+{% macro render_field(field, **kwargs) %}
+    <div class="mb-3">
+        {{ field.label(class="form-label") }}
+        
+        {# Add Bootstrap's is-invalid class if errors exist #}
+        {% if field.errors %}
+            {% set css_class = 'form-control is-invalid ' + kwargs.pop('class', '') %}
+            {{ field(class=css_class, **kwargs) }}
+            <div class="invalid-feedback">
+                {% for error in field.errors %}
+                    <span>{{ error }}</span>
+                {% endfor %}
+            </div>
+        {% else %}
+            {{ field(class='form-control ' + kwargs.pop('class', ''), **kwargs) }}
+        {% endif %}
+        
+        {% if field.description %}
+            <small class="form-text text-muted">{{ field.description }}</small>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# --- MACRO: render_submit_button ---
+   Renders a submit button with an optional spinner for loading states.
+   - field: The WTForms submit field object (e.g., form.submit)
+   - btn_class: Custom CSS classes for the button (defaults to 'btn-primary')
+#}
+{% macro render_submit_button(field, btn_class='btn-primary') %}
+    <button type="submit" class="btn {{ btn_class }}">
+        <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+        {{ field.label.text }}
+    </button>
+{% endmacro %}
+{# This macro renders a single form field with Bootstrap 5 styling #}
+{# It handles labels, errors, and passes through HTML attributes like placeholder, rows, etc. #}
+{% macro render_field(field, label_visible=true) %}
+  <div class="mb-3">
+    {% if label_visible %}
+      {{ field.label(class="form-label") }}
+    {% endif %}
+
+    {# Add 'is-invalid' class if there are errors #}
+    {% set field_class = 'form-control' %}
+    {% if field.errors %}
+      {% set field_class = field_class + ' is-invalid' %}
+    {% endif %}
+
+    {# Render the field, passing any extra HTML attributes (like placeholder, rows) from the template call #}
+    {{ field(class=field_class, **kwargs) }}
+
+    {# Display validation errors #}
+    {% for error in field.errors %}
+      <div class="invalid-feedback">
+        {{ error }}
+      </div>
+    {% endfor %}
+
+    {# Display the field's help text/description, if it has one #}
+    {% if field.description %}
+      <div class="form-text">
+        {{ field.description }}
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}

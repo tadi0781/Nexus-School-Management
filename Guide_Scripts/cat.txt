@@ -248,6 +248,10 @@ class SocialCategory(db.Model):
     def __repr__(self):
         return f"<SocialCategory {self.name}>"
 
+
+# app.py
+
+
 class Message(db.Model):
     __tablename__ = "message"
     id = db.Column(db.Integer, primary_key=True)
@@ -260,9 +264,21 @@ class Message(db.Model):
     sender_role = db.Column(db.String(50))
     receiver_role = db.Column(db.String(50))
     # BEGIN MODIFY - Task E1.4 (Message Model)
-    content = db.Column(db.Text, nullable=True)
-    file_id = db.Column(db.Integer, db.ForeignKey("social_files.id", ondelete="SET NULL"), nullable=True)
-    file = db.relationship("File", foreign_keys=[file_id], backref=db.backref("direct_message_attachment", uselist=False, lazy="joined", cascade="all, delete-orphan"))
+    content = db.Column(db.Text, nullable=True)  # Allow content to be nullable
+    file_id = db.Column(
+        db.Integer, db.ForeignKey("social_files.id", ondelete="SET NULL"), nullable=True
+    )
+    file = db.relationship(
+        "File",
+        foreign_keys=[file_id],
+        backref=db.backref(
+            "direct_message_attachment",
+            uselist=False,
+            lazy="joined",
+            cascade="all, delete-orphan",
+        ),
+    )  # Changed backref for clarity
+    # END MODIFY - Task E1.4 (Message Model)
     timestamp = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), index=True
     )
@@ -275,6 +291,8 @@ class Message(db.Model):
         "User", foreign_keys=[receiver_id], back_populates="received_messages"
     )
 
+    # ... (rest of Message model)
+
     def __repr__(self):
         return (
             f"<Message from {self.sender_id} to {self.receiver_id} at {self.timestamp}>"
@@ -285,6 +303,7 @@ class Message(db.Model):
         db.Index("idx_message_status", "is_read"),
         db.Index("idx_message_timestamp", "timestamp"),
     )
+
 
 # --- NEW MODELS: Task System (Ordered correctly) ---
 
@@ -545,6 +564,8 @@ ROLE_PERMISSIONS = {
     ],
     'parent': [] # Parents cannot interact with the asset system
 }
+
+
 # Define User Model (includes all previous relationships + the fix)
 class User(db.Model, UserMixin):
     __tablename__ = "user"
@@ -578,7 +599,10 @@ class User(db.Model, UserMixin):
     section = db.Column(db.String(10), nullable=True, index=True)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
     lab_id = db.Column(db.Integer, db.ForeignKey("lab.id"), nullable=True)
-    teacher_profiles = db.relationship("TeacherProfile", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")
+
+    # --- START OF FIX ---
+    # The `foreign_keys` argument is removed, allowing SQLAlchemy to infer the relationship
+    # from the ForeignKey defined in the UserChannelPreference and UserChannelCategory models.
     channel_preferences = db.relationship(
         "UserChannelPreference",
         back_populates="user",
@@ -591,12 +615,16 @@ class User(db.Model, UserMixin):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    # --- END OF FIX ---
+
+    # --- Add this relationship to your User model ---
     saved_items = db.relationship(
         "UserSavedItem",
         back_populates="user",
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    # --- End of User model addition for saved_items ---
     global_posts = db.relationship(
         "GlobalPost",
         foreign_keys="GlobalPost.author_id",
@@ -618,11 +646,15 @@ class User(db.Model, UserMixin):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    # --- End of User model additions ---
+    # Relationships
     role = db.relationship("Role", back_populates="users")
     lab = db.relationship("Lab", back_populates="lab_assignments")
     leader = db.relationship(
         "User", remote_side=[id], backref=db.backref("followers", lazy="dynamic")
     )
+
+    # Message relationships using Column objects
     sent_messages = db.relationship(
         "Message",
         foreign_keys=[Message.sender_id],
@@ -635,6 +667,8 @@ class User(db.Model, UserMixin):
         back_populates="receiver",
         lazy="dynamic",
     )
+
+    # Other relationships (using string references)
     submitted_requests = db.relationship(
         "Request",
         foreign_keys="Request.requester_id",
@@ -663,6 +697,9 @@ class User(db.Model, UserMixin):
         "Attendance", back_populates="student", lazy="dynamic"
     )
     parent_profile = db.relationship("Parent", back_populates="user", uselist=False)
+    teacher_profiles = db.relationship(
+        "TeacherProfile", back_populates="user", lazy="dynamic"
+    )
     sent_notifications = db.relationship(
         "Notification",
         foreign_keys="Notification.sender_id",
@@ -713,16 +750,12 @@ class User(db.Model, UserMixin):
         "SocialGroupMember", back_populates="user", lazy="dynamic"
     )
     owned_channels = db.relationship("Channel", back_populates="owner", lazy="dynamic")
-
-    # FIX: Renamed 'owned_social_groups' to 'owned_groups' to match the SocialGroup model.
-    # Also added cascade for better data integrity.
-    owned_groups = db.relationship(
+    owned_social_groups = db.relationship(
         "SocialGroup",
+        foreign_keys="SocialGroup.owner_id",
         back_populates="owner",
         lazy="dynamic",
-        cascade="all, delete-orphan"
     )
-
     uploaded_social_files = db.relationship(
         "File", back_populates="uploader", lazy="dynamic"
     )
@@ -806,24 +839,28 @@ class User(db.Model, UserMixin):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+
+    # Task System Relationships
     created_tasks = db.relationship(
         "Task", back_populates="created_by", lazy="dynamic"
-    )
+    )  # Tasks created by this user
     assigned_tasks_instances = db.relationship(
         "UserTask",
         foreign_keys="UserTask.assigned_by_id",
         back_populates="assigned_by",
         lazy="dynamic",
-    )
+    )  # UserTask instances assigned by this user
     assigned_tasks = db.relationship(
         "UserTask",
         foreign_keys="UserTask.user_id",
         back_populates="user",
         lazy="dynamic",
-    )
+    )  # UserTask instances assigned *to* this user
     task_history_entries = db.relationship(
         "TaskHistory", back_populates="changed_by", lazy="dynamic"
-    )
+    )  # History entries created by this user
+
+    # *** FIX: ADDED THE MISSING RELATIONSHIP *** (Confirmed this is present)
     reviewed_tasks_instances = db.relationship(
         "UserTask",
         foreign_keys="UserTask.reviewed_by_id",
@@ -831,23 +868,39 @@ class User(db.Model, UserMixin):
         lazy="dynamic",
     )
 
+    # --- METHODS ---
+
     def set_password(self, password):
-        from werkzeug.security import generate_password_hash
+        # Assumes generate_password_hash is available globally
+        from werkzeug.security import generate_password_hash  # Local import for method
+
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        from werkzeug.security import check_password_hash
+        # Assumes check_password_hash is available globally
+        from werkzeug.security import check_password_hash  # Local import for method
+
         return check_password_hash(self.password_hash, password)
 
     def has_permission(self, permission):
+        """Check if the user's role has a specific permission."""
         if not self.role:
             return False
+        # The global ROLE_PERMISSIONS dict is defined in app.py
         role_perms = ROLE_PERMISSIONS.get(self.role.name.lower(), [])
         return permission in role_perms
 
+    # --- FLASK-LOGIN PROPERTIES ---
+    # These properties are handled by inheriting from UserMixin
+
+    # --- SOCIAL MEDIA HELPERS ---
+    # These should ideally be methods of the User model
+
     def is_channel_member(self, channel):
+        # Assumes select, ChannelSubscriber are available globally
         if not channel or not self.is_authenticated:
             return False
+        # Ensure context is available if called outside a request
         try:
             return (
                 db.session.scalar(
@@ -866,6 +919,7 @@ class User(db.Model, UserMixin):
             return False
 
     def get_channel_role(self, channel):
+        # Assumes select, ChannelSubscriber, joinedload are available globally
         if not channel or not self.is_authenticated:
             return None
         try:
@@ -889,6 +943,7 @@ class User(db.Model, UserMixin):
             return None
 
     def is_group_member(self, group):
+        # Assumes select, SocialGroupMember are available globally
         if not group or not self.is_authenticated:
             return False
         try:
@@ -909,6 +964,7 @@ class User(db.Model, UserMixin):
             return False
 
     def get_group_role(self, group):
+        # Assumes select, SocialGroupMember, joinedload are available globally
         if not group or not self.is_authenticated:
             return None
         try:
@@ -932,49 +988,44 @@ class User(db.Model, UserMixin):
             return None
 
     def __repr__(self):
-        return f"<User ID:{self.id} Username:'{self.username}' Role:'{self.role.name if self.role else 'N/A'}'>"        
+        return f"<User ID:{self.id} Username:'{self.username}' Role:'{self.role.name if self.role else 'N/A'}'>"
+# Social Media Group Model (The correct one)
 class SocialGroup(db.Model):
-    __tablename__ = "social_group"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
-    description = db.Column(db.Text, nullable=True)
+    __tablename__ = "social_groups"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    description = Column(String(255))
     owner_id = db.Column(
-        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("user.id"), nullable=True, index=True
     )
-    profile_photo_url = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )
 
-    owner = db.relationship("User", back_populates="owned_groups")
-    
-    # FIX: Ensure this relationship points to the correct class "SocialGroupMember"
+    owner = db.relationship(
+        "User", foreign_keys=[owner_id], back_populates="owned_social_groups"
+    )
     members = db.relationship(
         "SocialGroupMember",
         back_populates="group",
-        cascade="all, delete-orphan",
         lazy="dynamic",
+        cascade="all, delete-orphan",
     )
-    
     messages = db.relationship(
         "GroupMessage",
         back_populates="group",
-        cascade="all, delete-orphan",
         lazy="dynamic",
-    )
+        cascade="all, delete-orphan",
+    )  # Reciprocal
 
     def __repr__(self):
-        return f"<SocialGroup {self.id}: {self.name}>"
+        return f"<SocialGroup(name='{self.name}')>"
+
+
 # Social Media Group Membership (The correct one)
 class SocialGroupMember(db.Model):
-    __tablename__ = "social_group_member"
-    
-    # FIX: Changed from "social_groups.id" to match the actual table name "social_group.id"
+    __tablename__ = "social_group_members"
     group_id = db.Column(
-        db.Integer, db.ForeignKey("social_group.id"), primary_key=True
-    )
-    
+        db.Integer, db.ForeignKey("social_groups.id"), primary_key=True
+    )  # Correct FK to social_groups
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
 
     role = db.Column(db.String(20), default="member", nullable=False)
@@ -984,30 +1035,24 @@ class SocialGroupMember(db.Model):
 
     group = db.relationship(
         "SocialGroup", back_populates="members"
-    )
+    )  # Correct back_populates name
     user = db.relationship(
         "User", back_populates="social_group_memberships", foreign_keys=[user_id]
-    )
+    )  # Correct back_populates name and add FK
 
     __table_args__ = (UniqueConstraint("group_id", "user_id", name="_group_user_uc"),)
 
     def __repr__(self):
         return f"<SocialGroupMember UserID:{self.user_id} in GroupID:{self.group_id} as {self.role}>"
 
+
 # Other Supporting Models
-# In app.py
 class SecretCode(db.Model):
     __tablename__ = "secret_code"
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(20), unique=True, nullable=False, index=True)
     full_name = db.Column(db.String(120), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
-    
-    # --- ADD THESE TWO LINES ---
-    grade = db.Column(db.String(10), nullable=True)  # Store grade for students
-    section = db.Column(db.String(10), nullable=True) # Store section for students
-    # --- END OF ADDED LINES ---
-
     is_used = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     teacher_profiles = db.relationship("TeacherProfile", back_populates="secret_code")
@@ -1016,14 +1061,17 @@ class SecretCode(db.Model):
 
     def __repr__(self):
         return f"<SecretCode {self.code} (Role: {self.role.name if self.role else 'N/A'}) Used: {self.is_used}>"
-# In app.py
-# In app.py
+
+
 class TeacherProfile(db.Model):
     __tablename__ = "teacher_profile"
     id = db.Column(db.Integer, primary_key=True)
-    # This foreign key is the crucial link to the User table
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
-    secret_code_id = db.Column(db.Integer, db.ForeignKey("secret_code.id"), nullable=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    secret_code_id = db.Column(
+        db.Integer, db.ForeignKey("secret_code.id"), nullable=True, index=True
+    )
 
     subject = db.Column(db.String(100), nullable=False)
     salary = db.Column(db.Float, nullable=True)
@@ -1031,11 +1079,25 @@ class TeacherProfile(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     secret_code = db.relationship("SecretCode", back_populates="teacher_profiles")
-    # FIX: The back_populates now correctly points to the relationship on the User model
     user = db.relationship("User", back_populates="teacher_profiles")
 
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "secret_code_id",
+            "grade",
+            "section",
+            name="uq_teacher_profile_assignment",
+        ),
+        db.Index("idx_teacher_profile_user", "user_id"),
+        db.Index("idx_teacher_profile_secret_code", "secret_code_id"),
+        db.Index("idx_teacher_profile_grade_section", "grade", "section"),
+    )
+
     def __repr__(self):
-        return f"<TeacherProfile UserID: {self.user_id}, Subject: {self.subject}>"
+        return f"<TeacherProfile UserID: {self.user_id}, Subject: {self.subject}, Grade/Section: {self.grade}/{self.section}>"
+
+
 class Student(db.Model):
     __tablename__ = "students"
 
@@ -2750,7 +2812,7 @@ class GroupMessage(db.Model):  # Corrected model name
     __tablename__ = "social_group_messages"
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(
-        db.Integer, db.ForeignKey("social_group.id"), nullable=False, index=True
+        db.Integer, db.ForeignKey("social_groups.id"), nullable=False, index=True
     )  # FK points to social_groups
     author_id = db.Column(
         db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
@@ -6390,7 +6452,6 @@ def handle_confirmation():
         app.logger.warning(f"Identity confirmation declined for code ID {code_id}.")
         return redirect(url_for("home"))  # Redirect back to the home page
 
-# In app.py, replace the entire complete_registration route
 
 @app.route("/complete-registration", methods=["GET", "POST"])
 def complete_registration():
@@ -6398,49 +6459,44 @@ def complete_registration():
         flash("You are already logged in.", "info")
         return redirect(url_for("role_redirect"))
 
-    # --- Step 1: Validate the pre-registration session data ---
     code_id = session.get("pre_reg_code_id")
     pre_reg_full_name = session.get("pre_reg_full_name")
     pre_reg_role_id = session.get("pre_reg_role_id")
     pre_reg_code_value = session.get("pre_reg_code_value")
 
     if not all([code_id, pre_reg_full_name, pre_reg_role_id, pre_reg_code_value]):
-        flash("Pre-registration session expired or invalid. Please start over.", "danger")
+        flash(
+            "Pre-registration session expired or invalid. Please start over.", "danger"
+        )
         return redirect(url_for("pre_register"))
 
-    # Re-fetch the secret code from the DB using the session ID to ensure it's still valid
-    secret_code_for_user = db.session.get(SecretCode, code_id)
+    secret_code = db.session.get(SecretCode, code_id)
     if (
-        not secret_code_for_user
-        or secret_code_for_user.is_used
-        or secret_code_for_user.full_name != pre_reg_full_name
-        or secret_code_for_user.role_id != pre_reg_role_id
-        or secret_code_for_user.code != pre_reg_code_value
+        not secret_code
+        or secret_code.is_used
+        or secret_code.full_name != pre_reg_full_name
+        or secret_code.role_id != pre_reg_role_id
+        or secret_code.code != pre_reg_code_value
     ):
-        flash("Pre-registration data mismatch or code has been used. Please start over.", "danger")
-        # Clear potentially invalid session data
+        flash(
+            "Pre-registration data mismatch or code used. Please start over.", "danger"
+        )
         session.pop("pre_reg_code_id", None)
-        session.pop("pre_reg_full_name", None)
-        session.pop("pre_reg_role_id", None)
-        session.pop("pre_reg_code_value", None)
+        # ... clear other session keys ...
         return redirect(url_for("pre_register"))
 
-    # --- Step 2: Handle the form ---
-    form = CompleteRegistrationForm()
+    form = CompleteRegistrationForm()  # Your CompleteRegistrationForm
 
     if request.method == "GET":
-        # Pre-fill the full name from the secret code data for convenience
-        form.full_name.data = pre_reg_full_name
+        form.full_name.data = pre_reg_full_name  # Pre-fill full name
 
     if form.validate_on_submit():
         try:
-            # --- Step 3: Create the new User object with all data ---
             user_full_name = form.full_name.data.strip()
             name_parts = user_full_name.split(" ", 1)
             first_name = name_parts[0]
             last_name = name_parts[1] if len(name_parts) > 1 else None
 
-            # Create the new User instance
             user = User(
                 username=form.username.data.strip(),
                 email=form.email.data.strip() if form.email.data else None,
@@ -6448,69 +6504,69 @@ def complete_registration():
                 first_name=first_name,
                 last_name=last_name,
                 role_id=pre_reg_role_id,
-
-                # === THIS IS THE FIX ===
-                # We pull the grade and section directly from the SecretCode object
-                # that was validated and fetched at the start of this function.
-                grade=secret_code_for_user.grade,
-                section=secret_code_for_user.section,
-                # =======================
-
                 is_active=True,
-                force_password_change=False,
+                force_password_change=False,  # Password set now
                 created_at=datetime.now(timezone.utc),
-                age=form.age.data,
-                sex=form.sex.data if form.sex.data else None,
+                age=form.age.data,  # From form
+                sex=form.sex.data if form.sex.data else None,  # From form
+                # Assuming profile_photo_url is a StringField in the form for Phase A
                 profile_photo_url=(
                     form.profile_photo_url.data.strip()
                     if form.profile_photo_url.data
                     else None
                 ),
             )
-            
-            # Set password and mark the code as used
             user.set_password(form.password.data)
-            secret_code_for_user.is_used = True
+            secret_code.is_used = True
 
-            # --- Step 4: Save everything to the database ---
             db.session.add(user)
-            db.session.add(secret_code_for_user)  # Add the updated secret code to the session
+            db.session.add(secret_code)  # Mark code as used
             db.session.commit()
 
-            # --- Step 5: Clean up and redirect ---
             session.pop("pre_reg_code_id", None)
             session.pop("pre_reg_full_name", None)
             session.pop("pre_reg_role_id", None)
             session.pop("pre_reg_code_value", None)
 
-            flash("Registration complete! Please log in with your new username and password.", "success")
+            flash(
+                "Registration complete! Please log in with your new username and password.",
+                "success",
+            )
             app.logger.info(
-                f"New user '{user.username}' (ID: {user.id}) registered successfully using secret code ID {secret_code_for_user.id}."
+                f"New user '{user.username}' (ID: {user.id}) registered successfully using secret code ID {secret_code.id}."
             )
             return redirect(url_for("login"))
 
-        except IntegrityError:
+        except IntegrityError:  # Usually duplicate username/email
             db.session.rollback()
             app.logger.warning(
                 f"Complete registration failed for code ID {code_id} due to IntegrityError."
             )
-            flash("Registration failed: Username or email is already in use. Please check the form.", "danger")
-        
+            # Form validators for username/email should catch this first and add errors to form fields.
+            # If an error still occurs here, it's a fallback.
+            flash(
+                "Registration failed: Username or email is already in use. Please check the form.",
+                "danger",
+            )
         except Exception as e:
             db.session.rollback()
             app.logger.error(
                 f"Error during complete registration for code ID {code_id}: {e}",
                 exc_info=True,
             )
-            flash("An unexpected error occurred during registration. Please try again.", "danger")
+            flash(
+                "An unexpected error occurred during registration. Please try again.",
+                "danger",
+            )
 
-    # This part is for GET requests or if form validation fails on POST
+    # For GET or if form validation fails on POST
     return render_template(
         "auth/complete_registration.html",
         form=form,
-        pre_reg_full_name=pre_reg_full_name,
+        pre_reg_full_name=pre_reg_full_name,  # For template greeting
         title="Complete Your Registration - Nexus",
     )
+
 
 @app.route("/role-redirect")
 @login_required
@@ -6883,7 +6939,7 @@ def fallback_dashboard():
 # - The context processor injects unread message/notification counts and `current_user`.
 
 # --- Dashboard Routes (Specific Roles) ---
-# In app.py, find and replace the student_dashboard route
+
 
 @app.route("/student/dashboard")
 @login_required
@@ -6891,35 +6947,6 @@ def fallback_dashboard():
     "student"
 )  # Make sure your role_required decorator is defined and working
 def student_dashboard():
-    # ======================================================================
-    # --- START OF DEBUGGING CODE ---
-    # This will print information to the terminal where your Flask app is running.
-    print("--- DEBUGGING STUDENT DASHBOARD ---")
-    
-    # 1. Check basic user info
-    print(f"User ID: {current_user.id}, Username: {current_user.username}")
-    
-    # 2. Check the user's role
-    if hasattr(current_user, 'role') and current_user.role:
-        print(f"User Role: {current_user.role.name}")
-    else:
-        print("User Role: NOT FOUND or NOT LOADED.")
-        
-    # 3. Check for the existence of 'grade' and 'section' attributes on the object
-    grade_exists = hasattr(current_user, 'grade')
-    section_exists = hasattr(current_user, 'section')
-    print(f"Attribute 'grade' exists on current_user object? {grade_exists}")
-    print(f"Attribute 'section' exists on current_user object? {section_exists}")
-    
-    # 4. If the attributes exist, print their values
-    if grade_exists:
-        print(f"Value of current_user.grade: '{current_user.grade}' (Type: {type(current_user.grade)})")
-    if section_exists:
-        print(f"Value of current_user.section: '{current_user.section}' (Type: {type(current_user.section)})")
-        
-    print("--- END OF DEBUGGING ---")
-    # ======================================================================
-
     user_id = current_user.id
 
     # Teachers in the student's grade and section
@@ -7012,6 +7039,10 @@ def student_dashboard():
         .order_by(Notification.timestamp.desc())
         .limit(5)
     ).all()
+    # Format these activities for the partial if needed
+    # The partial expects: activity.icon, activity.text, activity.timestamp, activity.url, activity.badge_color
+    # You'll need to map Notification objects to this structure.
+    # For simplicity in this step, we'll pass them directly and let the template adapt or be updated.
 
     return render_template(
         "student/dashboard.html",
@@ -7021,9 +7052,12 @@ def student_dashboard():
         borrowed_books=borrowed_books,
         recent_attendance=recent_attendance,
         marks_records=marks_records,
-        my_tasks=my_tasks,
-        recent_activities=recent_activities,
+        my_tasks=my_tasks,  # This variable is used in the student dashboard template for a stat card
+        # recent_activities=student_activities_formatted # If you format them
+        recent_activities=recent_activities,  # Pass raw notifications for now
+        # unread_notifications_count and unread_messages_count are from context_processor
     )
+
 
 @app.route("/teacher/student/<int:user_id>/profile")  # Example path
 @login_required
@@ -11076,6 +11110,8 @@ def get_chat_messages(user1_id, user2_id, limit=50):
                 limit
             )  # Limit messages to prevent overload, implement pagination later if needed
         ).all()
+
+
 # is_chat_allowed helper (defined in Part 3) is used below
 @app.route("/chat/user/<int:target_user_id>", methods=["GET", "POST"])
 @login_required
@@ -11099,23 +11135,67 @@ def universal_chat(target_user_id):
         )
         return redirect(url_for("contacts_list"))
 
+    # app.py (inside universal_chat route)
+
     if request.method == "POST":
-        content = request.form.get("message", "").strip()
-        dm_file_storage = request.files.get("dm_file")
+        content = None
+        dm_file_storage = None
+
+        # BEGIN REPLACE - Task E1.4 (Handle File in POST for universal_chat)
+        if request.content_type.startswith("multipart/form-data"):
+            content = request.form.get("message", "").strip()
+            dm_file_storage = request.files.get(
+                "dm_file"
+            )  # Ensure JS sends file with name 'dm_file'
+        elif request.is_json:
+            data = request.get_json()
+            content = data.get("message", "").strip()
+        else:
+            return (
+                jsonify({"success": False, "error": "Unsupported request format."}),
+                415,
+            )
 
         if not content and not (dm_file_storage and dm_file_storage.filename):
-            return jsonify({"success": False, "error": "Cannot send an empty message or file."}), 400
+            return (
+                jsonify(
+                    {"success": False, "error": "Cannot send an empty message or file."}
+                ),
+                400,
+            )
 
         if content and len(content) > 2000:
-            return jsonify({"success": False, "error": "Message is too long (max 2000 characters)."}), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Message is too long (max 2000 characters).",
+                    }
+                ),
+                400,
+            )
 
         saved_file_db_object = None
         try:
             if dm_file_storage and dm_file_storage.filename:
+                # save_uploaded_file is assumed to be the helper you provided in app.py (Part 3 or 12)
+                # It should return a File object (not committed) or None.
                 saved_file_db_object = save_uploaded_file(dm_file_storage)
                 if not saved_file_db_object:
-                    return jsonify({"success": False, "error": "File upload processing failed."}), 400
-                db.session.add(saved_file_db_object)
+                    # save_uploaded_file should flash its own error on failure,
+                    # but we return a JSON error for AJAX.
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "error": "File upload processing failed.",
+                            }
+                        ),
+                        400,
+                    )
+                db.session.add(
+                    saved_file_db_object
+                )  # Add the File object to the session
 
             msg = Message(
                 sender_id=current_user.id,
@@ -11124,45 +11204,102 @@ def universal_chat(target_user_id):
                 receiver_role=target_user.role.name,
                 content=content if content else None,
                 file_id=saved_file_db_object.id if saved_file_db_object else None,
+                timestamp=datetime.now(timezone.utc),
+                is_read=False,
             )
             db.session.add(msg)
-            db.session.commit()
+            db.session.commit()  # This commits both the Message and the File (if any)
 
-            app.logger.info(f"Message ID {msg.id} (File ID: {msg.file_id}) sent from {current_user.username} to {target_user.username}.")
+            app.logger.info(
+                f"Message ID {msg.id} (File ID: {msg.file_id}) sent from {current_user.username} to {target_user.username}."
+            )
 
             file_details_for_response = None
             if msg.file:
                 file_details_for_response = {
-                    "id": msg.file.id, "original_filename": msg.file.original_filename,
-                    "mimetype": msg.file.mimetype, "size": msg.file.size,
-                    "download_url": msg.file.get_download_url(),
+                    "id": msg.file.id,
+                    "original_filename": msg.file.original_filename,
+                    "mimetype": msg.file.mimetype,
+                    "size": msg.file.size,
+                    "download_url": msg.file.get_download_url(),  # Make sure File model has get_download_url()
                 }
 
             message_data_for_client = {
-                "id": msg.id, "sender_id": msg.sender_id,
-                "sender": { "full_name": current_user.full_name, "username": current_user.username, "profile_photo_url": current_user.profile_photo_url },
-                "receiver_id": msg.receiver_id, "content": msg.content,
-                "timestamp": msg.timestamp.isoformat() + "Z", "is_read": msg.is_read,
+                "id": msg.id,
+                "sender_id": msg.sender_id,
+                "sender": {
+                    "full_name": current_user.full_name,
+                    "username": current_user.username,
+                    "profile_photo_url": current_user.profile_photo_url,  # JS will construct full static URL
+                },
+                "receiver_id": msg.receiver_id,
+                "content": msg.content,
+                "timestamp": msg.timestamp.isoformat() + "Z",
+                "is_read": msg.is_read,
                 "file_details": file_details_for_response,
             }
 
-            socketio.emit("new_direct_message", message_data_for_client, room=f"user_room_{target_user.id}")
-            
-            return jsonify({ "success": True, "message": "Message sent!", "message_data": message_data_for_client }), 201
+            # SocketIO emission for DMs (Task E1.1 from Beta)
+            socketio.emit(
+                "new_direct_message",
+                message_data_for_client,
+                room=f"user_room_{target_user.id}",
+            )
+            app.logger.info(
+                f"Emitted 'new_direct_message' to room user_room_{target_user.id} for message {msg.id}"
+            )
+
+            return (
+                jsonify(
+                    {
+                        "success": True,
+                        "message": "Message sent!",
+                        "message_data": message_data_for_client,
+                    }
+                ),
+                201,
+            )
         except Exception as e:
             db.session.rollback()
-            # Cleanup orphaned file if it was saved to disk but DB commit failed
             if saved_file_db_object and saved_file_db_object.filepath:
                 try:
-                    disk_filename = os.path.basename(saved_file_db_object.filepath)
-                    full_path = os.path.join(app.config['UPLOAD_FOLDER'], disk_filename)
+                    # Construct full path based on UPLOAD_FOLDER and the filename stored in filepath
+                    # This assumes filepath stores 'social_files/unique_filename.ext'
+                    # and UPLOAD_FOLDER is 'app_root/uploads/social_files'
+                    # So, the actual filename on disk is just os.path.basename(saved_file_db_object.filepath)
+                    # within the UPLOAD_FOLDER.
+                    # This needs to be robust based on how save_uploaded_file stores paths.
+                    # If save_uploaded_file stores full path, use that. If relative, construct it.
+                    # Assuming filepath is 'uploads/social_files/filename.ext' RELATIVE TO APP ROOT
+                    # and UPLOAD_FOLDER is an absolute path.
+                    # For simplicity, let's assume filepath stores just 'unique_filename.ext'
+                    # and it resides in app.config['UPLOAD_FOLDER']
+
+                    disk_filename = os.path.basename(
+                        saved_file_db_object.filepath
+                    )  # Gets just 'unique_filename.ext'
+                    full_path = os.path.join(app.config["UPLOAD_FOLDER"], disk_filename)
+
                     if os.path.exists(full_path):
                         os.remove(full_path)
+                        app.logger.info(f"Cleaned up DM file {full_path} on error.")
                 except Exception as cleanup_e:
                     app.logger.error(f"Error cleaning up DM file on error: {cleanup_e}")
-            app.logger.error(f"Error sending message from {current_user.id} to {target_user.id}: {e}", exc_info=True)
-            return jsonify({"success": False, "error": "Server error sending message."}), 500
-
+            app.logger.error(
+                f"Error sending message from {current_user.id} to {target_user.id}: {e}",
+                exc_info=True,
+            )
+            return (
+                jsonify({"success": False, "error": "Server error sending message."}),
+                500,
+            )
+    # --- GET Request Logic ---
+    # END REPLACE - Task E1.4
+    # Fetch initial messages (e.g., last 50, newest at the bottom due to template's column-reverse)
+    # The template expects messages sorted oldest first if it prepends them,
+    # or newest first if it appends them at the top of a reversed container.
+    # The current chat.js appends to top of a column-reverse div, so messages should be oldest first.
+    # app.py (inside universal_chat GET logic)
     initial_messages_query = (
         db.select(Message)
         .where(
@@ -11173,15 +11310,18 @@ def universal_chat(target_user_id):
                 & (Message.receiver_id == current_user.id),
             )
         )
+        # BEGIN MODIFY - Task E1.4 (Eager load file for initial DMs)
         .options(
             joinedload(Message.sender).joinedload(User.role),
-            joinedload(Message.file),
+            joinedload(Message.file),  # Eager load the file associated with the message
         )
+        # END MODIFY - Task E1.4
         .order_by(Message.timestamp.asc())
         .limit(50)
     )
     messages = db.session.scalars(initial_messages_query).all()
 
+    # Mark messages received FROM target_user in THIS batch as read
     unread_ids_in_batch_to_mark = [
         m.id for m in messages if m.sender_id == target_user.id and not m.is_read
     ]
@@ -11208,8 +11348,148 @@ def universal_chat(target_user_id):
     return render_template(
         "chat/universal_chat.html",
         target_user=target_user,
-        messages=messages,
+        messages=messages,  # Pass initial messages
         title=f"Chat with {target_user.full_name or target_user.username} - Nexus",
+    )
+
+@app.route("/contacts")
+@login_required
+def contacts_list():
+    """
+    Displays an organized contacts list based on user role and permissions.
+    - Non-student/teacher roles are listed first.
+    - Teachers are grouped by the grade/section they teach.
+    - Students are grouped into "TC Members" and "Other Students" blocks.
+    - All visibility is controlled by the current user's chat permissions.
+    """
+    if not current_user.role:
+        flash(
+            "Your user role is not properly configured. Cannot determine contacts.",
+            "danger",
+        )
+        return redirect(url_for("role_redirect"))
+
+    # The permission helper is the single source of truth for what can be displayed.
+    allowed_role_names = get_allowed_chat_roles("send_to", current_user)
+
+    # --- Initialize data structures to pass to the template ---
+    other_contacts_by_role = defaultdict(list)
+    teachers_by_grade_section = defaultdict(list)
+    tc_student_blocks = []
+    non_tc_student_blocks = []
+    contact_unread_counts = {}
+
+    # --- 1. Fetch Staff Contacts (Non-Teacher, Non-Student) ---
+    other_role_names = [
+        r for r in allowed_role_names if r not in ["student", "teacher"]
+    ]
+    if other_role_names:
+        other_contacts_query = (
+            select(User)
+            .join(Role)
+            .where(
+                User.id != current_user.id,
+                User.is_active == True,
+                Role.name.in_(other_role_names),
+            )
+            .options(joinedload(User.role))
+            .order_by(Role.name, User.full_name)
+        )
+
+        other_contacts_results = db.session.scalars(other_contacts_query).all()
+        for contact in other_contacts_results:
+            other_contacts_by_role[contact.role.name.replace("_", " ").title()].append(
+                contact
+            )
+
+    # --- 2. Fetch and Classify Teachers by Grade/Section ---
+    if "teacher" in allowed_role_names:
+        # Get all active teachers.
+        # CORRECTED: Removed `.options(joinedload(User.teacher_profiles))` because
+        # the 'teacher_profiles' relationship is 'lazy=dynamic' and does not
+        # support eager loading. The profiles will be loaded when accessed in the loop.
+        teacher_query = select(User).where(
+            User.role.has(name="teacher"), User.is_active == True
+        )
+        all_teachers = db.session.scalars(teacher_query).all()
+
+        added_teachers = defaultdict(
+            set
+        )  # To prevent adding a teacher multiple times to the same block
+        for teacher in all_teachers:
+            # This loop will now trigger a separate query for each teacher's profiles,
+            # which is the expected behavior for a 'lazy=dynamic' relationship.
+            for profile in teacher.teacher_profiles:
+                if profile.grade and profile.section:
+                    key = (profile.grade, profile.section)
+                    if teacher.id not in added_teachers[key]:
+                        teachers_by_grade_section[key].append(teacher)
+                        added_teachers[key].add(teacher.id)
+
+    # --- 3. Fetch Student Blocks (TC and Non-TC) ---
+    if "student" in allowed_role_names:
+        base_student_query = (
+            select(User.grade, User.section, func.count(User.id).label("student_count"))
+            .join(Role)
+            .where(
+                Role.name == "student",
+                User.is_active == True,
+                User.id != current_user.id,
+                User.grade.isnot(None),
+                User.grade != "",
+                User.section.isnot(None),
+                User.section != "",
+            )
+        )
+
+        # Query for TC Member blocks
+        tc_query = (
+            base_student_query.where(User.is_tc_member == True)
+            .group_by(User.grade, User.section)
+            .order_by(User.grade, User.section)
+        )
+        tc_student_blocks = db.session.execute(tc_query).all()
+
+        # Query for Non-TC Member blocks
+        non_tc_query = (
+            base_student_query.where(User.is_tc_member == False)
+            .group_by(User.grade, User.section)
+            .order_by(User.grade, User.section)
+        )
+        non_tc_student_blocks = db.session.execute(non_tc_query).all()
+
+    # --- 4. Get Unread Counts (for individual contacts shown, i.e., staff) ---
+    all_individual_contacts = [
+        c for role_list in other_contacts_by_role.values() for c in role_list
+    ]
+    # Also include teachers if they are displayed individually
+    all_individual_contacts.extend([t for t_list in teachers_by_grade_section.values() for t in t_list])
+
+    if all_individual_contacts:
+        contact_ids = list(set([c.id for c in all_individual_contacts])) # Use set to remove duplicates
+        unread_counts_raw = db.session.execute(
+            select(Message.sender_id, func.count(Message.id))
+            .where(
+                Message.receiver_id == current_user.id,
+                Message.is_read == False,
+                Message.sender_id.in_(contact_ids),
+            )
+            .group_by(Message.sender_id)
+        ).all()
+        contact_unread_counts = dict(unread_counts_raw)
+
+    # Sort teacher blocks for consistent display
+    sorted_teacher_blocks = sorted(teachers_by_grade_section.items())
+
+    return render_template(
+        "chat/contacts_list.html",
+        other_contacts_by_role=other_contacts_by_role,
+        sorted_teacher_blocks=sorted_teacher_blocks,
+        tc_student_blocks=tc_student_blocks,
+        non_tc_student_blocks=non_tc_student_blocks,
+        contact_unread_counts=contact_unread_counts,
+        allowed_role_names=allowed_role_names,  # Pass for template-side permission checks
+        title="My Chat Contacts",
     )
 
 @app.route("/contacts/section/<grade>/<section>")
@@ -11274,103 +11554,6 @@ def contacts_by_section(grade, section):
         title=title,
     )
 
-@app.route("/contacts")
-@login_required
-def contacts_list():
-    """
-    Displays an organized contacts list based on user role and permissions.
-    - Non-student/teacher roles are listed first.
-    - Teachers are grouped by the grade/section they teach.
-    - Students are grouped into "TC Members" and "Other Students" blocks.
-    - All visibility is controlled by the current user's chat permissions.
-    """
-    if not current_user.role:
-        flash("Your user role is not properly configured. Cannot determine contacts.", "danger")
-        return redirect(url_for("role_redirect"))
-
-    # The permission helper is the single source of truth for what can be displayed.
-    allowed_role_names = get_allowed_chat_roles("send_to", current_user)
-
-    # Initialize data structures to pass to the template
-    other_contacts_by_role = defaultdict(list)
-    teachers_by_grade_section = defaultdict(list)
-    tc_student_blocks = []
-    non_tc_student_blocks = []
-    contact_unread_counts = {}
-
-    # 1. Fetch Staff Contacts (Non-Teacher, Non-Student)
-    other_role_names = [r for r in allowed_role_names if r not in ["student", "teacher"]]
-    if other_role_names:
-        other_contacts_query = (
-            select(User)
-            .join(Role)
-            .where(
-                User.id != current_user.id,
-                User.is_active == True,
-                Role.name.in_(other_role_names),
-            )
-            .options(joinedload(User.role))
-            .order_by(Role.name, User.full_name)
-        )
-        other_contacts_results = db.session.scalars(other_contacts_query).all()
-        for contact in other_contacts_results:
-            other_contacts_by_role[contact.role.name.replace("_", " ").title()].append(contact)
-
-    # 2. Fetch and Classify Teachers by Grade/Section
-    if "teacher" in allowed_role_names:
-        teacher_query = select(User).where(User.role.has(name="teacher"), User.is_active == True)
-        all_teachers = db.session.scalars(teacher_query).all()
-        added_teachers = defaultdict(set)
-        for teacher in all_teachers:
-            for profile in teacher.teacher_profiles:
-                if profile.grade and profile.section:
-                    key = (profile.grade, profile.section)
-                    if teacher.id not in added_teachers[key]:
-                        teachers_by_grade_section[key].append(teacher)
-                        added_teachers[key].add(teacher.id)
-
-    # 3. Fetch Student Blocks (TC and Non-TC)
-    if "student" in allowed_role_names:
-        base_student_query = (
-            select(User.grade, User.section, func.count(User.id).label("student_count"))
-            .join(Role)
-            .where(
-                Role.name == "student",
-                User.is_active == True,
-                User.id != current_user.id,
-                User.grade.isnot(None), User.grade != "",
-                User.section.isnot(None), User.section != "",
-            )
-        )
-        tc_query = base_student_query.where(User.is_tc_member == True).group_by(User.grade, User.section).order_by(User.grade, User.section)
-        tc_student_blocks = db.session.execute(tc_query).all()
-        non_tc_query = base_student_query.where(User.is_tc_member == False).group_by(User.grade, User.section).order_by(User.grade, User.section)
-        non_tc_student_blocks = db.session.execute(non_tc_query).all()
-    
-    # 4. Get Unread Counts for individually displayed contacts
-    all_individual_contacts = [c for role_list in other_contacts_by_role.values() for c in role_list]
-    all_individual_contacts.extend([t for t_list in teachers_by_grade_section.values() for t in t_list])
-    if all_individual_contacts:
-        contact_ids = list(set([c.id for c in all_individual_contacts]))
-        unread_counts_raw = db.session.execute(
-            select(Message.sender_id, func.count(Message.id))
-            .where(Message.receiver_id == current_user.id, Message.is_read == False, Message.sender_id.in_(contact_ids))
-            .group_by(Message.sender_id)
-        ).all()
-        contact_unread_counts = dict(unread_counts_raw)
-
-    sorted_teacher_blocks = sorted(teachers_by_grade_section.items())
-
-    return render_template(
-        "chat/contacts_list.html",
-        other_contacts_by_role=other_contacts_by_role,
-        sorted_teacher_blocks=sorted_teacher_blocks,
-        tc_student_blocks=tc_student_blocks,
-        non_tc_student_blocks=non_tc_student_blocks,
-        contact_unread_counts=contact_unread_counts,
-        allowed_role_names=allowed_role_names,
-        title="My Chat Contacts",
-    )
 
 @app.route("/contacts_by_role/<string:display_role_filter>")
 @login_required
@@ -12192,105 +12375,38 @@ def notification_settings():
 # --- PART 11 END: Notifications ---
 
 
-# In app.py -> social media routes section
-
+# --- Group Routes ---
 @app.route("/social/groups")
 @login_required
 def social_group_list():
-    # --- THIS LOGIC IS NEW ---
-    # Fetch groups current user owns
-    my_owned_groups_query = (
+    # Fetch groups current user is a member of (any role)
+    my_groups_query = (
         select(SocialGroup)
-        .where(
-            SocialGroup.owner_id == current_user.id,
-            SocialGroup.is_active == True,
-        )
-        .order_by(SocialGroup.name.asc())
-    )
-    my_owned_groups = db.session.scalars(my_owned_groups_query).all()
-
-    # Fetch groups current user is a member of (but does not own)
-    my_joined_groups_query = (
-        select(SocialGroupMember)
-        .join(SocialGroup)
+        .join(SocialGroupMember)
         .where(
             SocialGroupMember.user_id == current_user.id,
-            SocialGroup.owner_id != current_user.id, # Exclude owned groups
-            SocialGroup.is_active == True,
+            SocialGroup.is_active == True,  # Only active groups
         )
         .options(
-            joinedload(SocialGroupMember.group).joinedload(SocialGroup.owner)
+            joinedload(SocialGroup.owner)  # Eager load owner for display
+            # REMOVED: joinedload(SocialGroup.members)
         )
         .order_by(SocialGroup.name.asc())
     )
-    my_joined_groups = db.session.scalars(my_joined_groups_query).all()
-    # --- END OF NEW LOGIC ---
+    my_groups = db.session.scalars(my_groups_query).all()
 
     return render_template(
-        "social/groups/list.html", 
-        my_owned_groups=my_owned_groups, 
-        my_joined_groups=my_joined_groups, # Pass both lists to the template
-        title="My Social Groups - Nexus"
+        "social/groups/list.html", my_groups=my_groups, title="My Social Groups - Nexus"
     )
+
+
 # Route to discover groups (optional - similar to channels, but groups are often private)
 # This would typically list public groups or groups where membership is open/requestable.
 # @app.route("/social/groups/discovery")
 # @login_required
 # def social_group_discovery():
 #      # Query for public groups or groups user can join
-@app.route("/social/channels/<int:channel_id>")
-@login_required
-def view_social_channel(channel_id):
-    channel = db.get_or_404(Channel, channel_id, description="Channel not found.")
-    if not channel.is_active:
-        flash(f"Channel '{channel.name}' is currently not active.", "warning")
-        return redirect(url_for("social_channel_list"))
-
-    # Permission checks
-    user_channel_role = current_user.get_channel_role(channel)
-    is_owner = channel.owner_id == current_user.id
-    is_admin = user_channel_role == "admin"
-    is_subscribed = user_channel_role is not None
-
-    if channel.type == "private" and not is_subscribed:
-        flash(f"'{channel.name}' is a private channel. You must be a subscriber to view its content.", "warning")
-        return redirect(url_for("social_channel_discover"))
-
-    # The problematic eager loads for 'comments' and 'reactions' have been removed.
-    posts_query = (
-        select(ChannelPost)
-        .where(ChannelPost.channel_id == channel.id)
-        .options(
-            joinedload(ChannelPost.author).joinedload(User.role),
-            joinedload(ChannelPost.file),
-        )
-        .order_by(ChannelPost.timestamp.desc())
-    )
-
-    page = request.args.get("page", 1, type=int)
-    per_page_posts = 10
-    pagination = db.paginate(posts_query, page=page, per_page=per_page_posts, error_out=False)
-    posts = pagination.items
-
-    # Form for creating new posts
-    post_form = PostContentForm()
-
-    # Determine if the current user can post
-    can_post_in_channel = is_owner or is_admin
-
-    # FIX: The form object is now passed with the key 'form' which the template expects.
-    return render_template(
-        "social/channels/view_channel.html",
-        channel=channel,
-        posts=posts,
-        pagination=pagination,
-        form=post_form,  # Changed 'post_form' to 'form' to match the template partial
-        is_owner=is_owner,
-        is_admin=is_admin,
-        is_subscribed=is_subscribed,
-        can_post_in_channel=can_post_in_channel,
-        title=f"{channel.name} - Channel - Nexus",
-    )
+#      pass
 @app.route(
     "/social/groups/<int:group_id>"
 )  # Add methods=['GET'] if it only handles GET for now (POST is separate)
@@ -12326,16 +12442,16 @@ def view_social_group(group_id):
     # Form for creating new messages in this group
     post_form = PostContentForm()  # Your PostContentForm for message input
 
-    # FIX: The form object is now passed with the key 'form' which the template expects.
     return render_template(
         "social/groups/view_group.html",
         group=group,
         messages=messages,
         # pagination=pagination, # If messages are paginated
-        form=post_form, # Changed 'post_form' to 'form' to match the template partial
+        post_form=post_form,
         user_group_role=user_group_role,  # e.g., 'owner', 'admin', 'member'
         title=f"{group.name} - Group Chat - Nexus",
     )
+
 
 # Route to redirect for viewing a specific message (e.g., from a notification link)
 @app.route("/social/messages/<int:message_id>/view")
@@ -13457,6 +13573,74 @@ def create_channel_post(channel_id):
         )
         return jsonify({"success": False, "error": "Server error creating post."}), 500
 
+
+@app.route(
+    "/social/channels/<int:channel_id>"
+)  # Add methods=['GET'] if it only handles GET for now
+@login_required
+def view_social_channel(channel_id):
+    channel = db.get_or_404(Channel, channel_id, description="Channel not found.")
+    if not channel.is_active:
+        flash(f"Channel '{channel.name}' is currently not active.", "warning")
+        return redirect(url_for("social_channel_list"))
+
+    # Permission to view: Public channels are viewable by all logged-in users.
+    # Private channels require membership (or ownership/admin).
+    user_channel_role = current_user.get_channel_role(channel)  # Helper from User model
+    is_owner = channel.owner_id == current_user.id
+    is_admin = user_channel_role == "admin"
+    is_subscribed_member = (
+        user_channel_role is not None
+    )  # Any role means they are a subscriber
+
+    if channel.type == "private" and not is_subscribed_member:
+        flash(
+            f"'{channel.name}' is a private channel. You must be a subscriber to view its content.",
+            "warning",
+        )
+        return redirect(url_for("social_channel_discover"))
+
+    # Fetch initial posts (e.g., paginated)
+    page = request.args.get("page", 1, type=int)
+    per_page_posts = 10  # Number of posts per page load
+
+    posts_query = (
+        select(ChannelPost)
+        .where(ChannelPost.channel_id == channel.id)
+        .options(
+            joinedload(ChannelPost.author).joinedload(User.role),
+            joinedload(ChannelPost.file),
+            joinedload(ChannelPost.comments).joinedload(
+                ChannelComment.author
+            ),  # Load comments and their authors
+            joinedload(ChannelPost.reactions),  # Load reactions
+        )
+        .order_by(ChannelPost.timestamp.desc())  # Newest posts first
+    )
+    pagination = db.paginate(
+        posts_query, page=page, per_page=per_page_posts, error_out=False
+    )
+    posts = pagination.items
+
+    # Form for creating new posts in this channel
+    post_form = PostContentForm()  # Your PostContentForm for creating posts
+
+    # Determine if current user can post (owner, admin, or if channel settings allow subscribers - future enhancement)
+    can_post_in_channel = is_owner or is_admin  # Basic permission for now
+    # More advanced: if channel.allow_all_subscribers_to_post and is_subscribed_member: can_post_in_channel = True
+
+    return render_template(
+        "social/channels/view_channel.html",
+        channel=channel,
+        posts=posts,
+        pagination=pagination,  # Pass pagination object for "Load More"
+        post_form=post_form,
+        is_owner=is_owner,
+        is_admin=is_admin,
+        is_subscribed=is_subscribed_member,
+        can_post_in_channel=can_post_in_channel,
+        title=f"{channel.name} - Channel - Nexus",
+    )
 
 
 @app.route("/social/channels")
@@ -14897,7 +15081,7 @@ def ajax_leave_social_group(group_id):  # Renamed for AJAX
                     "success": True,
                     "message": f"Successfully left group '{group.name}'.",
                     "redirect_url": url_for(
-                        ""
+                        "social_group_list"
                     ),  # Client-side can use this
                 }
             ),
@@ -15167,77 +15351,134 @@ def api_error_response(status_code, message):
     response.status_code = status_code
     return response
 
+
+# === Global Post Endpoints ===
 # In app.py, replace the entire create_global_post function with this one.
-# In app.py
+
 
 @app.route("/api/v1/global_posts", methods=["POST"])
 @login_required
 def create_global_post():
     """
     Creates a new global post.
-    This version now correctly renders the post's HTML on the backend and sends it in the response.
+    Accessible by all authenticated roles.
+    --- THIS VERSION IS CORRECTED TO HANDLE FORM-DATA ---
     """
+    # --- CHANGE START ---
+    # We no longer check for JSON. We expect form-data.
+
+    # Get text content from the form fields.
     content = request.form.get("content", "").strip()
+    # For now, we'll use default values for settings not present on the simple form.
+    visibility = "public"
+    allow_comments = True
+    allow_likes = True
+
+    # Get the file from the request.files dictionary.
+    # The key 'attached_file' must match the 'name' attribute of the file input in the HTML.
+    # Our enhanced template has: <input type="file" id="global-post-file-input" name="attached_file" ...>
+    # So we use 'attached_file'.
     file_storage = request.files.get("attached_file")
 
+    # --- VALIDATION ---
+    # Validate that either text content or a file is present.
     if not content and not (file_storage and file_storage.filename):
         return api_error_response(400, "Post content or a file must be provided.")
 
+    if len(content) > 10000:
+        return api_error_response(400, "Post content is too long.")
+
+    # --- FILE HANDLING ---
     linked_file = None
     if file_storage and file_storage.filename:
-        linked_file = save_uploaded_file(file_storage)
-        if not linked_file:
-            # save_uploaded_file now flashes the error, so we can return a generic one.
-            return api_error_response(400, "File upload failed. Please check file type and size.")
+        try:
+            # save_uploaded_file is your helper that saves the file and returns a File DB object.
+            linked_file = save_uploaded_file(file_storage)
+            if not linked_file:
+                # The helper function should have flashed an error for the user.
+                # For an API, we return a JSON error.
+                return api_error_response(
+                    400,
+                    "File upload failed. The file type may not be allowed or the file is too large.",
+                )
+        except Exception as e:
+            app.logger.error(
+                f"Error handling file upload during post creation by {current_user.id}: {e}",
+                exc_info=True,
+            )
+            return api_error_response(
+                500, "A server error occurred during file processing."
+            )
 
+    # --- DATABASE OPERATION ---
     try:
         new_post = GlobalPost(
             author_id=current_user.id,
             content=content if content else None,
             file_id=linked_file.id if linked_file else None,
-            visibility="public",
+            visibility=visibility,
+            allow_comments=allow_comments,
+            allow_likes=allow_likes,
             timestamp=datetime.now(timezone.utc),
         )
 
+        # If a file was processed, we need to add its DB record to the session.
         if linked_file:
             db.session.add(linked_file)
 
         db.session.add(new_post)
         db.session.commit()
 
-        app.logger.info(f"User {current_user.username} created GlobalPost ID {new_post.id}.")
-
-        # --- THIS IS THE FIX ---
-        # We fetch the post with its necessary data.
-        post_for_render = db.session.get(GlobalPost, new_post.id)
-        
-        # We render ONLY the post partial.
-        # This avoids the server error caused by the partial trying to render a form.
-        post_html = render_template(
-            "partials/_global_post_item.html",
-            post=post_for_render,
-            current_user=current_user
+        app.logger.info(
+            f"User {current_user.username} created GlobalPost ID {new_post.id}."
         )
 
-        return jsonify({
-            "success": True,
-            "message": "Post created successfully!",
-            "post_html": post_html, # Send the pre-rendered HTML to the client
-        }), 201
+        # --- PREPARE RESPONSE ---
+        # We need to fetch the full post object with relationships loaded to send back.
+        post_for_response = db.session.get(GlobalPost, new_post.id)
+
+        post_data = {
+            "id": post_for_response.id,
+            "author_id": post_for_response.author_id,
+            "content": post_for_response.content,
+            "file_id": post_for_response.file_id,
+            "timestamp": post_for_response.timestamp.isoformat() + "Z",
+            "visibility": post_for_response.visibility,
+            "allow_comments": post_for_response.allow_comments,
+            "allow_likes": post_for_response.allow_likes,
+            "comment_count": 0,
+            "like_count": 0,
+            "current_user_liked": False,
+            "author": {
+                "id": post_for_response.author.id,
+                "username": post_for_response.author.username,
+                "full_name": post_for_response.author.full_name,
+                "profile_photo_url": post_for_response.author.profile_photo_url,
+            },
+            "file": (
+                {
+                    "id": post_for_response.attached_file.id,
+                    "original_filename": post_for_response.attached_file.original_filename,
+                    "mimetype": post_for_response.attached_file.mimetype,
+                    "size": post_for_response.attached_file.size,
+                    "download_url": post_for_response.attached_file.get_download_url(),
+                }
+                if post_for_response.attached_file
+                else None
+            ),
+        }
+
+        return jsonify({"success": True, "post": post_data}), 201
 
     except Exception as e:
         db.session.rollback()
-        # Clean up orphaned file if one was saved
-        if linked_file and hasattr(linked_file, 'filepath') and linked_file.filepath:
-             try:
-                # This logic assumes UPLOAD_FOLDER is configured and filepath is relative
-                full_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(linked_file.filepath))
-                if os.path.exists(full_path):
-                    os.remove(full_path)
-             except Exception as cleanup_e:
-                app.logger.error(f"Error cleaning up orphaned file on post create fail: {cleanup_e}")
-        app.logger.error(f"Error creating GlobalPost for user {current_user.id}: {e}", exc_info=True)
-        return api_error_response(500, "Server error creating post.")  
+        app.logger.error(
+            f"Error creating GlobalPost for user {current_user.id}: {e}", exc_info=True
+        )
+        return api_error_response(500, "Server error creating post.")
+    # --- CHANGE END ---
+
+
 @app.route("/api/v1/global_posts", methods=["GET"])
 @login_required  # All authenticated users can view public posts
 def get_global_posts():
@@ -15358,7 +15599,6 @@ def get_global_posts():
         app.logger.error(f"Error retrieving GlobalPosts: {e}", exc_info=True)
         return api_error_response(500, "Server error retrieving posts.")
 
-# --- START: CORRECTED FUNCTION ---
 
 @app.route("/api/v1/global_posts/<int:post_id>/comments", methods=["POST"])
 @login_required
@@ -15407,19 +15647,23 @@ def create_global_comment(post_id):
         )
 
         # --- SOCKETIO EMIT ---
+        # Prepare data for the socket event.
+        # The client-side (socket-client.js) expects 'comment_html'.
+        # For this, we need to render the comment item HTML.
+        # Ensure the partial template `partials/_global_comment_item.html` exists and is correctly designed.
+        # It will need the `new_comment` object (with its author loaded) and `current_user`.
+
+        # Eagerly load author for the template
         comment_for_render = (
             db.session.query(GlobalComment)
             .options(joinedload(GlobalComment.author).joinedload(User.role))
             .get(new_comment.id)
         )
 
-        # **THIS IS THE FIX:** Changed the template name to match the file you provided.
         rendered_comment_html = render_template(
-            "partials/_social_comment_item.html",
+            "partials/_global_comment_item.html",  # ASSUMING THIS PARTIAL EXISTS or create it
             comment=comment_for_render,
-            current_user=current_user,
-            post_type='global',
-            parent_post_author_id=post.author_id
+            current_user=current_user,  # Pass current_user if partial needs it (e.g. for edit/delete buttons)
         )
 
         new_total_comment_count = (
@@ -15443,6 +15687,7 @@ def create_global_comment(post_id):
         app.logger.info(f"SocketIO 'new_comment' emitted for GlobalPost ID {post.id}.")
         # --- END SOCKETIO EMIT ---
 
+        # AJAX response data (original part of the function)
         comment_data_for_ajax_response = {
             "id": new_comment.id,
             "post_id": new_comment.post_id,
@@ -15463,7 +15708,7 @@ def create_global_comment(post_id):
             jsonify(
                 {
                     "success": True,
-                    "comment": comment_data_for_ajax_response,
+                    "comment": comment_data_for_ajax_response,  # For the user who submitted
                     "post_comment_count": new_total_comment_count,
                 }
             ),
@@ -15478,7 +15723,7 @@ def create_global_comment(post_id):
         )
         return api_error_response(500, "Server error creating comment.")
 
-# --- END: CORRECTED FUNCTION ---
+
 @app.route("/api/v1/global_posts/<int:post_id>/like", methods=["POST"])
 @login_required
 def toggle_global_post_like(post_id):
@@ -16185,120 +16430,8 @@ def social_feed_placeholder():
         global_post_create_form=form,  # Pass the form object
         highlight_post_id=highlight_post_id,
     )
-
-# ... (your existing code in app.py) ...
-
-@app.route("/talent_club/community/messages", methods=["POST"])
-@login_required
-@tc_member_required # Assumed decorator for member check
-def send_tc_community_message():
-    """
-    Handles the submission of new community messages for a talent club.
-    Expects JSON data with 'content' and 'club_id'.
-    """
-    if not request.is_json:
-        flash("Request must be JSON.", "danger")
-        return jsonify({"error": "Request must be JSON"}), 400
-
-    data = request.get_json()
-    message_content = data.get("content", "").strip()
-    club_id = data.get("club_id") # Changed from community_group_id for clarity with TalentClub model
-
-    if not message_content:
-        flash("Message content cannot be empty.", "warning")
-        return jsonify({"error": "Message content cannot be empty"}), 400
-
-    if not club_id:
-        flash("Club ID is missing.", "danger")
-        return jsonify({"error": "Club ID is missing"}), 400
-
-    try:
-        # Verify if the club exists and if the current user is authorized (tc_member_required should handle this)
-        # You might want an explicit check here if tc_member_required isn't enough for the specific club_id
-        talent_club = TalentClub.query.get(club_id)
-        if not talent_club:
-            flash("Talent Club not found.", "danger")
-            return jsonify({"error": "Talent Club not found"}), 404
-
-        # Create a new message instance
-        new_message = Message(
-            club_id=club_id,
-            user_id=current_user.id, # Assumes current_user is available from Flask-Login
-            content=message_content,
-            timestamp=datetime.now(timezone.utc) # Use timezone-aware datetime for production
-        )
-
-        # Add to session and commit to database
-        db.session.add(new_message)
-        db.session.commit()
-
-        flash("Message sent successfully!", "success")
-        return jsonify({"success": True, "message": "Message sent successfully!"}), 201
-
-    except Exception as e:
-        db.session.rollback() # Rollback changes in case of an error
-        current_app.logger.error(f"Error sending community message for club {club_id}: {e}", exc_info=True)
-        flash("An error occurred while sending your message. Please try again.", "danger")
-        return jsonify({"error": "Internal server error"}), 500
-
-# ... (rest of your app.py code) ...    
-    
 # --- END API v1: Global Engagement Core ---
-# In app.py, add this new route in the Notifications section (PART 11)
 
-@app.route("/notifications/mark-selected-read", methods=["POST"])
-@login_required
-def ajax_mark_selected_notifications_read():
-    """
-    Marks a list of provided notification IDs as read.
-    Ensures that the notifications belong to the current user for security.
-    """
-    # Get the list of IDs from the form submission. The '[]' is a convention for arrays.
-    notification_ids_str = request.form.getlist("notification_ids[]")
-    if not notification_ids_str:
-        return jsonify({"success": False, "error": "No notification IDs provided."}), 400
-
-    # Convert IDs to integers, filtering out any invalid values.
-    try:
-        ids_to_update = [int(id_str) for id_str in notification_ids_str]
-    except ValueError:
-        return jsonify({"success": False, "error": "Invalid notification ID format."}), 400
-
-    if not ids_to_update:
-        return jsonify({"success": True, "message": "No notifications to update.", "updated_count": 0}), 200
-
-    try:
-        # Perform a bulk update for efficiency.
-        # CRITICAL: The WHERE clause includes `receiver_id == current_user.id` to ensure
-        # a user can only mark their OWN notifications as read.
-        result = db.session.execute(
-            db.update(Notification)
-            .where(
-                Notification.id.in_(ids_to_update),
-                Notification.receiver_id == current_user.id
-            )
-            .values(is_read=True)
-            .execution_options(synchronize_session=False) # Recommended for bulk updates
-        )
-        db.session.commit()
-        
-        updated_count = result.rowcount
-        app.logger.info(f"User {current_user.id} marked {updated_count} notifications as read.")
-
-        # Recalculate total unread count to send back to the client.
-        total_unread_count = get_unread_notifications_count(current_user.id)
-
-        return jsonify({
-            "success": True,
-            "message": f"{updated_count} notification(s) marked as read.",
-            "updated_count": updated_count,
-            "total_unread_count": total_unread_count
-        }), 200
-
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error marking selected notifications read for user {current_user.id}: {e}", exc_info=True)
-        return jsonify({"success": False, "error": "A server error occurred."}), 500
 # app.py
 # Add this route, typically near other API endpoints
 
@@ -17408,34 +17541,31 @@ def get_item_summary_for_saved_list(item_type, item_id, requesting_user):
     # Add more elif blocks for other item_types as they become saveable
 
     return details
-# File: app.py
 
-# Replace your entire existing save_item_api function with this one.
+
 @app.route("/api/v1/saved_items", methods=["POST"])
 @login_required
-def save_item_api():
-    # --- START: THIS IS THE FIX ---
-    # The 'force=True' parameter will attempt to parse the request body as JSON
-    # even if the Content-Type header is missing or incorrect.
-    # We wrap it in a try...except block for safety.
-    try:
-        data = request.get_json(force=True)
-        if not data:
-            return api_error_response(400, "Request body is empty or not valid JSON.")
-    except Exception:
-        return api_error_response(400, "Failed to decode JSON from request body.")
-    # --- END: THIS IS THE FIX ---
-
+def save_item_api():  # Renamed from save_item to avoid conflict if a non-api route exists
+    if not request.is_json:
+        return api_error_response(400, "Invalid request format: JSON expected.")
+    data = request.get_json()
     item_type = data.get("item_type")
-    item_id_from_req = data.get("item_id")
+    item_id_from_req = data.get("item_id")  # Keep as string initially for parsing
     notes = data.get("notes")
 
     if not item_type or item_id_from_req is None:
         return api_error_response(400, "item_type and item_id are required.")
 
+    # Define allowed item types based on your models
+    # This list should be exhaustive for all saveable content types.
     allowed_item_types = [
-        "GlobalPost", "ChannelPost", "GroupMessage", "DirectMessage",
-        "TalentClubFeedPost", "TalentClubCommunityMessage",
+        "GlobalPost",
+        "ChannelPost",
+        "GroupMessage",
+        "DirectMessage",
+        "TalentClubFeedPost",
+        "TalentClubCommunityMessage",
+        # Add 'UserTask', 'Request', etc. if they become saveable
     ]
     if item_type not in allowed_item_types:
         return api_error_response(
@@ -17447,6 +17577,7 @@ def save_item_api():
     except ValueError:
         return api_error_response(400, "Invalid item_id format: Must be an integer.")
 
+    # CRITICAL: Verify the item exists and the current user has permission to view it.
     if not can_user_view_item(current_user, item_type, item_id):
         app.logger.warning(
             f"User {current_user.id} attempt to save unviewable item: {item_type} ID {item_id}."
@@ -17470,6 +17601,7 @@ def save_item_api():
             f"User {current_user.username} saved item: Type '{item_type}', ID {item_id}."
         )
 
+        # Return data for the new saved item entry itself
         saved_item_data = {
             "id": new_saved_item.id,
             "item_type": new_saved_item.item_type,
@@ -17487,7 +17619,7 @@ def save_item_api():
             ),
             201,
         )
-    except IntegrityError:
+    except IntegrityError:  # Handles the UniqueConstraint _user_saved_item_uc
         db.session.rollback()
         app.logger.info(
             f"User {current_user.username} attempt to save already saved item: Type '{item_type}', ID {item_id}."
@@ -17500,6 +17632,7 @@ def save_item_api():
             exc_info=True,
         )
         return api_error_response(500, "Server error occurred while saving the item.")
+
 
 @app.route(
     "/api/v1/saved_items", methods=["GET"]
@@ -24491,3 +24624,1014 @@ if __name__ == "__main__":
     # Example production start: gunicorn --worker-class eventlet -w 1 app:app
 
 # --- PART 15 END ---
+{# templates/social/global/feed.html #}
+{% extends "layout/base.html" %}
+
+{% block page_title %}Nexus Pulse - Community Feed{% endblock %}
+
+{% block content_header %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">Nexus Pulse</h1>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        
+        <div class="mb-4" id="globalPostCreateContainer">
+            {# 
+                THE FIX IS HERE:
+                This 'with' block correctly passes all the necessary variables,
+                especially `form_id`, to the _social_content_form.html partial.
+            #}
+            {% if global_post_create_form %}
+                {% with 
+                    form = global_post_create_form,
+                    submit_url = url_for('create_global_post'),
+                    placeholder_text = "Share something with the community...",
+                    submit_button_text = "Post",
+                    form_id = "globalPostCreateForm",
+                    textarea_id = "globalPostTextarea",
+                    file_input_name = "attached_file",
+                    allow_file_upload = True
+                %}
+                    {% include "partials/_social_content_form.html" %}
+                {% endwith %}
+            {% else %}
+                <p class="text-muted">Post creation form is unavailable. Please contact an administrator.</p>
+            {% endif %}
+        </div>
+
+        <div id="globalFeedContainer" class="social-feed-container">
+            <div class="text-center py-5 content-placeholder" id="globalFeedLoadingPlaceholder">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading posts...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading Nexus Pulse...</p>
+            </div>
+            <div class="text-center py-5 d-none content-placeholder" id="globalFeedEmptyPlaceholder">
+                <i class="bi bi-megaphone-fill display-1 text-muted"></i>
+                <p class="mt-3 lead text-muted">The Pulse is quiet right now.</p>
+                <p class="text-muted">Be the first to share something!</p>
+            </div>
+        </div>
+
+        <div id="loadMoreGlobalPostsTrigger" class="text-center my-4 d-none">
+            <button class="btn btn-outline-primary load-more-btn" data-feed-type="global">
+                <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                Load More Posts
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    {# This script block correctly initializes the feed using the IDs we just set up. #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof nexusSocial !== 'undefined' && typeof nexusSocial.initGlobalFeed === 'function') {
+                nexusSocial.initGlobalFeed({
+                    feedContainerId: 'globalFeedContainer',
+                    loadingPlaceholderId: 'globalFeedLoadingPlaceholder',
+                    emptyPlaceholderId: 'globalFeedEmptyPlaceholder',
+                    loadMoreTriggerId: 'loadMoreGlobalPostsTrigger',
+                    createFormId: 'globalPostCreateForm',
+                    apiEndpointFetchPosts: '{{ url_for("get_global_posts") }}',
+                    apiEndpointCreatePost: '{{ url_for("create_global_post") }}'
+                });
+            } else {
+                console.error('nexusSocial or nexusSocial.initGlobalFeed is not defined. Ensure social.js is correctly loaded.');
+            }
+        });
+    </script>
+{% endblock %}// static/js/social.js
+"use strict";
+
+// Assuming nexusRealtimeManager is from socketHandlers.js (globally available)
+// Assuming showNexusNotification, postData, getData from utils.js (globally available)
+
+const nexusSocial = {
+    // --- Configuration for current feed view ---
+    config: {
+        feedType: null, // 'global', 'channel', 'group', 'tc_feed'
+        parentId: null,   // channel_id, group_id, etc. (null for global)
+        currentPage: 1,
+        isLoadingMore: false,
+        apiEndpoints: {
+            global: {
+                fetchPosts: '/api/v1/global_posts',
+                createPost: '/api/v1/global_posts', // Matches your app.py route for GlobalPost
+                createComment: '/api/v1/global_posts/{postId}/comments',
+                toggleLike: '/api/v1/global_posts/{postId}/like',
+                deletePost: '/api/v1/global_posts/{postId}',
+                deleteComment: '/api/v1/global_comments/{commentId}', // Corrected endpoint
+                fetchComments: '/api/v1/global_posts/{postId}/comments' // API to fetch comments
+            },
+            // Define endpoints for 'channel', 'group', 'tc_feed' if needed for unified handling
+        },
+        uiSelectors: {
+            feedContainer: null,
+            loadingPlaceholder: null,
+            emptyPlaceholder: null,
+            loadMoreTrigger: null,
+            createForm: null,
+        },
+        postTemplateFunction: null, // Will be set to a function that renders a post item
+        commentTemplateFunction: null // Will be set to a function that renders a comment item
+    },
+    // Add this function inside the nexusSocial object
+    // Add these functions inside the nexusSocial object
+
+    handleShare: function(buttonElement) {
+        const url = buttonElement.dataset.shareUrl;
+        if (navigator.share) {
+            navigator.share({
+                title: 'Check out this post from Nexus',
+                url: url
+            }).catch(err => console.error("Share failed:", err));
+        } else if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => {
+                showNexusNotification('Link copied to clipboard!', 'success');
+            }).catch(err => {
+                showNexusNotification('Failed to copy link.', 'error');
+            });
+        } else {
+            // Fallback for older browsers
+            window.open(url, '_blank');
+        }
+    },
+    // Add this function inside the nexusSocial object
+
+    observePostVisibility: function() {
+        if (!('IntersectionObserver' in window) || typeof nexusRealtimeManager === 'undefined') {
+            return; // Don't run if browser doesn't support it or the manager isn't ready
+        }
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const postId = entry.target.dataset.postId;
+                const postType = entry.target.dataset.postType;
+                if (!postId) return;
+
+                if (entry.isIntersecting) {
+                    // Post is in view, join its real-time update room
+                    nexusRealtimeManager.joinPostRoom(postId, postType);
+                } else {
+                    // Post is out of view, leave the room to save resources
+                    nexusRealtimeManager.leavePostRoom(postId, postType);
+                }
+            });
+        }, { rootMargin: '150px 0px', threshold: 0.01 }); // A larger rootMargin pre-loads/unloads posts that are slightly off-screen
+
+        // Use a MutationObserver to automatically observe new posts as they are loaded into the feed
+        const mutationObserver = new MutationObserver(mutations => {
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === 1 && node.matches('.social-post-item')) {
+                        observer.observe(node);
+                    }
+                }
+                for (const node of mutation.removedNodes) {
+                    if (node.nodeType === 1 && node.matches('.social-post-item')) {
+                        observer.unobserve(node);
+                    }
+                }
+            }
+        });
+
+        mutationObserver.observe(this.config.uiSelectors.feedContainer, { childList: true });
+    },
+
+    handleSaveItem: async function(buttonElement) {
+        const { itemId, itemType } = buttonElement.dataset;
+        const isSaved = buttonElement.classList.contains('active');
+        const endpoint = this.config.apiEndpoints.global.saveItem; // Assuming a single endpoint for all saves
+
+        this.setButtonLoading(buttonElement, true, ""); // Show spinner only
+
+        try {
+            let responseData;
+            if (isSaved) {
+                // To unsave, we send a DELETE request. Assumes deleteData helper in utils.js
+                responseData = await deleteData(`${endpoint}?item_type=${itemType}&item_id=${itemId}`);
+            } else {
+                responseData = await postData(endpoint, { item_type: itemType, item_id: itemId });
+            }
+
+            if (responseData.success) {
+                buttonElement.classList.toggle('active', !isSaved);
+                const textElement = buttonElement.querySelector('.save-text');
+                if (textElement) textElement.textContent = isSaved ? 'Save' : 'Saved';
+                showNexusNotification(responseData.message, 'success');
+            } else {
+                showNexusNotification(responseData.error, 'danger');
+            }
+        } catch (error) {
+            showNexusNotification('Failed to update save status.', 'danger');
+        } finally {
+            const originalText = buttonElement.classList.contains('active') ? 'Saved' : 'Save';
+            this.setButtonLoading(buttonElement, false, `<i class="bi bi-bookmark"></i> <span class="save-text">${originalText}</span>`);
+        }
+    },
+
+    handleLoadMoreComments: async function(buttonElement) {
+        const postId = buttonElement.dataset.postId;
+        const postType = buttonElement.dataset.postType;
+        let currentPage = parseInt(buttonElement.dataset.currentPage || '1');
+        
+        this.setButtonLoading(buttonElement, true, "Loading...");
+
+        try {
+            const endpoint = this.config.apiEndpoints[postType].fetchComments.replace('{postId}', postId);
+            const responseData = await getData(`${endpoint}?page=${currentPage + 1}`);
+
+            if (responseData.success && responseData.comments.length > 0) {
+                const commentsList = document.getElementById(`comments-list-${postType}_post-${postId}`);
+                responseData.comments.forEach(commentJson => {
+                    const commentElement = this.config.commentTemplateFunction(commentJson, postId, postType);
+                    commentsList.appendChild(commentElement);
+                });
+                
+                // Update the button for the next page
+                buttonElement.dataset.currentPage = currentPage + 1;
+            }
+
+            // Hide the button if there are no more pages
+            if (!responseData.pagination.has_next) {
+                buttonElement.parentElement.classList.add('d-none');
+            }
+        } catch (error) {
+            showNexusNotification('Error', 'Could not load more comments.', 'error');
+        } finally {
+            this.setButtonLoading(buttonElement, false, "Load more comments");
+        }
+    },
+
+    initGlobalFeed: function(initialConfig) {
+        console.log('Initializing Global Feed...');
+        this.config.feedType = 'global';
+        this.config.parentId = null;
+        this.config.currentPage = 1;
+        this.config.isLoadingMore = false;
+
+        this.config.uiSelectors.feedContainer = document.getElementById(initialConfig.feedContainerId);
+        this.config.uiSelectors.loadingPlaceholder = document.getElementById(initialConfig.loadingPlaceholderId);
+        this.config.uiSelectors.emptyPlaceholder = document.getElementById(initialConfig.emptyPlaceholderId);
+        this.config.uiSelectors.loadMoreTrigger = document.getElementById(initialConfig.loadMoreTriggerId);
+        this.config.uiSelectors.createForm = document.getElementById(initialConfig.createFormId);
+        
+        // Define client-side template functions based on your HTML partials
+        // These will take a data object and return an HTML string or a DOM element
+        this.config.postTemplateFunction = this.renderGlobalPostItem; // Link to the rendering function
+        this.config.commentTemplateFunction = this.renderCommentItem; // Link to the rendering function
+
+
+        if (!this.config.uiSelectors.feedContainer) {
+            console.error("Global feed container not found:", initialConfig.feedContainerId);
+            return;
+        }
+
+        this.loadInitialPosts();
+        this.observePostVisibility();
+        this.setupGlobalEventListeners();
+        this.registerGlobalRealtimeHandlers();
+        initializeAllFilePondInputs(); // From existing social.js, ensure it's available
+    },
+
+    loadInitialPosts: async function() {
+        if (this.config.uiSelectors.loadingPlaceholder) this.config.uiSelectors.loadingPlaceholder.classList.remove('d-none');
+        if (this.config.uiSelectors.emptyPlaceholder) this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+        this.config.uiSelectors.feedContainer.innerHTML = ''; // Clear previous
+
+        await this.fetchAndRenderPosts(1);
+        
+        if (this.config.uiSelectors.loadingPlaceholder) this.config.uiSelectors.loadingPlaceholder.classList.add('d-none');
+        if (this.config.uiSelectors.feedContainer.children.length === 0 && this.config.uiSelectors.emptyPlaceholder) {
+            this.config.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+        }
+    },
+
+    fetchAndRenderPosts: async function(page, prepend = false) {
+        const currentConfig = this.config; // Use 'this.config' consistently
+        if (currentConfig.isLoadingMore && page > 1) return;
+        if (page > 1) currentConfig.isLoadingMore = true;
+
+        const loadMoreButton = currentConfig.uiSelectors.loadMoreTrigger?.querySelector('.load-more-btn');
+        if (loadMoreButton && page > 1) {
+            loadMoreButton.disabled = true;
+            loadMoreButton.querySelector('.spinner-border')?.classList.remove('d-none');
+        }
+
+        try {
+            const endpoint = currentConfig.apiEndpoints[currentConfig.feedType].fetchPosts;
+            const url = `${endpoint}?page=${page}`;
+            const responseData = await getData(url); // from utils.js
+
+            if (responseData.success && responseData.posts) {
+                if (responseData.posts.length > 0) {
+                    responseData.posts.forEach(postJson => {
+                        const postElement = currentConfig.postTemplateFunction(postJson, currentConfig.feedType);
+                        if (prepend) {
+                            currentConfig.uiSelectors.feedContainer.prepend(postElement);
+                        } else {
+                            currentConfig.uiSelectors.feedContainer.appendChild(postElement);
+                        }
+                    });
+                    currentConfig.currentPage = page;
+                    if (currentConfig.uiSelectors.emptyPlaceholder) currentConfig.uiSelectors.emptyPlaceholder.classList.add('d-none');
+                } else if (page === 1) { // No posts at all
+                    if (currentConfig.uiSelectors.emptyPlaceholder) currentConfig.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+                }
+
+                if (currentConfig.uiSelectors.loadMoreTrigger) {
+                    currentConfig.uiSelectors.loadMoreTrigger.classList.toggle('d-none', !responseData.pagination.has_next);
+                }
+            } else {
+                console.warn('No posts data in response or request failed silently:', responseData);
+                if (page === 1 && currentConfig.uiSelectors.emptyPlaceholder) currentConfig.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+                if (currentConfig.uiSelectors.loadMoreTrigger) currentConfig.uiSelectors.loadMoreTrigger.classList.add('d-none');
+            }
+        } catch (error) {
+            console.error(`Error fetching ${currentConfig.feedType} posts:`, error);
+            // Do not show generic notification if it's just empty (handled by placeholders)
+            if (page === 1 && currentConfig.uiSelectors.emptyPlaceholder) {
+                currentConfig.uiSelectors.emptyPlaceholder.innerHTML = `<p class="text-danger">Could not load feed: ${error.message}</p>`;
+                currentConfig.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+            } else if (page > 1) { // Error on "load more"
+                showNexusNotification('Error Loading More Posts', error.message || 'Could not load more posts.', 'error');
+            }
+        } finally {
+            if (page > 1) currentConfig.isLoadingMore = false;
+            if (loadMoreButton && page > 1) {
+                loadMoreButton.disabled = ! (responseData && responseData.pagination && responseData.pagination.has_next); // Disable if no more
+                loadMoreButton.querySelector('.spinner-border')?.classList.add('d-none');
+                 if (!(responseData && responseData.pagination && responseData.pagination.has_next)) {
+                    loadMoreButton.textContent = "End of Feed";
+                 }
+            }
+        }
+    },
+
+    renderGlobalPostItem: function(postData, postType = 'global') {
+        // This function takes the JSON 'postData' from the API
+        // and constructs the HTML element based on the structure of _global_post_item.html
+        // Returns a DOM element.
+        const postDomId = `${postType}_post-${postData.id}`;
+        const currentUserIdString = document.body.dataset.currentUserId; // Assuming current_user.id is available on body
+        // static/js/social.js (nexusSocial object)
+
+// ... (existing config) ...
+
+// Modify renderGlobalPostItem (or where post element is added to DOM)
+renderGlobalPostItem: function(postData, postType = 'global') {
+    // ... (existing rendering logic) ...
+    const div = document.createElement('div');
+    // ... (populate div.innerHTML or DOM structure) ...
+    div.className = 'card social-post-item mb-3 shadow-sm'; // Ensure this class for IntersectionObserver
+    div.id = `${postType}_post-${postData.id}`;
+    div.dataset.postId = postData.id;
+    div.dataset.postType = postType;
+
+    // BEGIN IMPLEMENTATION - Task A5 (Join Room)
+    if (window.nexusRealtimeManager && postType === 'global') { // Only for global posts for now
+        window.nexusRealtimeManager.joinPostRoom(postData.id, 'global_post');
+    }
+    // END IMPLEMENTATION - Task A5
+
+    return div;
+},
+
+initGlobalFeed: function(initialConfig) {
+    // ... (existing init logic) ...
+    this.loadInitialPosts();
+    this.setupGlobalEventListeners();
+    this.registerGlobalRealtimeHandlers();
+    // Assuming initializeAllFilePondInputs is called elsewhere globally (e.g. main.js)
+
+    // BEGIN IMPLEMENTATION - Task A5 (IntersectionObserver for leaving rooms)
+    if (window.nexusRealtimeManager && 'IntersectionObserver' in window) {
+        const observerOptions = {
+            root: null, // viewport
+            rootMargin: '0px',
+            threshold: 0.01 // Trigger when even 1% is visible/hidden
+        };
+
+        const postObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                const postId = entry.target.dataset.postId;
+                const postType = entry.target.dataset.postType;
+                if (!postId || postType !== 'global_post') return;
+
+                if (!entry.isIntersecting) {
+                    // Post is out of view
+                    window.nexusRealtimeManager.leavePostRoom(postId, 'global_post');
+                } else {
+                    // Post is in view - might have already joined in renderGlobalPostItem
+                    // or could re-join if there's a chance of disconnect/reconnect.
+                    // For simplicity, join on render, leave on disappear.
+                    // window.nexusRealtimeManager.joinPostRoom(postId, 'global_post'); // Re-join if needed
+                }
+            });
+        }, observerOptions);
+
+        // Observe existing posts if any were rendered server-side (not typical for this feed)
+        // And new posts as they are added by fetchAndRenderPosts
+        const feedContainer = this.config.uiSelectors.feedContainer;
+        if (feedContainer) {
+            // Observe dynamically added posts
+            const mutationObserver = new MutationObserver(mutationsList => {
+                for (const mutation of mutationsList) {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === 1 && node.classList.contains('social-post-item') && node.dataset.postType === 'global') {
+                                postObserver.observe(node);
+                            }
+                        });
+                        mutation.removedNodes.forEach(node => {
+                             if (node.nodeType === 1 && node.classList.contains('social-post-item') && node.dataset.postType === 'global') {
+                                postObserver.unobserve(node);
+                                // Also explicitly leave room if removed, not just hidden
+                                window.nexusRealtimeManager.leavePostRoom(node.dataset.postId, 'global_post');
+                            }
+                        });
+                    }
+                }
+            });
+            mutationObserver.observe(feedContainer, { childList: true });
+        }
+         // Optional: cleanup observer on page unload if this object persists
+         // window.addEventListener('beforeunload', () => {
+         //    if (postObserver) postObserver.disconnect();
+         //    if (mutationObserver) mutationObserver.disconnect();
+         // });
+    }
+    // END IMPLEMENTATION - Task A5
+},
+// ... (rest of nexusSocial object)
+
+        const canEditDelete = (postData.author && postData.author.id.toString() === currentUserIdString) || 
+                              (window.currentUserRole && ['system_admin', 'hr_ceo'].includes(window.currentUserRole));
+
+
+        const div = document.createElement('div');
+        div.className = 'card social-post-item mb-3 shadow-sm';
+        div.id = postDomId;
+        div.dataset.postId = postData.id;
+        div.dataset.postType = postType;
+
+        // --- Build innerHTML using template literals and postData ---
+        // This is a direct translation of your _global_post_item.html structure
+        // Make sure to properly escape data if inserting directly or use DOM methods.
+        div.innerHTML = `
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <a href="/user/${postData.author.id}" class="flex-shrink-0"> {# TODO: Replace with url_for('user_profile_view', user_id=...) if possible from JS #}
+                        <img src="${postData.author.profile_photo_url || '/static/img/placeholders/user_avatar_default.png'}"
+                             alt="${postData.author.full_name || postData.author.username}'s avatar" class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
+                    </a>
+                    <div class="flex-grow-1">
+                        <a href="/user/${postData.author.id}" class="fw-bold text-dark text-decoration-none font-heading">${postData.author.full_name || postData.author.username}</a>
+                        <div class="text-muted small">
+                            <i class="bi bi-clock"></i> 
+                            <span class="post-timestamp" title="${new Date(postData.timestamp).toLocaleString()}">
+                                ${humanizeTimeDiff(postData.timestamp)}
+                            </span>
+                            ${postData.is_edited ? '<span class="fst-italic ms-1">(edited)</span>' : ''}
+                        </div>
+                    </div>
+                    ${canEditDelete ? `
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Post options">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            ${postData.author.id.toString() === currentUserIdString ? `<li><a class="dropdown-item edit-post-btn" href="#" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>` : ''}
+                            <li><button class="dropdown-item text-danger delete-post-btn" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-trash me-2"></i>Delete Post</button></li>
+                        </ul>
+                    </div>` : ''}
+                </div>
+
+                ${postData.content ? `<div class="post-content-text mb-3">${postData.content.replace(/\n/g, '<br>')}</div>` : ''}
+
+                ${postData.file ? `
+                    <div class="post-attachment mb-3">
+                        ${postData.file.mimetype && postData.file.mimetype.startsWith('image/') ? `
+                            <a href="${postData.file.download_url}" data-bs-toggle="modal" data-bs-target="#viewFileModal" data-file-url="${postData.file.download_url}" data-file-mimetype="${postData.file.mimetype}" data-file-name="${postData.file.original_filename}">
+                                <img src="${postData.file.download_url}" class="img-fluid rounded border" alt="Attachment: ${postData.file.original_filename}" style="max-height: 450px; object-fit: contain; cursor: pointer;">
+                            </a>
+                        ` : (postData.file.mimetype && postData.file.mimetype.startsWith('video/') ? `
+                            <video controls class="img-fluid rounded border" style="max-height: 450px; width:100%;">
+                                <source src="${postData.file.download_url}" type="${postData.file.mimetype}">
+                                Your browser does not support the video tag.
+                            </video>
+                        ` : `
+                            <div class="d-flex align-items-center p-2 border rounded-3 bg-light-subtle">
+                                <i class="bi bi-file-earmark-text-fill fs-2 me-2 text-secondary"></i>
+                                <div class="flex-grow-1">
+                                    <a href="${postData.file.download_url}" class="fw-semibold text-decoration-none stretched-link" target="_blank" download="${postData.file.original_filename}">
+                                        ${postData.file.original_filename}
+                                    </a>
+                                    <div class="text-muted small">
+                                        ${(postData.file.size > 1024*1024) ? (postData.file.size / (1024*1024)).toFixed(2) + ' MB' : (postData.file.size / 1024).toFixed(1) + ' KB'}
+                                        ${postData.file.mimetype ? ` - ${postData.file.mimetype}` : ''}
+                                    </div>
+                                </div>
+                                 <a href="${postData.file.download_url}" class="btn btn-sm btn-outline-secondary ms-2" download="${postData.file.original_filename}" aria-label="Download file">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
+                        `)}
+                    </div>
+                ` : ''}
+
+                <div class="post-actions d-flex justify-content-start align-items-center gap-2 border-top pt-2 mt-2">
+                    <button class="btn btn-subtle btn-sm reaction-btn like-post-btn ${postData.current_user_liked ? 'active' : ''}" 
+                            data-post-id="${postData.id}" data-post-type="${postType}" aria-pressed="${postData.current_user_liked}">
+                        <i class="bi ${postData.current_user_liked ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> 
+                        <span class="like-text">${postData.current_user_liked ? 'Liked' : 'Like'}</span>
+                        (<span class="like-count">${postData.like_count || 0}</span>)
+                    </button>
+                    
+                    ${postData.allow_comments !== false ? `
+                    <button class="btn btn-subtle btn-sm comment-toggle-btn" data-bs-toggle="collapse" href="#commentsCollapse-${postDomId}" role="button" aria-expanded="false" aria-controls="commentsCollapse-${postDomId}">
+                        <i class="bi bi-chat-dots"></i> Comment 
+                        (<span class="comment-count">${postData.comment_count || 0}</span>)
+                    </button>` : ''}
+
+                    <button class="btn btn-subtle btn-sm share-post-btn" data-post-id="${postData.id}" data-post-type="${postType}" data-share-url="${postData.share_url || '#'}">
+                        <i class="bi bi-share"></i> Share
+                    </button>
+                    <button class="btn btn-subtle btn-sm save-item-btn" data-item-id="${postData.id}" data-item-type="${postType}">
+                        <i class="bi bi-bookmark"></i> <span class="save-text">Save</span>
+                    </button>
+                </div>
+            </div>
+            ${postData.allow_comments !== false ? `
+            <div class="collapse comments-section-wrapper" id="commentsCollapse-${postDomId}">
+                <div class="card-footer bg-light-subtle p-2 comments-section" id="comments-for-${postDomId}">
+                    <div class="text-center py-3 comments-loading-placeholder d-none">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+                    </div>
+                    <div class="comments-list" id="comments-list-${postDomId}"></div>
+                    <div class="load-more-comments-container text-center my-2 d-none">
+                         <button class="btn btn-link btn-sm load-more-comments-btn" data-post-id="${postData.id}" data-post-type="${postType}">Load more comments</button>
+                    </div>
+                    {# Comment Form using _social_content_form.html structure. JS will handle submission. #}
+                    <div class="social-content-form-card card mb-2 border-0 shadow-none p-0"> <div class="card-body p-0">
+                    <form method="POST" action="${this.config.apiEndpoints[postType].createComment.replace('{postId}', postData.id)}" id="commentForm-${postDomId}" class="social-content-submission-form comment-submission-form" data-form-type="global_comment_create" data-post-id="${postData.id}">
+                        <input type="hidden" name="csrf_token" value="${document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0 me-2">
+                                <img src="${window.currentUserAvatarUrl || '/static/img/placeholders/user_avatar_default.png'}" 
+                                     alt="Your avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+                            </div>
+                            <div class="flex-grow-1">
+                                <textarea name="content" class="form-control post-content-textarea comment-input" placeholder="Write a thoughtful comment..." rows="1" aria-label="Write a thoughtful comment..." id="commentTextarea-${postDomId}" autocomplete="off"></textarea>
+                                <div class="d-flex justify-content-end align-items-center mt-2">
+                                    <button type="submit" class="btn btn-primary btn-sm post-submit-btn comment-submit-btn">
+                                        <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
+                                        Reply
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                    </div></div>
+                </div>
+            </div>` : ''}
+        `;
+        return div;
+    },
+
+    renderCommentItem: function(commentData, postId, postType = 'global') {
+        const commentDomId = `comment-${postType}-${commentData.id}`;
+        const currentUserIdString = document.body.dataset.currentUserId;
+        // Basic permission check for demo - needs robust backend check for actual edit/delete action
+        const canEdit = commentData.author && commentData.author.id.toString() === currentUserIdString;
+        const canDelete = canEdit || (window.currentUserRole && ['system_admin', 'hr_ceo'].includes(window.currentUserRole));
+
+
+        const div = document.createElement('div');
+        div.className = 'social-comment-item d-flex mb-2 pt-2 pb-2 border-bottom border-light-subtle';
+        div.id = commentDomId;
+        div.dataset.commentId = commentData.id;
+
+        div.innerHTML = `
+            <a href="/user/${commentData.author.id}" class="me-2 flex-shrink-0" aria-label="${commentData.author.full_name || commentData.author.username}'s profile">
+                <img src="${commentData.author.profile_photo_url || '/static/img/placeholders/user_avatar_default.png'}" alt="${commentData.author.full_name || commentData.author.username}" class="rounded-circle" width="32" height="32" style="object-fit: cover;">
+            </a>
+            <div class="flex-grow-1">
+                <div class="comment-bubble bg-light-subtle p-2 rounded-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <a href="/user/${commentData.author.id}" class="text-decoration-none">
+                            <small class="fw-bold text-dark font-heading">${commentData.author.full_name || commentData.author.username}</small>
+                        </a>
+                        ${(canEdit || canDelete) ? `
+                        <div class="dropdown comment-actions ms-auto">
+                            <button class="btn btn-sm btn-link text-muted py-0 px-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Comment options">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                ${canEdit ? `<li><a class="dropdown-item edit-comment-btn" href="#" data-comment-id="${commentData.id}" data-post-id="${postId}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit</a></li>` : ''}
+                                ${canDelete ? `<li><button class="dropdown-item text-danger delete-comment-btn" data-comment-id="${commentData.id}" data-post-id="${postId}" data-post-type="${postType}"><i class="bi bi-trash me-2"></i>Delete</button></li>` : ''}
+                            </ul>
+                        </div>` : ''}
+                    </div>
+                    <p class="mb-0 comment-content-text text-dark-emphasis small" id="comment-content-${commentDomId}">${commentData.content.replace(/\n/g, '<br>')}</p>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                    <small class="text-muted ms-1 comment-timestamp" title="${new Date(commentData.timestamp).toLocaleString()}">
+                        ${humanizeTimeDiff(commentData.timestamp)}
+                        ${commentData.is_edited ? '<span class="fst-italic ms-1">(edited)</span>' : ''}
+                    </small>
+                    <div>
+                       {# Save comment button can be added here in Phase 2 #}
+                    </div>
+                </div>
+            </div>
+        `;
+        return div;
+    },
+// In static/js/social.js, replace the existing handleGlobalPostCreateSubmit function.
+
+handleGlobalPostCreateSubmit: async function(formElement) {
+    const submitButton = formElement.querySelector('.post-submit-btn');
+    const originalButtonText = submitButton.innerHTML;
+    this.setButtonLoading(submitButton, true, "Posting...");
+
+    // Use FormData to correctly handle file uploads (multipart/form-data)
+    const formData = new FormData(formElement);
+    const endpoint = this.config.apiEndpoints.global.createPost;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+            // The CSRF token is already in the FormData object from the hidden input,
+            // but sending it in headers is a common practice for Fetch APIs.
+            // Note: FormData with files doesn't need Content-Type header; browser sets it.
+            headers: {
+                'X-CSRFToken': formData.get('csrf_token')
+            }
+        });
+
+        const responseData = await response.json(); // Wait for the JSON body to be parsed
+
+        if (response.ok && responseData.success && responseData.post) {
+            // SUCCESS! Now render the new post and add it to the feed.
+            showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
+
+            // 1. Create the new post element using the renderer function
+            const postElement = this.config.postTemplateFunction(responseData.post, 'global');
+            
+            // 2. Prepend the new post to the top of the feed container
+            this.config.uiSelectors.feedContainer.prepend(postElement);
+            
+            // 3. Hide the "empty feed" placeholder if it was visible
+            if (this.config.uiSelectors.emptyPlaceholder) {
+                this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+            }
+
+            // 4. Reset the form fields for the next post
+            formElement.reset();
+            const pondInstance = FilePond.find(formElement.querySelector('.filepond-input'));
+            if (pondInstance) {
+                pondInstance.removeFiles();
+            }
+            this.autoResizeTextarea(formElement.querySelector('.post-content-textarea'), true);
+
+        } else {
+            // Handle errors returned by the API (e.g., validation errors)
+            showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
+        }
+    } catch (error) {
+        // Handle network errors or issues with the fetch request itself
+        console.error('Error creating global post:', error);
+        showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
+    } finally {
+        // Always restore the button to its original state
+        this.setButtonLoading(submitButton, false, originalButtonText);
+    }
+},
+    handleGlobalCommentCreateSubmit: async function(formElement) {
+        const postId = formElement.dataset.postId;
+        const contentTextarea = formElement.querySelector('textarea[name="content"]');
+        const content = contentTextarea.value.trim();
+        if (!content) return;
+
+        const submitButton = formElement.querySelector('.post-submit-btn');
+        const originalButtonText = submitButton.textContent;
+        this.setButtonLoading(submitButton, true);
+
+        const endpoint = this.config.apiEndpoints.global.createComment.replace('{postId}', postId);
+
+        try {
+            const responseData = await postData(endpoint, { content: content }); // utils.postData sends JSON
+            if (responseData.success && responseData.comment) {
+                contentTextarea.value = '';
+                this.autoResizeTextarea(contentTextarea, true);
+
+                const commentsList = document.getElementById(`comments-list-global_post-${postId}`);
+                if (commentsList) {
+                    const commentElement = this.config.commentTemplateFunction(responseData.comment, postId, 'global');
+                    commentsList.appendChild(commentElement);
+                    // Update comment count on post
+                    const postEl = document.getElementById(`global_post-${postId}`);
+                    const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
+                    if(countEl) countEl.textContent = responseData.post_comment_count;
+                }
+            } else {
+                showNexusNotification('Comment Error', responseData.error || 'Failed to post comment.', 'error');
+            }
+        } catch (error) {
+            showNexusNotification('Network Error', `Could not post comment: ${error.message}`, 'error');
+        } finally {
+            this.setButtonLoading(submitButton, false, originalButtonText);
+        }
+    },
+    
+    handleGlobalLikeToggle: async function(buttonElement) {
+        const postId = buttonElement.dataset.postId;
+        const endpoint = this.config.apiEndpoints.global.toggleLike.replace('{postId}', postId);
+        
+        // Optimistic UI update
+        const icon = buttonElement.querySelector('i.bi');
+        const countSpan = buttonElement.querySelector('.like-count');
+        const likeText = buttonElement.querySelector('.like-text');
+        const wasActive = buttonElement.classList.contains('active');
+        let currentCount = parseInt(countSpan.textContent);
+
+        buttonElement.classList.toggle('active', !wasActive);
+        if (icon) icon.className = !wasActive ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+        if (likeText) likeText.textContent = !wasActive ? 'Liked' : 'Like';
+        countSpan.textContent = !wasActive ? currentCount + 1 : Math.max(0, currentCount - 1);
+
+        try {
+            const responseData = await postData(endpoint, {}); // No body for toggle
+            if (responseData.success) {
+                // Server confirms, update with authoritative data
+                countSpan.textContent = responseData.like_count;
+                buttonElement.classList.toggle('active', responseData.liked);
+                if (icon) icon.className = responseData.liked ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+                if (likeText) likeText.textContent = responseData.liked ? 'Liked' : 'Like';
+            } else { // Revert optimistic update on server error
+                buttonElement.classList.toggle('active', wasActive);
+                if (icon) icon.className = wasActive ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+                if (likeText) likeText.textContent = wasActive ? 'Liked' : 'Like';
+                countSpan.textContent = currentCount;
+                showNexusNotification('Like Error', responseData.error || 'Failed to update like.', 'error');
+            }
+        } catch (error) { // Revert on network error
+            buttonElement.classList.toggle('active', wasActive);
+            if (icon) icon.className = wasActive ? 'bi bi-heart-fill text-danger' : 'bi bi-heart';
+            if (likeText) likeText.textContent = wasActive ? 'Liked' : 'Like';
+            countSpan.textContent = currentCount;
+            showNexusNotification('Network Error', `Could not update like: ${error.message}`, 'error');
+        }
+    },
+
+    handleGlobalDeletePost: async function(buttonElement) {
+        const postId = buttonElement.dataset.postId;
+        // ... (SweetAlert2 confirmation as in existing social.js) ...
+        const result = await Swal.fire({ title: 'Delete Post?', text: "This post will be permanently removed.", icon: 'warning', /* ... */ });
+        if (result.isConfirmed) {
+            const endpoint = this.config.apiEndpoints.global.deletePost.replace('{postId}', postId);
+            try {
+                const responseData = await postData(endpoint, {}); // No body
+                if (responseData.success) {
+                    showNexusNotification('Deleted!', responseData.message || 'Post deleted.', 'success');
+                    document.getElementById(`global_post-${postId}`)?.remove();
+                     if (this.config.uiSelectors.feedContainer.children.length === 0 && this.config.uiSelectors.emptyPlaceholder) {
+                        this.config.uiSelectors.emptyPlaceholder.classList.remove('d-none');
+                    }
+                } else {
+                    showNexusNotification('Delete Error', responseData.error || 'Failed to delete post.', 'error');
+                }
+            } catch (error) { /* ... */ }
+        }
+    },
+    
+    handleGlobalDeleteComment: async function(buttonElement) {
+        const commentId = buttonElement.dataset.commentId;
+        const postId = buttonElement.dataset.postId; // From parent post context
+        // ... (SweetAlert2 confirmation) ...
+        const result = await Swal.fire({ title: 'Delete Comment?', text: "This comment will be removed.", icon: 'warning', /* ... */ });
+        if (result.isConfirmed) {
+            const endpoint = this.config.apiEndpoints.global.deleteComment.replace('{commentId}', commentId);
+            try {
+                const responseData = await postData(endpoint, {}); // No body
+                if (responseData.success) {
+                    showNexusNotification('Deleted!', responseData.message || 'Comment removed.', 'success');
+                    document.getElementById(`comment-global-${commentId}`)?.remove();
+                    // Update comment count on post
+                    const postEl = document.getElementById(`global_post-${postId}`);
+                    const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
+                    if(countEl && responseData.post_comment_count !== undefined) {
+                         countEl.textContent = responseData.post_comment_count;
+                    } else if (countEl) { // Fallback if count not returned
+                        countEl.textContent = Math.max(0, parseInt(countEl.textContent) -1);
+                    }
+                } else {
+                    showNexusNotification('Delete Error', responseData.error || 'Failed to delete comment.', 'error');
+                }
+            } catch (error) { /* ... */ }
+        }
+    },
+
+    setupGlobalEventListeners: function() {
+        const self = this; // For use in event listeners
+
+        // Global Post Creation Form
+        if (self.config.uiSelectors.createForm) {
+            self.config.uiSelectors.createForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                self.handleGlobalPostCreateSubmit(this);
+            });
+        }
+
+        // Load More button for Global Feed
+        const loadMoreGlobalBtn = self.config.uiSelectors.loadMoreTrigger?.querySelector('.load-more-btn[data-feed-type="global"]');
+        if (loadMoreGlobalBtn) {
+            loadMoreGlobalBtn.addEventListener('click', function() {
+                self.fetchAndRenderPosts(self.config.currentPage + 1);
+            });
+        }
+
+        // Event delegation for actions within the global feed container
+        if (self.config.uiSelectors.feedContainer) {
+            self.config.uiSelectors.feedContainer.addEventListener('click', function(event) {
+                const likeButton = event.target.closest('.like-post-btn[data-post-type="global"]');
+                
+                // ADD THESE TWO LINES
+                const shareButton = event.target.closest('.share-post-btn');
+                const saveButton = event.target.closest('.save-item-btn');
+
+                if (shareButton) {
+                    self.handleShare(shareButton);
+                } else if (saveButton) {
+                    self.handleSaveItem(saveButton);
+                }
+            });
+            // ... (rest of the function) ...
+        }
+    },
+                
+                // ADD THIS LINE
+                const loadMoreCommentsButton = event.target.closest('.load-more-comments-btn');
+                if (loadMoreCommentsButton) {
+                    self.handleLoadMoreComments(loadMoreCommentsButton);
+                }
+            });
+            // ... (rest of the function) ...
+        }
+    },
+                const deletePostButton = event.target.closest('.delete-post-btn[data-post-type="global"]');
+                const deleteCommentButton = event.target.closest('.delete-comment-btn[data-post-type="global"]');
+                // Add edit buttons later
+
+                if (likeButton) {
+                    self.handleGlobalLikeToggle(likeButton);
+                } else if (deletePostButton) {
+                    self.handleGlobalDeletePost(deletePostButton);
+                } else if (deleteCommentButton) {
+                    self.handleGlobalDeleteComment(deleteCommentButton);
+                }
+            });
+
+            // For comment form submissions within posts
+            self.config.uiSelectors.feedContainer.addEventListener('submit', function(event) {
+                const commentForm = event.target.closest('.comment-submission-form[data-form-type="global_comment_create"]');
+                if (commentForm) {
+                    event.preventDefault();
+                    self.handleGlobalCommentCreateSubmit(commentForm);
+                }
+            });
+        }
+         // Auto-resize for textareas
+        document.querySelectorAll('.post-content-textarea, .comment-input').forEach(textarea => {
+            textarea.addEventListener('input', () => self.autoResizeTextarea(textarea));
+            self.autoResizeTextarea(textarea); // Initial call
+        });
+    },
+
+    registerGlobalRealtimeHandlers: function() {
+        if (typeof nexusRealtimeManager !== 'undefined') {
+            // New Global Comment
+            nexusRealtimeManager.on('new_comment', (data) => { // Listening to generic 'new_comment'
+                // Check if this comment belongs to a global post currently in view
+                if (data.post_id && document.getElementById(`global_post-${data.post_id}`)) {
+                    const commentsList = document.getElementById(`comments-list-global_post-${data.post_id}`);
+                    if (commentsList && !document.getElementById(`comment-global-${data.comment_data.id}`)) { // Avoid duplicates
+                        // Assuming data.comment_html is sent for global comments now OR data.comment_data
+                        if(data.comment_html) { // If server sends HTML
+                            commentsList.insertAdjacentHTML('beforeend', data.comment_html);
+                        } else if (data.comment_data) { // If server sends JSON
+                            const commentElement = this.config.commentTemplateFunction(data.comment_data, data.post_id, 'global');
+                            commentsList.appendChild(commentElement);
+                        }
+                        
+                        const postEl = document.getElementById(`global_post-${data.post_id}`);
+                        const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
+                        if(countEl && data.new_comment_count !== undefined) {
+                            countEl.textContent = data.new_comment_count;
+                        }
+                    }
+                }
+            });
+
+            // Global Post Like Update
+            nexusRealtimeManager.on('like_update', (data) => { // Listening to generic 'like_update'
+                if (data.post_id && document.getElementById(`global_post-${data.post_id}`)) {
+                    const postEl = document.getElementById(`global_post-${data.post_id}`);
+                    const countSpan = postEl?.querySelector('.like-post-btn .like-count');
+                    if(countSpan && data.new_like_count !== undefined) {
+                        countSpan.textContent = data.new_like_count;
+                    }
+                    // Note: Updating the "liked" state (icon color) for *other* users in real-time
+                    // based on a broadcast is usually not done, as "liked" is a per-user state.
+                    // The count update is sufficient for broadcast.
+                }
+            });
+
+            // Handler for new global posts (if backend implements this event)
+            // nexusRealtimeManager.on('new_global_post_feed', (postData) => {
+            //     if (this.config.feedType === 'global' && this.config.uiSelectors.feedContainer) {
+            //         const postElement = this.config.postTemplateFunction(postData, 'global');
+            //         this.config.uiSelectors.feedContainer.prepend(postElement);
+            //         if (this.config.uiSelectors.emptyPlaceholder) this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+            //     }
+            // });
+        }
+    },
+    
+    autoResizeTextarea: function(textarea, reset = false) {
+        if (reset) {
+            textarea.style.height = 'auto'; // Reset first before shrinking
+        }
+        textarea.style.height = 'auto'; // Temporarily shrink to get scrollHeight
+        let newHeight = textarea.scrollHeight;
+        const maxHeightStyle = window.getComputedStyle(textarea).maxHeight;
+        const maxHeight = maxHeightStyle && maxHeightStyle !== 'none' ? parseInt(maxHeightStyle) : 150; // Default max height
+
+        if (newHeight > maxHeight) {
+            newHeight = maxHeight;
+            textarea.style.overflowY = 'auto';
+        } else {
+            textarea.style.overflowY = 'hidden';
+        }
+        textarea.style.height = newHeight + 'px';
+    },
+
+    setButtonLoading: function(button, isLoading, loadingText = "Loading...") {
+        if (!button) return;
+        const originalText = button.dataset.originalText || button.textContent.trim();
+        if (isLoading) {
+            button.dataset.originalText = originalText;
+            button.disabled = true;
+            button.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> ${loadingText}`;
+        } else {
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalText || originalText; // Revert to stored or current if none stored
+        }
+    }
+    // ... other social utility functions will go here ...
+};
+
+// Make nexusSocial globally available (or export if using modules more strictly)
+window.nexusSocial = nexusSocial;
+
+// --- Global Auto-Resize for Textareas ---
+// Already moved into setupGlobalEventListeners or nexusSocial.initGlobalFeed
+
+// --- Initialize FilePond Inputs globally ---
+// Already moved into initGlobalFeed or a general main.js DOMContentLoaded
+if (typeof initializeAllFilePondInputs === 'function' && !document.getElementById('globalFeedContainer')) {
+    // Only call here if not on a page that `initGlobalFeed` will handle.
+    // This avoids double initialization. A more robust solution is needed for selective init.
+    // initializeAllFilePondInputs(); 
+}
+
+console.log('Nexus Social JS (Global Feed Focused) - Core Initialized.');
+}); // End DOMContentLoaded
+
+// Helper for humanizing time (client-side equivalent of Jinja filter)
+// This is very basic, for more complex needs use a library like moment.js or date-fns
+function humanizeTimeDiff(isoTimestamp) {
+    if (!isoTimestamp) return '';
+    const date = new Date(isoTimestamp);
+    const now = new Date();
+    const seconds = Math.round((now - date) / 1000);
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.round(minutes / 60);
+    const days = Math.round(hours / 24);
+
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}

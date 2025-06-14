@@ -1,17 +1,15 @@
+<!-- START OF FILE: templates/social/channels/view_channel.html -->
 {% extends "layout/base.html" %}
 
 {% block page_title %}{{ channel.name }} - Channel{% endblock %}
 
 {% block head_css %}
     {# Optional: Add CSS for image lightbox if used for post images #}
-    {# <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bs5-lightbox@1.8.3/dist/bs5-lightbox.min.css"> #}
 {% endblock %}
 
-
 {% block content_header %}
-    {# Channel Header - could be a banner image in future #}
     <div class="channel-header pt-3 pb-2 mb-3 border-bottom bg-light-subtle position-relative">
-        <div class="container-fluid"> {# Use container-fluid from base for alignment #}
+        <div class="container-fluid">
             <div class="d-flex flex-column flex-md-row align-items-md-center">
                 <div class="me-md-3 mb-2 mb-md-0 text-center text-md-start">
                     {% set channel_avatar_view = url_for('static', filename=(channel.profile_photo_url if channel.profile_photo_url else 'img/placeholders/channel_default_avatar.png')) %}
@@ -51,7 +49,7 @@
                     {% endif %}
                 </div>
             </div>
-             {% if channel.bio %} {# Show bio on mobile below header items #}
+             {% if channel.bio %}
                 <p class="text-muted small mb-2 d-md-none mt-2 text-center">{{ channel.bio | truncate(100) }}</p>
             {% endif %}
         </div>
@@ -61,20 +59,22 @@
 {% block content %}
 <div class="container-fluid px-0">
     <div class="row g-4">
-        {# Main Content Feed #}
         <div class="col-lg-8 col-xl-9 order-lg-2">
             {% include 'layout/_flash_messages.html' %}
 
-            {# Post Creation Form - only if user can post (e.g., owner, admin, or if channel allows all subscribers) #}
-            {% set can_post_in_channel = is_owner or is_admin %} {# Basic permission - can be expanded #}
+            {% set can_post_in_channel = is_owner or is_admin %}
             {% if can_post_in_channel %}
                 <div class="mb-4">
-                    {% include 'partials/_social_content_form.html' with {
-                        'post_form': post_form,
-                        'submit_url': url_for('create_channel_post', channel_id=channel.id),
-                        'submit_button_text': 'Post to Channel',
-                        'parent_id': channel.id
-                    } %}
+                    {# FIX: This 'with' block now has the correct indentation #}
+                    {% with 
+                        post_form = post_form,
+                        submit_url = url_for('create_channel_post', channel_id=channel.id),
+                        submit_button_text = 'Post to Channel',
+                        form_id = 'channelPostCreateForm',
+                        form_type = 'channel_post_create'
+                    %}
+                        {% include "partials/_social_content_form.html" %}
+                    {% endwith %}
                 </div>
             {% endif %}
 
@@ -84,7 +84,6 @@
                     {% for post in posts %}
                         {% include 'partials/_social_post_item.html' %}
                     {% endfor %}
-                    {# Placeholder for "Load More" button or infinite scroll trigger #}
                     <div class="text-center my-4" id="loadMorePostsTrigger-{{ channel.id }}">
                         <button class="btn btn-outline-primary load-more-btn" data-channel-id="{{ channel.id }}" data-current-page="{{ pagination.page if pagination else 1 }}">
                             <span class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
@@ -105,7 +104,6 @@
             </div>
         </div>
 
-        {# Right Sidebar (Channel Info, Subscribers - Optional) #}
         <div class="col-lg-4 col-xl-3 order-lg-1 channel-sidebar">
             <div class="card shadow-sm mb-4">
                 <div class="card-header">
@@ -126,7 +124,7 @@
                     <h5 class="mb-0 font-heading"><i class="bi bi-people-fill me-2"></i>Subscribers ({{ channel.subscribers.count() }})</h5>
                 </div>
                 <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
-                    {% for sub_entry in channel.subscribers.limit(10).all() %} {# Limit for display #}
+                    {% for sub_entry in channel.subscribers.limit(10).all() %}
                         <a href="#" class="list-group-item list-group-item-action d-flex align-items-center">
                              {% set sub_avatar = url_for('static', filename=(sub_entry.user.profile_photo_url if sub_entry.user.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
                             <img src="{{ sub_avatar }}" alt="{{ sub_entry.user.username }}" class="rounded-circle me-2" style="width:32px; height:32px; object-fit:cover;">
@@ -150,25 +148,21 @@
 
 {% block body_scripts %}
 <script src="{{ url_for('static', filename='js/social.js') }}?v={{ range(1, 100000) | random }}"></script>
-{# Optional: BS5 Lightbox JS for image previews #}
-{# <script src="https://cdn.jsdelivr.net/npm/bs5-lightbox@1.8.3/dist/bs5-lightbox.bundle.min.js"></script> #}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const channelId = {{ channel.id | tojson }};
         const currentUserId = {{ current_user.id | tojson }};
 
-        // Initialize social interactions (posts, comments, reactions) for this channel
-        if (typeof initializeSocialFeed === 'function') { // This function would be in social.js
+        if (typeof initializeSocialFeed === 'function') {
             initializeSocialFeed('channel', channelId, currentUserId);
         } else {
             console.error('initializeSocialFeed function not found in social.js');
         }
 
-        // Handle channel subscribe/unsubscribe buttons specifically on this page
         document.querySelectorAll('.channel-action-btn').forEach(button => {
             button.addEventListener('click', async function(e) {
                 e.preventDefault();
-                const action = this.dataset.action; // 'subscribe' or 'unsubscribe'
+                const action = this.dataset.action;
                 const chanId = this.dataset.channelId;
                 await handleChannelSubscriptionAction(chanId, action, this);
             });
@@ -177,3 +171,4 @@
     });
 </script>
 {% endblock %}
+<!-- END OF FILE: templates/social/channels/view_channel.html -->

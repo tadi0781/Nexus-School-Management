@@ -1,43 +1,32 @@
+// In mergedjs.txt, this is the new app.js
+
 /**
  * app.js - Main Application Entrypoint
- * This file imports and initializes all core JavaScript modules for the Nexus platform.
+ * This file initializes all core JavaScript modules for the Nexus platform.
  */
 "use strict";
-
-// Import core modules
-import { initializeGlobalUI } from './modules/ui.js';
-import { initializeNexusSocial } from './modules/social.js';
-import { initializeNexusTasks } from './modules/tasks.js';
-import { initializeNexusRequests }from './modules/requests.js';
-import { initializeNexusTalentClub } from './modules/talent_club.js';
-import { initializeNexusRealtime } from './modules/socket_client.js';
 
 // --- Main Application Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM fully loaded. Initializing Nexus modules...');
 
-    // 1. Initialize global UI components (tooltips, modals, datepickers, etc.)
-    initializeGlobalUI();
-
-    // 2. Initialize the real-time connection manager
-    initializeNexusRealtime();
-    
-    // 3. Initialize feature-specific modules based on the current page
-    // This ensures we only run the JS needed for the page the user is on.
-    
-    // FIX: This now explicitly calls the correct initializers for each feature.
+    // Initialize the social feed if the container exists on the page
     if (document.getElementById('globalFeedContainer')) {
-        initializeNexusSocial('globalFeedContainer');
-    }
-    if (document.getElementById('taskCreateForm') || document.getElementById('userTaskDetailContainer')) {
-        initializeNexusTasks();
-    }
-    if (document.querySelector('#submitRequestForm, #reviewRequestForm')) {
-        initializeNexusRequests();
-    }
-    if (document.querySelector('.talent-club-page-marker')) { // Add this class to TC page body tags
-        initializeNexusTalentClub();
+        if (typeof nexusSocial !== 'undefined' && typeof nexusSocial.initGlobalFeed === 'function') {
+            console.log('Found globalFeedContainer, initializing nexusSocial...');
+            nexusSocial.initGlobalFeed({
+                feedContainerId: 'globalFeedContainer',
+                loadingPlaceholderId: 'globalFeedLoadingPlaceholder',
+                emptyPlaceholderId: 'globalFeedEmptyPlaceholder',
+                loadMoreTriggerId: 'loadMoreGlobalPostsTrigger',
+                createFormId: 'globalPostCreateForm'
+            });
+        } else {
+            console.error('nexusSocial object or initGlobalFeed function not found. Ensure social.js is loaded correctly before app.js.');
+        }
     }
     
+    // --- Other initializers can be added here in the future ---
+
     console.log('Nexus Platform JS Core is active.');
 });

@@ -624,5 +624,35 @@ function initializeFilePreviewModal() {
 
     console.log("Nexus File Preview Modal Initialized.");
 }
+// Add this function to utils.js if it's not already there.
 
+async function deleteData(url = '') {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    const headers = {};
+    if (csrfToken) {
+        headers['X-CSRFToken'] = csrfToken;
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: 'DELETE', // Use the DELETE HTTP method
+            headers: headers,
+        });
+
+        // Handle cases where the response might not have a body (e.g., 204 No Content)
+        if (response.status === 204) {
+            return { success: true };
+        }
+
+        const responseData = await response.json();
+        if (!response.ok) {
+            const errorMessage = responseData.error || responseData.message || `HTTP error! Status: ${response.status}`;
+            throw new Error(errorMessage);
+        }
+        return responseData;
+    } catch (error) {
+        console.error(`Error in deleteData to ${url}:`, error);
+        throw error;
+    }
+}
 // Add the call to this new initializer in main.js

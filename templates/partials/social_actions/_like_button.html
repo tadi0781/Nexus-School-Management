@@ -1,0 +1,7 @@
+{# templates/partials/social_actions/_like_button.html #}
+<button class="btn btn-subtle btn-sm reaction-btn like-post-btn {% if post.current_user_liked %}active{% endif %}" 
+        data-post-id="{{ post.id }}" data-post-type="global" aria-pressed="{{ post.current_user_liked | lower }}">
+    <i class="bi {% if post.current_user_liked %}bi-heart-fill text-danger{% else %}bi-heart{% endif %}"></i> 
+    <span class="like-text">{% if post.current_user_liked %}Liked{% else %}Like{% endif %}</span>
+    (<span class="like-count">{{ post.like_count or 0 }}</span>)
+</button>

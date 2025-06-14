@@ -1607,33 +1607,3 @@ a.list-group-item:hover, a.list-group-item:focus {
     // TomSelect styling for user picker (general TomSelect styles should apply)
     // .tom-select-user-picker .ts-control { ... }
 }
-
-/* =================================================================== */
-/*   FIX: Group View Dark Mode Visibility (Task #3)                  */
-/* =================================================================== */
-
-/* This targets the dark theme specifically */
-[data-bs-theme=dark] {
-
-    /*
-     * Ensures the main background of the chat window uses the
-     * correct dark theme variable, preventing a white background.
-     */
-    .group-chat-window {
-        background-color: var(--nexus-body-bg);
-    }
-
-    /*
-     * Corrects the message bubbles for messages received from other users.
-     * This rule sets a dark background for the bubble and ensures the
-     * text inside is light and readable.
-     */
-    .chat-message.received .message-bubble {
-        /* Use a slightly lighter dark color for the bubble to contrast with the main background */
-        background-color: var(--nexus-light); 
-        /* Use the primary text color for dark mode (light gray/white) */
-        color: var(--nexus-text-primary);
-        /* Use the dark mode border color */
-        border-color: var(--nexus-border-color);
-    }
-}
