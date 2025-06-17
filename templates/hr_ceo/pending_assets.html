@@ -23,10 +23,10 @@
         <div class="card-header">
             <h5 class="mb-0 font-heading">New Assets Awaiting Your Approval</h5>
         </div>
-        <div class="card-body p-0"> {# Remove padding for full-width table #}
+        <div class="card-body p-0">
             {% if pending_assets and pending_assets | length > 0 %}
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
+                    <table class="table table-hover table-striped mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col">ID</th>
@@ -49,7 +49,10 @@
                                     </a>
                                 </td>
                                 <td>{{ asset.added_by_user.full_name or asset.added_by_user.username if asset.added_by_user else 'N/A' }}</td>
-                                <td>{{ asset.created_at | dateformat if asset.created_at else (asset.reports[0].report_date | dateformat if asset.reports else 'N/A') }}</td> {# Assuming created_at for new assets #}
+                                <td>
+                                    {# Use created_at for assets, which is more reliable than report_date #}
+                                    {{ asset.created_at | dateformat if asset.created_at else 'N/A' }}
+                                </td>
                                 <td>{{ asset.quantity }}</td>
                                 <td>
                                     {% if asset.category %}
@@ -68,10 +71,23 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="btn btn-sm btn-primary" title="Review and Edit Asset">
+                                    {# --- BEGIN: MODIFIED ACTION BUTTONS --- #}
+                                    
+                                    {# 1. Review & Edit Button (links to the full edit page) #}
+                                    <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="btn btn-sm btn-primary" title="Review and Edit Asset Details">
                                         <i class="bi bi-pencil-square me-1"></i> Review
                                     </a>
-                                    {# Optional: Quick Approve/Reject if simple cases exist, but edit_asset is safer #}
+
+                                    {# 2. Quick Approve Button (a mini-form for the POST request) #}
+                                    <form action="{{ url_for('approve_asset', asset_id=asset.id) }}" method="POST" class="d-inline ms-1">
+                                        {# This hidden input provides the CSRF token for security #}
+                                        {{ csrf_form.csrf_token }}
+                                        <button type="submit" class="btn btn-sm btn-success" title="Approve with current details">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Approve
+                                        </button>
+                                    </form>
+                                    
+                                    {# --- END: MODIFIED ACTION BUTTONS --- #}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -86,8 +102,6 @@
                 </div>
             {% endif %}
         </div>
-        {# Optional: Pagination if the list can be very long #}
-        {# {% if paginated_assets and (paginated_assets.has_prev or paginated_assets.has_next) %} ... {% endif %} #}
     </div>
 </div>
 {% endblock %}

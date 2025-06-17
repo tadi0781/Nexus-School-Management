@@ -1,0 +1,54 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="text-center font-weight-light my-4">
+                        <i class="bi bi-person-video3 me-2"></i>My Classroom Assignments
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">
+                        Select one of your assigned classes to manage attendance or enter student marks.
+                    </p>
+
+                    <div class="list-group">
+                        {# THIS IS THE BLOCK WITH THE FIX #}
+                        {% for assignment in assignments %}
+                            <div class="list-group-item list-group-item-action flex-column align-items-start mb-3 border rounded-3">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-1">
+                                            {{ assignment.subject }} - Grade {{ assignment.grade }}
+                                        </h5>
+                                        <p class="mb-0 text-muted">Teaching in Sections: <strong>{{ assignment.sections|sort|join(', ') }}</strong></p>
+                                    </div>
+                                    <div class="ms-3">
+                                        {# The buttons now lead to the existing, working pages #}
+                                        <a href="{{ url_for('enter_marks', grade=assignment.grade, subject=assignment.subject) }}" class="btn btn-primary me-2">
+                                            <i class="bi bi-pencil-square me-1"></i> Enter Marks
+                                        </a>
+                                        <a href="{{ url_for('select_section_for_attendance', grade=assignment.grade, subject=assignment.subject) }}" class="btn btn-success">
+                                            <i class="bi bi-check2-circle me-1"></i> Mark Attendance
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger text-center">
+                                You do not have any specific class assignments in your profile. Please contact an administrator to get assigned to your classes.
+                            </div>
+                        {% endfor %} {# <-- THE MISSING 'endfor' TAG IS NOW HERE #}
+                    </div>
+                </div>
+                 <div class="card-footer text-center py-3">
+                    <a href="{{ url_for('teacher_dashboard') }}"><i class="bi bi-arrow-left-circle me-1"></i>Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

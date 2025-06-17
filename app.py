@@ -1,8 +1,13 @@
 # --- Imports ---
 import logging
 import os
+import io
+import csv
+import string
+import random
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone,date
+from calendar import monthrange
 from functools import wraps
 import uuid
 from logging.handlers import RotatingFileHandler
@@ -99,11 +104,6 @@ from wtforms.validators import (
     URL,
 )
 
-# --- Your Model Imports ---
-# from .models import User, Role, SecretCode, AssetCategory, Lab, Message, Notification
-# --- Your Form Imports ---
-# from .forms import LoginForm, PreForm
-
 # =================================================================
 # GEMINI 3 PRO: PHASE 3.1 - High-Performance Caching with Redis
 # =================================================================
@@ -146,9 +146,7 @@ else:
     print(f"Running in {app.config['ENV_MODE']} mode")
 
 # NOTE: SQLALCHEMY_DATABASE_URI and TRACK_MODIFICATIONS are now set *before* db initialization
-app.config["SQLALCHEMY_DATABASE_URI"] = (
-    "postgresql://classicboy0781:nexus@localhost/nexus"  # CHANGE THIS IN PRODUCTION
-)
+app.config["SQLALCHEMY_DATABASE_URI"] = 'postgresql://nexus:classicboy0781@localhost/nexus'
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 
@@ -209,12 +207,26 @@ class Role(db.Model):
     def __repr__(self):
         return f"<Role {self.name}>"
 
+# In app.py, replace the old Lab model with this one
 
 class Lab(db.Model):
     __tablename__ = "lab"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
 
+    # --- NEW STRUCTURED FIELDS ---
+    # This helps us identify if it's a classroom or a subject-specific lab.
+    lab_type = db.Column(db.String(50), nullable=True, index=True) # e.g., 'classroom', 'subject'
+    
+    # These fields will be populated for 'classroom' type labs.
+    grade = db.Column(db.String(10), nullable=True)
+    section = db.Column(db.String(10), nullable=True)
+    
+    # This field will be populated for 'subject' type labs.
+    subject = db.Column(db.String(100), nullable=True)
+    # --- END OF NEW FIELDS ---
+
+    # This relationship remains the same.
     lab_assignments = db.relationship("User", back_populates="lab", lazy="dynamic")
 
     def __repr__(self):
@@ -574,11 +586,14 @@ class User(db.Model, UserMixin):
     age = db.Column(db.Integer, nullable=True)
     sex = db.Column(db.String(20), nullable=True)
     profile_photo_url = db.Column(db.String(255), nullable=True)
-    grade = db.Column(db.String(10), nullable=True, index=True)
-    section = db.Column(db.String(10), nullable=True, index=True)
+    grade = db.Column(db.Integer, nullable=True, index=True)
+    section = db.Column(db.Integer, nullable=True, index=True)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
     lab_id = db.Column(db.Integer, db.ForeignKey("lab.id"), nullable=True)
     teacher_profiles = db.relationship("TeacherProfile", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")
+    # ... inside the User model ...
+    secret_code = db.relationship("SecretCode", back_populates="user", uselist=False)
+# ... other relationships ...
     channel_preferences = db.relationship(
         "UserChannelPreference",
         back_populates="user",
@@ -713,7 +728,11 @@ class User(db.Model, UserMixin):
         "SocialGroupMember", back_populates="user", lazy="dynamic"
     )
     owned_channels = db.relationship("Channel", back_populates="owner", lazy="dynamic")
+    # In app.py, inside the User model class
 
+    # --- ADD THIS LINE FOR THE WEATHER FEATURE ---
+    home_city = db.Column(db.String(100), nullable=True)
+    # --- END OF ADDITION ---
     # FIX: Renamed 'owned_social_groups' to 'owned_groups' to match the SocialGroup model.
     # Also added cascade for better data integrity.
     owned_groups = db.relationship(
@@ -993,45 +1012,35 @@ class SocialGroupMember(db.Model):
 
     def __repr__(self):
         return f"<SocialGroupMember UserID:{self.user_id} in GroupID:{self.group_id} as {self.role}>"
-
-# Other Supporting Models
-# In app.py
+        
 class SecretCode(db.Model):
     __tablename__ = "secret_code"
     id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    code = db.Column(db.String(255), unique=True, nullable=False, index=True) # Assumes you expanded this
     full_name = db.Column(db.String(120), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
-    
-    # --- ADD THESE TWO LINES ---
-    grade = db.Column(db.String(10), nullable=True)  # Store grade for students
-    section = db.Column(db.String(10), nullable=True) # Store section for students
-    # --- END OF ADDED LINES ---
-
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True)
+    grade = db.Column(db.String(10), nullable=True) 
+    section = db.Column(db.String(10), nullable=True) 
     is_used = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    teacher_profiles = db.relationship("TeacherProfile", back_populates="secret_code")
-
+    
     role = db.relationship("Role", back_populates="secret_codes")
+    user = db.relationship("User", back_populates="secret_code")
 
     def __repr__(self):
-        return f"<SecretCode {self.code} (Role: {self.role.name if self.role else 'N/A'}) Used: {self.is_used}>"
-# In app.py
-# In app.py
+        return f"<SecretCode {self.code} (User: {self.user.username if self.user else 'Unused'})>"
 class TeacherProfile(db.Model):
     __tablename__ = "teacher_profile"
     id = db.Column(db.Integer, primary_key=True)
-    # This foreign key is the crucial link to the User table
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, unique=True)
-    secret_code_id = db.Column(db.Integer, db.ForeignKey("secret_code.id"), nullable=True)
-
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    # The secret_code_id and relationship are now completely removed.
+    
     subject = db.Column(db.String(100), nullable=False)
     salary = db.Column(db.Float, nullable=True)
-    grade = db.Column(db.String(10), nullable=True)
-    section = db.Column(db.String(10), nullable=True)
+    grade = db.Column(db.Integer, nullable=True)
+    section = db.Column(db.Integer, nullable=True) # Changed to Integer to match DB
 
-    secret_code = db.relationship("SecretCode", back_populates="teacher_profiles")
-    # FIX: The back_populates now correctly points to the relationship on the User model
     user = db.relationship("User", back_populates="teacher_profiles")
 
     def __repr__(self):
@@ -2796,6 +2805,8 @@ class GroupMessage(db.Model):  # Corrected model name
         return f"<GroupMessage ID:{self.id} GroupID:{self.group_id} AuthorID:{self.author_id}>"
 
 
+# In your models.py file
+
 class Mark(db.Model):
     __tablename__ = "mark"
     id = db.Column(db.Integer, primary_key=True)
@@ -2816,9 +2827,38 @@ class Mark(db.Model):
         db.Index("idx_mark_subject_average", "subject", "average"),
     )
 
+    # --- NEW METHOD ADDED HERE ---
+    def update_derived_fields(self):
+        """
+        Calculates total and average based on semester scores.
+        Handles cases where one or both scores might be missing.
+        """
+        s1 = self.semester_1
+        s2 = self.semester_2
+        
+        # Determine how many valid scores we have for the average calculation
+        num_scores = 0
+        current_total = 0
+
+        if s1 is not None:
+            num_scores += 1
+            current_total += s1
+        
+        if s2 is not None:
+            num_scores += 1
+            current_total += s2
+
+        if num_scores > 0:
+            self.total = current_total
+            self.average = current_total / num_scores
+        else:
+            # If both scores are None, reset the calculated fields
+            self.total = None
+            self.average = None
+    # --- END OF NEW METHOD ---
+
     def __repr__(self):
         return f"<Mark StudentID: {self.student_id}, Subject: {self.subject}, Avg: {self.average}>"
-
 
 # --- PART 2 END: Model Definitions ---
 
@@ -5732,6 +5772,10 @@ class ResolveReportForm(FlaskForm):
     #      ]
 
 
+class CSRFProtectForm(FlaskForm):
+    """A minimal form used only for CSRF protection on pages with dynamic fields."""
+    pass
+
 # --- Asset Category Management Forms ---
 class AddCategoryForm(FlaskForm):
     """Form for adding a new asset category."""
@@ -5913,7 +5957,15 @@ class AssignLeaderForm(FlaskForm):
                 (0, "--- No Leaders Found ---")
             ]  # Use 0 as a placeholder value
 
+# In your forms.py or routes.py
+from flask_wtf import FlaskForm
+from wtforms import SubmitField
 
+# This form is intentionally simple. Its main job is to provide CSRF protection.
+class MarksEntryForm(FlaskForm):
+    # You can add a submit field here, but it's not strictly necessary
+    # as the button is hardcoded in the template. Having it can be good practice.
+    submit = SubmitField('Save All Marks')
 # In app.py
 
 from wtforms.validators import Optional, URL, Length, DataRequired
@@ -6399,119 +6451,86 @@ def complete_registration():
         return redirect(url_for("role_redirect"))
 
     # --- Step 1: Validate the pre-registration session data ---
-    code_id = session.get("pre_reg_code_id")
-    pre_reg_full_name = session.get("pre_reg_full_name")
-    pre_reg_role_id = session.get("pre_reg_role_id")
-    pre_reg_code_value = session.get("pre_reg_code_value")
-
-    if not all([code_id, pre_reg_full_name, pre_reg_role_id, pre_reg_code_value]):
+    code_value = session.get("pre_reg_code_value")
+    if not code_value:
         flash("Pre-registration session expired or invalid. Please start over.", "danger")
         return redirect(url_for("pre_register"))
 
-    # Re-fetch the secret code from the DB using the session ID to ensure it's still valid
-    secret_code_for_user = db.session.get(SecretCode, code_id)
-    if (
-        not secret_code_for_user
-        or secret_code_for_user.is_used
-        or secret_code_for_user.full_name != pre_reg_full_name
-        or secret_code_for_user.role_id != pre_reg_role_id
-        or secret_code_for_user.code != pre_reg_code_value
-    ):
-        flash("Pre-registration data mismatch or code has been used. Please start over.", "danger")
-        # Clear potentially invalid session data
-        session.pop("pre_reg_code_id", None)
-        session.pop("pre_reg_full_name", None)
-        session.pop("pre_reg_role_id", None)
+    # --- Step 2: Find the User linked to this secret code ---
+    # Your import script has already created the User and linked them. We just need to find them.
+    user_to_update = db.session.scalar(
+        select(User).join(SecretCode).where(
+            SecretCode.code == code_value,
+            SecretCode.is_used == False # IMPORTANT: Ensure code hasn't been used yet
+        )
+    )
+
+    if not user_to_update:
+        flash("Secret code is invalid, already used, or not linked to a user. Please contact an administrator.", "danger")
         session.pop("pre_reg_code_value", None)
         return redirect(url_for("pre_register"))
 
-    # --- Step 2: Handle the form ---
+    # --- Step 3: Handle the form ---
     form = CompleteRegistrationForm()
-
-    if request.method == "GET":
-        # Pre-fill the full name from the secret code data for convenience
-        form.full_name.data = pre_reg_full_name
 
     if form.validate_on_submit():
         try:
-            # --- Step 3: Create the new User object with all data ---
-            user_full_name = form.full_name.data.strip()
-            name_parts = user_full_name.split(" ", 1)
-            first_name = name_parts[0]
-            last_name = name_parts[1] if len(name_parts) > 1 else None
+            # --- THIS IS THE FIX ---
+            # We are now UPDATING the user we found, NOT creating a new one.
 
-            # Create the new User instance
-            user = User(
-                username=form.username.data.strip(),
-                email=form.email.data.strip() if form.email.data else None,
-                full_name=user_full_name,
-                first_name=first_name,
-                last_name=last_name,
-                role_id=pre_reg_role_id,
-
-                # === THIS IS THE FIX ===
-                # We pull the grade and section directly from the SecretCode object
-                # that was validated and fetched at the start of this function.
-                grade=secret_code_for_user.grade,
-                section=secret_code_for_user.section,
-                # =======================
-
-                is_active=True,
-                force_password_change=False,
-                created_at=datetime.now(timezone.utc),
-                age=form.age.data,
-                sex=form.sex.data if form.sex.data else None,
-                profile_photo_url=(
-                    form.profile_photo_url.data.strip()
-                    if form.profile_photo_url.data
-                    else None
-                ),
-            )
+            # Update fields from the form
+            user_to_update.username = form.username.data.strip()
+            user_to_update.email = form.email.data.strip()
+            user_to_update.set_password(form.password.data)
             
-            # Set password and mark the code as used
-            user.set_password(form.password.data)
-            secret_code_for_user.is_used = True
+            # Update optional fields
+            user_to_update.age = form.age.data
+            user_to_update.sex = form.sex.data if form.sex.data else None
+            user_to_update.profile_photo_url = form.profile_photo_url.data.strip() if form.profile_photo_url.data else None
+            
+            # The user is now fully set up
+            user_to_update.force_password_change = False # They have now set their password
+            user_to_update.is_active = True
 
-            # --- Step 4: Save everything to the database ---
-            db.session.add(user)
-            db.session.add(secret_code_for_user)  # Add the updated secret code to the session
+            # Mark the secret code as used
+            secret_code = user_to_update.secret_code
+            if secret_code:
+                secret_code.is_used = True
+
+            # Commit the UPDATES to the database
             db.session.commit()
 
-            # --- Step 5: Clean up and redirect ---
-            session.pop("pre_reg_code_id", None)
-            session.pop("pre_reg_full_name", None)
-            session.pop("pre_reg_role_id", None)
+            # --- Step 4: Clean up and redirect ---
             session.pop("pre_reg_code_value", None)
 
             flash("Registration complete! Please log in with your new username and password.", "success")
             app.logger.info(
-                f"New user '{user.username}' (ID: {user.id}) registered successfully using secret code ID {secret_code_for_user.id}."
+                f"User '{user_to_update.username}' (ID: {user_to_update.id}) completed registration."
             )
             return redirect(url_for("login"))
 
         except IntegrityError:
             db.session.rollback()
-            app.logger.warning(
-                f"Complete registration failed for code ID {code_id} due to IntegrityError."
-            )
-            flash("Registration failed: Username or email is already in use. Please check the form.", "danger")
+            flash("Registration failed: That username or email is already in use. Please choose another.", "danger")
         
         except Exception as e:
             db.session.rollback()
             app.logger.error(
-                f"Error during complete registration for code ID {code_id}: {e}",
+                f"Error during complete registration for user ID {user_to_update.id}: {e}",
                 exc_info=True,
             )
             flash("An unexpected error occurred during registration. Please try again.", "danger")
 
-    # This part is for GET requests or if form validation fails on POST
+    # For GET request, pre-fill the form with existing data if available
+    form.full_name.data = user_to_update.full_name
+    form.email.data = user_to_update.email or ''
+
     return render_template(
         "auth/complete_registration.html",
         form=form,
-        pre_reg_full_name=pre_reg_full_name,
+        pre_reg_full_name=user_to_update.full_name,
         title="Complete Your Registration - Nexus",
     )
-
 @app.route("/role-redirect")
 @login_required
 def role_redirect():
@@ -6881,44 +6900,12 @@ def fallback_dashboard():
 # - role_required decorator is defined.
 # - url_for, request, flash, render_template, redirect, abort, jsonify are available.
 # - The context processor injects unread message/notification counts and `current_user`.
-
-# --- Dashboard Routes (Specific Roles) ---
-# In app.py, find and replace the student_dashboard route
-
 @app.route("/student/dashboard")
 @login_required
-@role_required(
-    "student"
-)  # Make sure your role_required decorator is defined and working
+@role_required("student")
 def student_dashboard():
-    # ======================================================================
-    # --- START OF DEBUGGING CODE ---
-    # This will print information to the terminal where your Flask app is running.
-    print("--- DEBUGGING STUDENT DASHBOARD ---")
-    
-    # 1. Check basic user info
-    print(f"User ID: {current_user.id}, Username: {current_user.username}")
-    
-    # 2. Check the user's role
-    if hasattr(current_user, 'role') and current_user.role:
-        print(f"User Role: {current_user.role.name}")
-    else:
-        print("User Role: NOT FOUND or NOT LOADED.")
-        
-    # 3. Check for the existence of 'grade' and 'section' attributes on the object
-    grade_exists = hasattr(current_user, 'grade')
-    section_exists = hasattr(current_user, 'section')
-    print(f"Attribute 'grade' exists on current_user object? {grade_exists}")
-    print(f"Attribute 'section' exists on current_user object? {section_exists}")
-    
-    # 4. If the attributes exist, print their values
-    if grade_exists:
-        print(f"Value of current_user.grade: '{current_user.grade}' (Type: {type(current_user.grade)})")
-    if section_exists:
-        print(f"Value of current_user.section: '{current_user.section}' (Type: {type(current_user.section)})")
-        
-    print("--- END OF DEBUGGING ---")
-    # ======================================================================
+    # The original debugging code can be removed if you've resolved the grade/section issue,
+    # or kept for future troubleshooting. For clarity, I'm removing it from the final version here.
 
     user_id = current_user.id
 
@@ -6926,36 +6913,33 @@ def student_dashboard():
     teachers = []
     teachers_count = 0
     if current_user.grade and current_user.section:
-        # Ensure TeacherProfile and Role models are correctly imported and joined
         teachers = db.session.scalars(
             select(User)
-            .join(
-                User.teacher_profiles
-            )  # Assuming 'teacher_profiles' is the relationship name on User to TeacherProfile model
+            .join(User.teacher_profiles)
             .where(
                 TeacherProfile.grade == current_user.grade,
                 TeacherProfile.section == current_user.section,
                 User.is_active == True,
-                User.role.has(Role.name == "teacher"),  # Ensure it's a teacher
+                User.role.has(Role.name == "teacher"),
             )
-            .distinct()  # Avoid duplicates if a teacher has multiple profiles for the same class (unlikely)
+            .distinct()
             .order_by(User.full_name)
         ).all()
         teachers_count = len(teachers)
 
     # Borrowed books (not returned)
     borrowed_books = db.session.scalars(
-        select(BorrowedAsset)  # Make sure BorrowedAsset model is imported
-        .where(BorrowedAsset.user_id == user_id, BorrowedAsset.returned == False)
+        select(BookCheckout) # Using BookCheckout to be consistent with the library pages
+        .where(BookCheckout.user_id == user_id, BookCheckout.returned == False)
         .options(
-            joinedload(BorrowedAsset.asset).joinedload(Asset.category)
-        )  # Eager load asset and its category
-        .order_by(BorrowedAsset.due_date.asc())
+            joinedload(BookCheckout.asset).joinedload(Asset.category)
+        )
+        .order_by(BookCheckout.due_date.asc())
     ).all()
 
     # Recent attendance records (last 5)
     recent_attendance = db.session.scalars(
-        select(Attendance)  # Make sure Attendance model is imported
+        select(Attendance)
         .where(Attendance.student_id == user_id)
         .order_by(Attendance.date.desc())
         .limit(5)
@@ -6963,55 +6947,63 @@ def student_dashboard():
 
     # Marks for all subjects
     marks_records = db.session.scalars(
-        select(Mark)  # Make sure Mark model is imported
+        select(Mark)
         .where(Mark.student_id == user_id)
         .order_by(Mark.subject)
     ).all()
 
     # My Tasks (actionable ones for the student)
     actionable_task_statuses = [
-        "Open",
-        "In Progress",
-        "Completed (Pending Review)",
-        "Delayed (Pending Review)",
-        "Rejected (Pending Review)",
-        "Review Rejected",
+        "Open", "In Progress", "Completed (Pending Review)",
+        "Delayed (Pending Review)", "Rejected (Pending Review)", "Review Rejected",
     ]
-    # Ensure UserTask and Task models are imported
     my_tasks = db.session.scalars(
         select(UserTask)
-        .join(
-            UserTask.task
-        )  # Explicit join to Task for ordering or filtering by task attributes
+        .join(UserTask.task)
         .where(
             UserTask.user_id == user_id, UserTask.status.in_(actionable_task_statuses)
         )
         .options(
             joinedload(UserTask.task).joinedload(Task.created_by)
-        )  # Eager load related task and its creator
+        )
         .order_by(
             Task.due_date.asc().nulls_last(), UserTask.assigned_at.asc()
-        )  # Order by task's due_date
+        )
     ).all()
 
-    # Recent activities for student (placeholder for now, could be recent important notifications)
-    # Example: Fetch last 5 notifications of specific types relevant to students
-    student_activity_types = [
-        "task_assigned",
-        "task_review_result",
-        "behavior_recorded",
-        "general_announcement_student",
-    ]  # Define relevant types
-    recent_activities = db.session.scalars(
+    # --- THIS IS THE FIX ---
+    # Fetch recent notifications and format them for the render_recent_activity macro
+    
+    # Define a mapping from notification_type to icon and color
+    activity_styles = {
+        'task_assigned': {'icon': 'bi-list-task', 'badge_color': 'primary'},
+        'task_review_result': {'icon': 'bi-patch-check-fill', 'badge_color': 'success'},
+        'behavior_recorded': {'icon': 'bi-person-exclamation', 'badge_color': 'warning'},
+        'general_announcement_student': {'icon': 'bi-megaphone-fill', 'badge_color': 'info'},
+        'default': {'icon': 'bi-bell-fill', 'badge_color': 'secondary'}
+    }
+
+    # Fetch the raw notification objects
+    raw_notifications = db.session.scalars(
         select(Notification)
-        .where(
-            Notification.receiver_id == user_id,
-            Notification.notification_type.in_(student_activity_types),
-        )
+        .where(Notification.receiver_id == user_id)
         .options(joinedload(Notification.sender))
         .order_by(Notification.timestamp.desc())
         .limit(5)
     ).all()
+
+    # Process the raw notifications into the list of dictionaries the macro expects
+    recent_activities = []
+    for notification in raw_notifications:
+        style = activity_styles.get(notification.notification_type, activity_styles['default'])
+        recent_activities.append({
+            'icon': style['icon'],
+            'badge_color': style['badge_color'],
+            'content': notification.content,
+            'timestamp': notification.timestamp,
+            'link_url': notification.link_url
+        })
+    # --- END OF FIX ---
 
     return render_template(
         "student/dashboard.html",
@@ -7022,7 +7014,7 @@ def student_dashboard():
         recent_attendance=recent_attendance,
         marks_records=marks_records,
         my_tasks=my_tasks,
-        recent_activities=recent_activities,
+        recent_activities=recent_activities, # Pass the correctly formatted list
     )
 
 @app.route("/teacher/student/<int:user_id>/profile")  # Example path
@@ -7090,104 +7082,135 @@ def teacher_student_profile_view(user_id):
         # permissions=get_request_permissions(current_user) # If quick links use it
         title=f"Profile: {student.full_name or student.username} - Nexus",
     )
+@app.route("/teacher/my-classroom")
+@login_required
+@role_required("teacher")
+def teacher_select_classroom():
+    """
+    Shows a teacher a list of their assigned classes, with options to manage
+    marks or attendance for each. This is the new central hub.
+    """
+    # Fetch all teacher profiles and aggregate them by (grade, subject)
+    profiles = current_user.teacher_profiles.order_by(
+        TeacherProfile.grade, TeacherProfile.subject, TeacherProfile.section
+    ).all()
+    
+    assignments = {}
+    if not profiles:
+        # If no profiles, render the page with an empty list
+        return render_template('teacher/my_classroom.html', assignments=[], title="My Classroom")
+
+    for profile in profiles:
+        key = (profile.grade, profile.subject)
+        if key not in assignments:
+            assignments[key] = {
+                'grade': profile.grade,
+                'subject': profile.subject,
+                'sections': []
+            }
+        # Add the section to the list for this assignment, avoiding duplicates
+        if profile.section not in assignments[key]['sections']:
+            assignments[key]['sections'].append(profile.section)
+            
+    # Sort the aggregated assignments for display
+    sorted_assignments = sorted(assignments.values(), key=lambda x: (x['grade'], x['subject']))
+    
+    return render_template('teacher/my_classroom.html', assignments=sorted_assignments, title="My Classroom")
 
 
+@app.route("/teacher/select-section-for-attendance/<grade>/<subject>")
+@login_required
+@role_required("teacher")
+def select_section_for_attendance(grade, subject):
+    """
+    After a teacher selects a class (Grade/Subject), this page shows the specific
+    sections they teach for that class, allowing them to pick one for attendance.
+    """
+    # Fetch only the profiles for the selected grade and subject
+    profiles = current_user.teacher_profiles.filter_by(grade=grade, subject=subject).order_by(TeacherProfile.section).all()
+    
+    if not profiles:
+        flash("You are not assigned to any sections for this grade and subject.", "danger")
+        return redirect(url_for('teacher_select_classroom'))
+        
+    return render_template(
+        'teacher/select_section.html', 
+        profiles=profiles, 
+        grade=grade, 
+        subject=subject, 
+        title="Select Section for Attendance"
+    )  
+# In app.py, replace the ENTIRE old teacher_dashboard function with this one.
+#
+# REPLACE YOUR ENTIRE teacher_dashboard FUNCTION WITH THIS ONE
+#
+# REPLACE your teacher_dashboard function with THIS TEST CODE
+#
 @app.route("/teacher/dashboard")
 @login_required
 @role_required("teacher")
 def teacher_dashboard():
-    # teacher_profile is used to find students in their class.
-    # Assuming a teacher is primarily associated with one main class for dashboard stats.
-    # If a teacher can have multiple (grade, section, subject) assignments,
-    # this logic might need to pick the "primary" one or aggregate data.
-    teacher_profile = db.session.scalar(
-        select(TeacherProfile)
-        .where(
-            TeacherProfile.user_id
-            == current_user.id
-            # Add conditions if teachers can have multiple profiles, e.g., filter by a 'is_primary' flag
-        )
-        .order_by(TeacherProfile.id.desc())
-        .limit(1)  # Get the latest or primary profile
-    )
+    # --- THIS IS THE FINAL DIAGNOSTIC TEST ---
+    print("\n" + "="*50)
+    print("--- RUNNING DIAGNOSTIC TEST FROM INSIDE THE FLASK APP ---")
 
-    students_count = 0
-    if teacher_profile and teacher_profile.grade and teacher_profile.section:
-        students_count = (
-            db.session.scalar(
-                select(func.count(User.id))
-                .join(User.role)  # Assuming User.role relationship
-                .where(
-                    Role.name == "student",
-                    User.grade == teacher_profile.grade,
-                    User.section == teacher_profile.section,
-                    User.is_active == True,
-                )
-            )
-            or 0
-        )
+    # TEST 1: The original query using the logged-in user
+    print(f"INFO: current_user is '{current_user.username}' with ID {current_user.id}")
+    original_query_profiles = db.session.scalars(
+        select(TeacherProfile).where(TeacherProfile.user_id == current_user.id)
+    ).all()
+    print(f"RESULT 1 (Using current_user.id): Found {len(original_query_profiles)} profiles.")
+    print(original_query_profiles)
 
+    # TEST 2: The hardcoded query for user ID 1589
+    hardcoded_user_id = 1589
+    print(f"\nINFO: Now running a hardcoded test for user ID {hardcoded_user_id}...")
+    hardcoded_query_profiles = db.session.scalars(
+        select(TeacherProfile).where(TeacherProfile.user_id == hardcoded_user_id)
+    ).all()
+    print(f"RESULT 2 (Using hardcoded ID 1589): Found {len(hardcoded_query_profiles)} profiles.")
+    print(hardcoded_query_profiles)
+    print("="*50 + "\n")
+
+    # For the test, we will use the original query's result to render the page
+    all_profiles = original_query_profiles
+
+    # The rest of your function logic remains the same...
+    assignments = {}
+    unique_student_ids = set()
+    if not all_profiles:
+        flash("You are not currently assigned to any classes. Please contact an administrator.", "warning")
+        pass
+    else:
+        for profile in all_profiles:
+            key = (profile.grade, profile.subject)
+            if key not in assignments:
+                assignments[key] = {'grade': profile.grade, 'subject': profile.subject, 'sections': []}
+            if profile.section not in assignments[key]['sections']:
+                assignments[key]['sections'].append(profile.section)
+            students_in_section = db.session.scalars(select(User.id).join(Role).where(Role.name == 'student', User.grade == profile.grade, User.section == profile.section, User.is_active == True)).all()
+            unique_student_ids.update(students_in_section)
+    
+    total_students_count = len(unique_student_ids)
+    sorted_assignments = sorted(assignments.values(), key=lambda x: (int(x['grade']), x['subject']))
     lab_name = current_user.lab.name if current_user.lab else "Not Assigned"
-
-    # My Tasks (actionable ones for the teacher)
-    actionable_task_statuses = [
-        "Open",
-        "In Progress",
-        "Completed (Pending Review)",
-        "Delayed (Pending Review)",
-        "Rejected (Pending Review)",
-        "Review Rejected",
-    ]
-    my_tasks = db.session.scalars(
-        select(UserTask)
-        .join(UserTask.task)
-        .where(
-            UserTask.user_id == current_user.id,
-            UserTask.status.in_(actionable_task_statuses),
-        )
-        .options(joinedload(UserTask.task).joinedload(Task.created_by))
-        .order_by(Task.due_date.asc().nulls_last(), UserTask.assigned_at.asc())
-    ).all()
-
-    # Recent activities for teacher (e.g., new submissions for review, system announcements)
-    teacher_activity_types = [
-        "task_status_update_for_creator",
-        "request_submitted_to_handler",
-        "general_announcement_teacher",
-    ]
-    recent_activities = db.session.scalars(
-        select(Notification)
-        .where(
-            Notification.receiver_id == current_user.id,
-            Notification.notification_type.in_(teacher_activity_types),
-        )
-        .options(joinedload(Notification.sender))
-        .order_by(Notification.timestamp.desc())
-        .limit(5)
-    ).all()
-    # You might need a new notification_type like 'task_status_update_for_creator'
-    # and ensure notify_user_task_status_update uses it.
-
-    # In app.py -> teacher_dashboard() route
+    actionable_task_statuses = ["Open", "In Progress", "Completed (Pending Review)", "Delayed (Pending Review)", "Rejected (Pending Review)", "Review Rejected"]
+    my_tasks = db.session.scalars(select(UserTask).join(UserTask.task).where(UserTask.user_id == current_user.id, UserTask.status.in_(actionable_task_statuses)).options(joinedload(UserTask.task).joinedload(Task.created_by)).order_by(Task.due_date.asc().nulls_last(), UserTask.assigned_at.asc())).all()
+    teacher_activity_types = ["task_status_update_for_creator", "request_submitted_to_handler", "general_announcement_teacher",]
+    recent_activities = db.session.scalars(select(Notification).where(Notification.receiver_id == current_user.id, Notification.notification_type.in_(teacher_activity_types)).options(joinedload(Notification.sender)).order_by(Notification.timestamp.desc()).limit(5)).all()
     permissions = get_request_permissions(current_user)
+
     return render_template(
         "teacher/dashboard.html",
-        teacher_profile=teacher_profile,  # Pass the single profile object
-        students_count=students_count,
+        title="Teacher Dashboard",
+        assignments=sorted_assignments,
+        students_count=total_students_count,
         lab_name=lab_name,
         my_tasks=my_tasks,
         recent_activities=recent_activities,
-        permissions=permissions,  # Pass this to the template
-        # ... other context ...
-        # permissions (for quick links) and unread counts are from context_processor
+        permissions=permissions
     )
-
-    # In app.py, add this new route. A good place is after the /settings route,
-
-
-# or with other new social/content curation features.
-
-
+    
 @app.route("/saved-items")
 @login_required
 def view_saved_items():
@@ -7641,249 +7664,405 @@ def view_library():
 
 
 # Helper function to update ranks for a subject (Needed by enter_marks)
-def update_ranks_for_subject(subject_name):
-    """Calculates and updates ranks for all students for a given subject based on average marks."""
-    # Ensure app context for DB operations if this function is called outside a request context
-    # If only called within request handlers (like enter_marks POST), app_context is implicit.
-    # Adding it defensively if there's a CLI command or background task that uses this.
-    with app.app_context():
-        try:
-            # Select relevant marks, calculate rank using a window function
-            ranked_marks_stmt = (
-                select(
-                    Mark.id,
-                    over(func.rank(), order_by=Mark.average.desc()).label("new_rank"),
-                )
-                .where(Mark.subject == subject_name, Mark.average.isnot(None))
-                .subquery()  # Use subquery to get ranks
-            )
 
-            # Update the Mark table using the ranks from the subquery
-            stmt = (
-                db.update(Mark)
-                .where(Mark.id == ranked_marks_stmt.c.id)  # Join condition to subquery
-                .values(rank=ranked_marks_stmt.c.new_rank)
-            )
-            result = db.session.execute(stmt)
+# In app.py, replace the entire enter_marks function
+# In app.py, replace the enter_marks function with this complete version
 
-            # Update students who have no average (set rank to None)
-            stmt_clear_rank = (
-                db.update(Mark)
-                .where(Mark.subject == subject_name, Mark.average.is_(None))
-                .values(rank=None)
-            )
-            db.session.execute(stmt_clear_rank)
+# In app.py, add this new route, for example, after the 'enter_marks' function.
 
-            # Commit the rank updates
-            db.session.commit()
-
-            app.logger.info(
-                f"Ranks updated for subject '{subject_name}'. {result.rowcount} students ranked."
-            )
-        except Exception as e:
-            # Rollback only the rank updates if an error occurs here
-            db.session.rollback()
-            app.logger.error(
-                f"Error updating ranks for subject '{subject_name}': {e}", exc_info=True
-            )
-            # Optionally re-raise or flash a message
-
-
-@app.route("/teacher/marks", methods=["GET", "POST"])
+@app.route("/teacher/leaderboard/<grade>/<subject>")
 @login_required
 @role_required("teacher")
-def enter_marks():
-    """Allows teachers to enter and update marks for their students and subject."""
-    teacher_profile = current_user.teacher_profiles.filter(
-        TeacherProfile.subject.isnot(None),
-        TeacherProfile.grade.isnot(None),
-        TeacherProfile.section.isnot(None),
-    ).first()
+def view_leaderboard(grade, subject):
+    """Displays a ranked leaderboard for a specific class."""
+    # Verify the teacher is assigned to this class
+    has_assignment = current_user.teacher_profiles.filter_by(grade=grade, subject=subject).first()
+    if not has_assignment:
+        flash("You are not assigned to teach this class.", "danger")
+        abort(403)
 
-    if not teacher_profile or not all(
-        [teacher_profile.grade, teacher_profile.section, teacher_profile.subject]
-    ):
-        flash(
-            "Your teacher profile is incomplete (grade, section, or subject missing). Please contact an administrator.",
-            "warning",
-        )
-        return redirect(url_for("teacher_dashboard"))
+    # Find all sections for this assignment to get all relevant students
+    assigned_sections = [p.section for p in current_user.teacher_profiles.filter_by(grade=grade, subject=subject).all()]
 
-    subject_taught = teacher_profile.subject
-    students = db.session.scalars(
-        select(User)
-        .join(Role)
+    # Fetch all students in the assigned sections who have a mark record for this subject
+    # and order them by rank.
+    ranked_students_query = (
+        select(Mark)
+        .join(User) # Join Mark with User
         .where(
-            Role.name == "student",
-            User.grade == teacher_profile.grade,
-            User.section == teacher_profile.section,
-            User.is_active == True,
+            Mark.subject == subject,
+            User.grade == grade,
+            User.section.in_(assigned_sections)
         )
-        .order_by(User.full_name)
-    ).all()
+        .options(joinedload(Mark.student)) # Eager load student details
+        .order_by(Mark.rank.asc().nulls_last(), Mark.average.desc().nulls_last()) # Order by rank
+    )
+    ranked_marks = db.session.scalars(ranked_students_query).all()
 
-    # Pre-fetch existing marks into a dictionary for efficient lookup
-    student_ids = [s.id for s in students]
-    existing_marks_map = (
-        {
-            mark.student_id: mark
-            for mark in db.session.scalars(
-                select(Mark).where(
-                    Mark.student_id.in_(student_ids), Mark.subject == subject_taught
-                )
-            )
-        }
-        if student_ids
-        else {}
+    return render_template(
+        "teacher/leaderboard.html",
+        ranked_marks=ranked_marks,
+        grade=grade,
+        subject=subject,
+        title=f"Leaderboard for {subject} - Grade {grade}"
     )
 
-    if request.method == "POST":
+# ===================================================================
+# 1. NEW AND IMPROVED HELPER FUNCTION TO CALCULATE RANKS
+# Replace your old function with this one.
+# ===================================================================
+def update_ranks_for_subject(grade, subject_name):
+    """
+    Calculates and updates ranks using a more robust, ORM-based approach.
+    This method is guaranteed to work with the most up-to-date data.
+    """
+    with app.app_context():
+        try:
+            # 1. Fetch all the marks for this grade and subject that we need to rank.
+            #    We sort by average descending. Students with no score (NULL) go to the end.
+            marks_to_rank = db.session.scalars(
+                select(Mark)
+                .join(User)
+                .where(User.grade == grade, Mark.subject == subject_name)
+                .order_by(Mark.average.desc().nullslast())
+            ).all()
+
+            if not marks_to_rank:
+                app.logger.info(f"No marks found for Grade {grade}, Subject {subject_name} to rank.")
+                return
+
+            # 2. Rank the students in Python. This logic correctly handles ties.
+            rank = 0
+            last_score = -1  # A score that can't exist, to start the loop
+            for index, mark_record in enumerate(marks_to_rank, 1):
+                if mark_record.average is None:
+                    # If there's no score, there's no rank.
+                    mark_record.rank = None
+                    continue
+                
+                # If the score is different from the previous one, the new rank is the current position in the list.
+                if mark_record.average != last_score:
+                    rank = index
+                
+                # Assign the rank. If it's a tie, this will assign the same rank as the previous student.
+                mark_record.rank = rank
+                last_score = mark_record.average
+            
+            # 3. Commit all the rank changes to the database.
+            db.session.commit()
+            app.logger.info(f"Successfully updated ranks for Grade {grade}, Subject {subject_name}.")
+
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(
+                f"A critical error occurred while updating ranks for Grade {grade}, Subject '{subject_name}': {e}", 
+                exc_info=True
+            )
+
+
+# ===================================================================
+# 2. THE COMPLETE AND FINAL ROUTE FUNCTION
+# Replace your existing enter_marks route with this.
+# ===================================================================
+@app.route("/teacher/marks/<grade>/<subject>", methods=["GET", "POST"])
+@login_required
+@role_required("teacher")
+def enter_marks(grade, subject):
+    teacher_profile = current_user.teacher_profiles.filter_by(grade=grade, subject=subject).first()
+    if not teacher_profile:
+        flash("You are not assigned to teach this class.", "danger")
+        abort(403)
+
+    assigned_sections = [p.section for p in current_user.teacher_profiles.filter_by(grade=grade, subject=subject).all()]
+    students = db.session.scalars(
+        select(User).join(Role).where(
+            Role.name == "student",
+            User.grade == grade,
+            User.section.in_(assigned_sections),
+            User.is_active == True,
+        ).order_by(User.section, User.full_name)
+    ).all()
+    student_ids = [s.id for s in students]
+    existing_marks_map = {mark.student_id: mark for mark in db.session.scalars(select(Mark).where(Mark.student_id.in_(student_ids), Mark.subject == subject))} if student_ids else {}
+
+    form = CSRFProtectForm()
+
+    if form.validate_on_submit():
         submitted_data = {}
         validation_errors = {}
         parsed_marks = {}
 
-        # 1. Parse and validate all data from the form
+        def _parse_and_validate_score(score_str):
+            if not score_str: return None, None
+            try:
+                score = float(score_str)
+                if not (0 <= score <= 100):
+                    return None, "Score must be between 0 and 100."
+                return score, None
+            except ValueError:
+                return None, "Invalid number format."
+
         for student in students:
             student_id = student.id
             s1_str = request.form.get(f"semester_1_{student_id}", "").strip()
             s2_str = request.form.get(f"semester_2_{student_id}", "").strip()
-
             submitted_data[student_id] = {"semester_1": s1_str, "semester_2": s2_str}
-
+            
             s1, s1_err = _parse_and_validate_score(s1_str)
             s2, s2_err = _parse_and_validate_score(s2_str)
-
             current_student_errors = []
-            if s1_err:
-                current_student_errors.append(f"Semester 1: {s1_err}")
-            if s2_err:
-                current_student_errors.append(f"Semester 2: {s2_err}")
-
+            if s1_err: current_student_errors.append(f"Semester 1: {s1_err}")
+            if s2_err: current_student_errors.append(f"Semester 2: {s2_err}")
             if current_student_errors:
                 validation_errors[student_id] = current_student_errors
             else:
                 parsed_marks[student_id] = {"s1": s1, "s2": s2}
 
-        # 2. If validation fails, flash errors and re-render, preserving user input
         if validation_errors:
             for student_id, errors in validation_errors.items():
-                student_name = next(
-                    (s.full_name for s in students if s.id == student_id),
-                    f"ID {student_id}",
-                )
+                student_name = next((s.full_name for s in students if s.id == student_id), f"ID {student_id}")
                 flash(f"Error for {student_name}: {'. '.join(errors)}", "danger")
+            
+            return render_template("teacher/marks.html", students=students, subject_taught=subject, grade=grade, subject=subject, teacher_profile=teacher_profile, existing_marks_map=existing_marks_map, submitted_data=submitted_data, validation_errors=validation_errors, title=f"Enter Marks for {subject}", form=form)
 
-            return render_template(
-                "teacher/marks.html",
-                students=students,
-                subject_taught=subject_taught,
-                existing_marks_map=existing_marks_map,  # Pass original for rank, etc.
-                submitted_data=submitted_data,  # Pass submitted data to repopulate form
-                validation_errors=validation_errors,
-                teacher_profile=teacher_profile,
-                title=f"Enter Marks for {subject_taught}",
-            )
-
-        # 3. If validation passes, save to the database
         try:
             for student_id, marks in parsed_marks.items():
                 record = existing_marks_map.get(student_id)
                 s1, s2 = marks["s1"], marks["s2"]
-
-                # Create a new record only if one doesn't exist and at least one score is provided
                 if record is None and (s1 is not None or s2 is not None):
-                    record = Mark(student_id=student_id, subject=subject_taught)
+                    record = Mark(student_id=student_id, subject=subject)
                     db.session.add(record)
-
-                # Update record fields if it exists (or was just created)
                 if record:
                     record.semester_1 = s1
                     record.semester_2 = s2
-                    record.update_derived_fields()  # Use model method to calculate total/avg
+                    record.update_derived_fields()
 
             db.session.commit()
 
-            update_ranks_for_subject(subject_taught)
+            update_ranks_for_subject(grade, subject)
 
-            flash(f"Marks for {subject_taught} updated successfully!", "success")
-            app.logger.info(
-                f"Marks updated for {subject_taught} by {current_user.username}"
-            )
-            return redirect(url_for("enter_marks"))
-
+            flash(f"Marks for {subject} updated successfully!", "success")
+            return redirect(url_for('enter_marks', grade=grade, subject=subject))
+            
         except Exception as e:
             db.session.rollback()
-            app.logger.error(
-                f"Error saving marks for {subject_taught} by {current_user.username}: {e}",
-                exc_info=True,
-            )
-            flash(
-                "An unexpected error occurred while saving marks. Please try again.",
-                "danger",
-            )
+            app.logger.error(f"Error saving marks for {subject} by {current_user.username}: {e}", exc_info=True)
+            flash("An unexpected error occurred while saving marks.", "danger")
+            return render_template("teacher/marks.html", students=students, subject_taught=subject, grade=grade, subject=subject, teacher_profile=teacher_profile, existing_marks_map=existing_marks_map, submitted_data=submitted_data, validation_errors={}, title=f"Enter Marks for {subject}", form=form)
 
-            return render_template(
-                "teacher/marks.html",
-                students=students,
-                subject_taught=subject_taught,
-                existing_marks_map=existing_marks_map,
-                submitted_data=submitted_data,  # Re-populate form even on DB error
-                validation_errors={},
-                teacher_profile=teacher_profile,
-                title=f"Enter Marks for {subject_taught}",
-            )
-
-    # For GET request
     return render_template(
         "teacher/marks.html",
         students=students,
-        subject_taught=subject_taught,
-        existing_marks_map=existing_marks_map,
-        submitted_data={},  # Empty on GET
-        validation_errors={},
+        subject_taught=subject,
+        grade=grade,
+        subject=subject,
         teacher_profile=teacher_profile,
-        title=f"Enter Marks for {subject_taught}",
+        existing_marks_map=existing_marks_map,
+        submitted_data={},
+        validation_errors={},
+        title=f"Enter Marks for {subject}",
+        form=form
     )
 
+# ===================================================================
+# NEW ROUTES FOR HR/CEO TO ASSIGN LABS TO TEACHERS
+# Add these to PART 8 of your app.py file
+# ===================================================================
 
-@app.route("/teacher/attendance", methods=["GET", "POST"])
+@app.route("/hr_ceo/lab_assignments")
+@login_required
+@role_required("hr_ceo", "system_admin")
+def lab_assignment_index():
+    """
+    Displays subjects as categories to choose from for lab assignment.
+    This boosts performance by not loading all teachers at once.
+    """
+    # Query for distinct subjects taught by active teachers
+    subjects_query = (
+        select(TeacherProfile.subject, func.count(func.distinct(TeacherProfile.user_id)).label('teacher_count'))
+        .join(User)
+        .where(User.role.has(name='teacher'), User.is_active == True, TeacherProfile.subject.isnot(None))
+        .group_by(TeacherProfile.subject)
+        .order_by(TeacherProfile.subject)
+    )
+    subjects = db.session.execute(subjects_query).all()
+
+    return render_template(
+        'hr_ceo/lab_assignment_index.html',
+        subjects=subjects,
+        title="Assign Labs to Teachers"
+    )
+# In app.py, find the assign_lab_to_teachers function
+
+@app.route("/hr_ceo/lab_assignments/<subject>", methods=["GET", "POST"])
+@login_required
+@role_required("hr_ceo", "system_admin")
+def assign_lab_to_teachers(subject):
+    """
+    Handles assigning labs to all teachers of a specific subject.
+    """
+    # ADD THIS LINE: Instantiate a form for CSRF protection.
+    form = CSRFProtectForm()
+
+    if request.method == 'POST':
+        # No need to call form.validate_on_submit() here, as the global
+        # CSRFProtect extension will check the token before the route runs.
+        # Your existing POST logic can remain as is.
+        try:
+            # Loop through the form data submitted
+            for teacher_id_str, lab_id_str in request.form.items():
+                if teacher_id_str.startswith('teacher_'):
+                    teacher_id = int(teacher_id_str.split('_')[1])
+                    lab_id = int(lab_id_str) if lab_id_str.isdigit() and int(lab_id_str) != 0 else None
+
+                    # Find the teacher and update their lab_id
+                    teacher_user = db.session.get(User, teacher_id)
+                    if teacher_user and teacher_user.role.name == 'teacher':
+                        teacher_user.lab_id = lab_id
+            
+            db.session.commit()
+            flash(f"Lab assignments for '{subject}' teachers have been updated successfully.", "success")
+            app.logger.info(f"User {current_user.username} updated lab assignments for subject: {subject}")
+            return redirect(url_for('lab_assignment_index'))
+            
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error updating lab assignments for subject {subject}: {e}", exc_info=True)
+            flash("An error occurred while saving lab assignments.", "danger")
+
+    # --- GET Request Logic ---
+    # ... (your existing GET logic remains here) ...
+    teachers_query = (
+        select(User)
+        .join(User.teacher_profiles)
+        .where(
+            User.role.has(name='teacher'),
+            User.is_active == True,
+            TeacherProfile.subject == subject
+        )
+        .options(joinedload(User.lab)) 
+        .distinct()
+        .order_by(User.full_name)
+    )
+    teachers = db.session.scalars(teachers_query).all()
+    labs = db.session.scalars(select(Lab).order_by(Lab.name)).all()
+
+    return render_template(
+        'hr_ceo/assign_lab_to_teachers.html',
+        subject=subject,
+        teachers=teachers,
+        labs=labs,
+        form=form,  # ADD THIS: Pass the form object to the template
+        title=f"Assign Labs for {subject}"
+    )
+
+# ===================================================================
+# CORRECTED ROUTE FOR ATTENDANCE GRID VIEW
+# ===================================================================
+@app.route("/teacher/attendance_grid/<grade>/<section>")
 @login_required
 @role_required("teacher")
-def mark_attendance():
-    teacher_profile = current_user.teacher_profiles.filter(
-        TeacherProfile.grade.isnot(None), TeacherProfile.section.isnot(None)
-    ).first()
-
-    if not teacher_profile or not teacher_profile.grade or not teacher_profile.section:
-        flash(
-            "Your teacher profile is incomplete (grade or section missing).", "warning"
-        )
-        return redirect(url_for("teacher_dashboard"))
+def attendance_grid(grade, section):
+    # --- 1. Authorization and Student Fetching ---
+    has_assignment = current_user.teacher_profiles.filter_by(grade=grade, section=str(section)).first()
+    if not has_assignment:
+        flash("You are not assigned to teach this class.", "danger")
+        abort(403)
 
     students = db.session.scalars(
-        select(User)
-        .join(Role)
-        .where(
+        select(User).join(Role).where(
             Role.name == "student",
-            User.grade == teacher_profile.grade,
-            User.section == teacher_profile.section,
+            User.grade == grade,
+            User.section == str(section),
             User.is_active == True,
-        )
-        .order_by(User.full_name)
+        ).order_by(User.full_name)
     ).all()
 
     if not students:
-        flash(
-            f"No active students found for Grade {teacher_profile.grade}, Section {teacher_profile.section}.",
-            "warning",
-        )
+        flash(f"No active students found for Grade {grade}, Section {section}.", "warning")
         return redirect(url_for("teacher_dashboard"))
 
-    # Determine date for attendance
-    attendance_date_str = request.args.get(
-        "date",
-        request.form.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+    # --- 2. Date and Month Calculation ---
+    try:
+        year = request.args.get('year', datetime.now().year, type=int)
+        month = request.args.get('month', datetime.now().month, type=int)
+        first_day_of_month = date(year, month, 1) # This line was causing the error
+    except ValueError:
+        flash("Invalid year or month provided. Showing current month.", "warning")
+        today = datetime.now().date()
+        year, month = today.year, today.month
+        first_day_of_month = date(year, month, 1)
+
+    _, num_days_in_month = monthrange(year, month)
+    days_in_month = [date(year, month, day) for day in range(1, num_days_in_month + 1)]
+
+    # --- 3. Fetch All Attendance Data for the Month ---
+    student_ids = [s.id for s in students]
+    start_date = date(year, month, 1)
+    end_date = date(year, month, num_days_in_month)
+
+    all_records_for_month = db.session.scalars(
+        select(Attendance).where(
+            Attendance.student_id.in_(student_ids),
+            Attendance.date.between(start_date, end_date)
+        )
+    ).all()
+
+    # --- 4. Structure Data for Easy Template Rendering ---
+    attendance_data = defaultdict(dict)
+    for record in all_records_for_month:
+        attendance_data[record.student_id][record.date] = record.status
+
+    # --- 5. Navigation Links for Previous/Next Month ---
+    prev_month_date = first_day_of_month - timedelta(days=1)
+    next_month_date = first_day_of_month + timedelta(days=num_days_in_month)
+
+    nav_links = {
+        'prev_month': {'year': prev_month_date.year, 'month': prev_month_date.month},
+        'next_month': {'year': next_month_date.year, 'month': next_month_date.month},
+        'current_month_display': first_day_of_month.strftime('%B %Y')
+    }
+
+    return render_template(
+        'teacher/attendance_grid.html',
+        students=students,
+        days_in_month=days_in_month,
+        attendance_data=attendance_data,
+        nav_links=nav_links,
+        grade=grade,
+        section=section,
+        title=f"Attendance Grid - G{grade} S{section}"
     )
+# ===================================================================
+# FINAL, CORRECTED `mark_attendance` ROUTE
+# Replace your existing function with this one.
+# ===================================================================
+
+@app.route("/teacher/attendance/<grade>/<section>", methods=["GET", "POST"])
+@login_required
+@role_required("teacher")
+def mark_attendance(grade, section):
+    # This line correctly fetches the teacher's profile for this assignment.
+    # We will pass this variable to the template.
+    has_assignment = current_user.teacher_profiles.filter_by(grade=grade, section=str(section)).first()
+    if not has_assignment:
+        flash("You are not assigned to teach this class.", "danger")
+        abort(403)
+
+    students = db.session.scalars(
+        select(User).join(Role).where(
+            Role.name == "student",
+            User.grade == grade,
+            User.section == str(section),
+            User.is_active == True,
+        ).order_by(User.full_name)
+    ).all()
+
+    if not students:
+        flash(f"No active students found for Grade {grade}, Section {section}.", "warning")
+        return redirect(url_for("teacher_dashboard"))
+
+    attendance_date_str = request.args.get("date", request.form.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d")))
     try:
         attendance_date_obj = datetime.strptime(attendance_date_str, "%Y-%m-%d").date()
         if attendance_date_obj > datetime.now(timezone.utc).date():
@@ -7895,39 +8074,47 @@ def mark_attendance():
         attendance_date_obj = datetime.now(timezone.utc).date()
         attendance_date_str = attendance_date_obj.strftime("%Y-%m-%d")
 
-    form = AttendanceForm(
-        students=students
-    )  # Pass students for form structure if needed by template macros
-
-    existing_records = db.session.scalars(
-        select(Attendance).where(
-            Attendance.student_id.in_([s.id for s in students]),
-            Attendance.date == attendance_date_obj,
-        )
-    ).all()
+    form = AttendanceForm(students=students)
+    existing_records = db.session.scalars(select(Attendance).where(Attendance.student_id.in_([s.id for s in students]), Attendance.date == attendance_date_obj)).all()
     existing_attendance_map = {record.student_id: record for record in existing_records}
 
     if request.method == "POST":
-        # ... (existing POST logic for saving attendance) ...
-        # Ensure `date_for_marking` uses `attendance_date_obj` from above after validation.
-        # ... redirect logic uses `date=date_for_marking.strftime("%Y-%m-%d")`
-        date_for_marking = attendance_date_obj  # Use the validated date object
-        # ... (rest of your POST logic)
-        # Important: Redirects should also pass the date string
-        # return redirect(url_for("mark_attendance", date=date_for_marking.strftime("%Y-%m-%d")))
+        date_for_marking = attendance_date_obj
+        try:
+            for student in students:
+                status = request.form.get(f"status_{student.id}")
+                notes = request.form.get(f"notes_{student.id}", "").strip()
+                existing_record = existing_attendance_map.get(student.id)
+                if status:
+                    if existing_record:
+                        existing_record.status = status
+                        existing_record.notes = notes
+                    else:
+                        new_record = Attendance(student_id=student.id, date=date_for_marking, status=status, notes=notes)
+                        db.session.add(new_record)
+            db.session.commit()
+            flash(f"Attendance for {date_for_marking.strftime('%Y-%m-%d')} saved successfully.", "success")
+            return redirect(url_for('mark_attendance', grade=grade, section=section, date=date_for_marking.strftime('%Y-%m-%d')))
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error saving attendance: {e}", exc_info=True)
+            flash("An error occurred while saving attendance.", "danger")
 
+    # --- THIS IS THE FIX ---
+    # We are adding `teacher_profile=has_assignment` to the list of variables
+    # being passed to the template.
     return render_template(
         "teacher/attendance.html",
-        form=form,  # Pass the form object
+        form=form,
         students=students,
-        teacher_profile=teacher_profile,  # Pass for display
+        grade=grade,
+        section=section,
         attendance_date_str=attendance_date_str,
-        attendance_date_obj=attendance_date_obj,  # For strftime in template if needed
+        attendance_date_obj=attendance_date_obj,
         existing_attendance_map=existing_attendance_map,
-        title=f"Mark Attendance - G{teacher_profile.grade} S{teacher_profile.section}",
+        teacher_profile=has_assignment, # <-- THIS LINE IS THE FIX
+        title=f"Mark Attendance - G{grade} S{section}",
     )
-
-
 @app.route("/teacher/lab_equipment")
 @login_required
 @role_required("teacher")
@@ -8248,80 +8435,81 @@ def librarian_student_profile(user_id):
 # - Decorators: login_required, role_required are defined.
 # - SQLAlchemy imports (select, func, joinedload, etc.), Flask imports (abort, flash, redirect, url_for, request, render_template, make_response, jsonify), and other Python imports (datetime, timezone, os, uuid, secure_filename) are available.
 
+# In app.py, replace the entire student_database_index function with this one
 
-# --- HR/CEO Student Database Routes ---
 @app.route("/database/students")
 @login_required
-@role_required("hr_ceo", "system_admin", "teacher")  # Allow teachers to see the index
+@role_required("hr_ceo", "system_admin", "teacher")
 def student_database_index():
-    # Valid grades to display blocks for (can be made dynamic or configurable)
-    # VALID_GRADES_FOR_DB_VIEW = ["9", "10", "11", "12"] # Or fetch distinct grades from User table
-
-    # Fetch distinct, active grade/section pairs where students exist
+    """Renders the main student database index, grouping students by class."""
+    
+    # --- THIS IS THE FIX ---
+    # The query is corrected to remove the invalid string comparisons (`!= ''`).
+    # The `isnot(None)` check is the correct and sufficient way to ensure the columns have data.
     active_student_blocks_query = (
         select(User.grade, User.section)
         .join(User.role)
         .where(
             Role.name == "student",
             User.is_active == True,
-            User.grade.isnot(None),
-            User.grade != "",  # Ensure grade has a value
-            User.section.isnot(None),
-            User.section != "",  # Ensure section has a value
-            # User.grade.in_(VALID_GRADES_FOR_DB_VIEW) # Optional: Filter by predefined valid grades
+            User.grade.isnot(None),    # This is correct and sufficient
+            User.section.isnot(None)   # This is also correct and sufficient
         )
         .distinct()
-        .order_by(User.grade.asc(), User.section.asc())  # Order for display
+        .order_by(User.grade.asc(), User.section.asc())
     )
-    grade_section_pairs = db.session.execute(
-        active_student_blocks_query
-    ).all()  # List of (grade, section) tuples
+    # --- END OF FIX ---
 
-    grouped_blocks = defaultdict(list)  # To group sections under each grade
-    if grade_section_pairs:
-        for grade_val, section_val in grade_section_pairs:
-            # For each block, find subjects taught by active teachers in that specific grade/section
-            subjects_taught_in_block_query = (
-                select(TeacherProfile.subject)
-                .join(
-                    TeacherProfile.user
-                )  # CORRECTED LINE: Was TeacherProfile.user_obj
-                .join(
-                    User.role
-                )  # This join is now from User (via TeacherProfile.user) to Role
-                .where(
-                    Role.name == "teacher",
-                    User.is_active == True,
-                    TeacherProfile.grade == grade_val,
-                    TeacherProfile.section == section_val,
-                    TeacherProfile.subject.isnot(None),
-                    TeacherProfile.subject != "",
+    try:
+        grade_section_pairs = db.session.execute(active_student_blocks_query).all()
+        
+        grouped_blocks = defaultdict(list)
+        if grade_section_pairs:
+            for grade_val, section_val in grade_section_pairs:
+                subjects_taught_in_block_query = (
+                    select(TeacherProfile.subject)
+                    .join(TeacherProfile.user)
+                    .join(User.role)
+                    .where(
+                        Role.name == "teacher",
+                        User.is_active == True,
+                        TeacherProfile.grade == grade_val,
+                        TeacherProfile.section == section_val, # Assuming TeacherProfile.section is Integer
+                        TeacherProfile.subject.isnot(None),
+                        TeacherProfile.subject != "",
+                    )
+                    .distinct()
+                    .order_by(TeacherProfile.subject.asc())
                 )
-                .distinct()
-                .order_by(TeacherProfile.subject.asc())
-            )
-            subjects = db.session.scalars(subjects_taught_in_block_query).all()
+                subjects = db.session.scalars(subjects_taught_in_block_query).all()
 
-            grouped_blocks[grade_val].append(
-                {
-                    "section": section_val,
-                    "subjects": subjects if subjects else [],  # Ensure it's a list
-                }
-            )
+                grouped_blocks[str(grade_val)].append({
+                    "section": str(section_val),
+                    "subjects": subjects if subjects else [],
+                })
 
-    # Sort by grade keys (though defaultdict might preserve insertion order for modern Python)
-    # Then sort sections within each grade (already done by the initial query order)
-    ordered_grouped_blocks = {
-        grade: sorted(sections, key=lambda s: s["section"])
-        for grade, sections in sorted(grouped_blocks.items())
-    }
+        ordered_grouped_blocks = {
+            grade: sorted(sections, key=lambda s: s["section"])
+            for grade, sections in sorted(grouped_blocks.items())
+        }
 
-    return render_template(
-        "Database/students/index.html",  # Correct template path
-        ordered_grouped_blocks=ordered_grouped_blocks,
-        # valid_grades=VALID_GRADES_FOR_DB_VIEW, # If you pass this to template for other UI
-        title="Student Database Index - Nexus",
-    )
+        return render_template(
+            "Database/students/index.html",
+            ordered_grouped_blocks=ordered_grouped_blocks,
+            title="Student Database Index - Nexus",
+        )
+
+    except Exception as e:
+        # Catch the specific error and log it, then render an error page or redirect.
+        # This handles the error gracefully for the user.
+        app.logger.error(f"Database error in student_database_index: {e}", exc_info=True)
+        flash("A database error occurred while trying to load the student directory. Please check your data or contact an administrator.", "danger")
+        # Render the template with empty data to show the error message.
+        return render_template(
+            "Database/students/index.html",
+            ordered_grouped_blocks={},
+            title="Student Database Index - Nexus",
+        )
 
 
 @app.route(
@@ -9332,9 +9520,8 @@ def report_asset_general():
 
 
 # --- HR/CEO Specific Asset Management Routes ---
+# In app.py, find and modify the list_pending_assets route
 
-
-# List assets pending review (for HR/CEO & System Admin)
 @app.route("/hr_ceo/assets/pending")
 @login_required
 @role_required("hr_ceo", "system_admin")
@@ -9342,19 +9529,21 @@ def list_pending_assets():
     pending_assets = db.session.scalars(
         select(Asset)
         .options(
-            joinedload(Asset.added_by_user).joinedload(
-                User.role
-            ),  # Load user and their role
+            joinedload(Asset.added_by_user).joinedload(User.role),
             joinedload(Asset.category),
             joinedload(Asset.lab),
         )
         .where(Asset.status == "Pending Review")
-        .order_by(Asset.created_at.asc())  # Show oldest pending first
+        .order_by(Asset.created_at.asc())
     ).all()
+
+    # ADD THIS LINE: Instantiate a form for CSRF protection on the page.
+    csrf_form = CSRFOnlyForm()
 
     return render_template(
         "hr_ceo/pending_assets.html",
         pending_assets=pending_assets,
+        csrf_form=csrf_form,  # ADD THIS: Pass the form to the template.
         title="Assets Pending Review - Nexus",
     )
 
@@ -11273,6 +11462,7 @@ def contacts_by_section(grade, section):
         contact_unread_counts=contact_unread_counts,
         title=title,
     )
+# In app.py, find and replace the entire contacts_list function with this corrected version.
 
 @app.route("/contacts")
 @login_required
@@ -11322,6 +11512,7 @@ def contacts_list():
         all_teachers = db.session.scalars(teacher_query).all()
         added_teachers = defaultdict(set)
         for teacher in all_teachers:
+            # Using the dynamic relationship to fetch profiles for this specific teacher
             for profile in teacher.teacher_profiles:
                 if profile.grade and profile.section:
                     key = (profile.grade, profile.section)
@@ -11331,6 +11522,9 @@ def contacts_list():
 
     # 3. Fetch Student Blocks (TC and Non-TC)
     if "student" in allowed_role_names:
+        # --- THIS IS THE FIX ---
+        # Removed the incorrect `User.grade != ""` and `User.section != ""` checks.
+        # The `isnot(None)` check is the correct way to ensure the columns have a value.
         base_student_query = (
             select(User.grade, User.section, func.count(User.id).label("student_count"))
             .join(Role)
@@ -11338,12 +11532,15 @@ def contacts_list():
                 Role.name == "student",
                 User.is_active == True,
                 User.id != current_user.id,
-                User.grade.isnot(None), User.grade != "",
-                User.section.isnot(None), User.section != "",
+                User.grade.isnot(None),    # Correctly checks for a non-null grade
+                User.section.isnot(None),  # Correctly checks for a non-null section
             )
         )
+        # --- END OF FIX ---
+
         tc_query = base_student_query.where(User.is_tc_member == True).group_by(User.grade, User.section).order_by(User.grade, User.section)
         tc_student_blocks = db.session.execute(tc_query).all()
+
         non_tc_query = base_student_query.where(User.is_tc_member == False).group_by(User.grade, User.section).order_by(User.grade, User.section)
         non_tc_student_blocks = db.session.execute(non_tc_query).all()
     
@@ -15167,77 +15364,6 @@ def api_error_response(status_code, message):
     response.status_code = status_code
     return response
 
-# In app.py, replace the entire create_global_post function with this one.
-# In app.py
-
-@app.route("/api/v1/global_posts", methods=["POST"])
-@login_required
-def create_global_post():
-    """
-    Creates a new global post.
-    This version now correctly renders the post's HTML on the backend and sends it in the response.
-    """
-    content = request.form.get("content", "").strip()
-    file_storage = request.files.get("attached_file")
-
-    if not content and not (file_storage and file_storage.filename):
-        return api_error_response(400, "Post content or a file must be provided.")
-
-    linked_file = None
-    if file_storage and file_storage.filename:
-        linked_file = save_uploaded_file(file_storage)
-        if not linked_file:
-            # save_uploaded_file now flashes the error, so we can return a generic one.
-            return api_error_response(400, "File upload failed. Please check file type and size.")
-
-    try:
-        new_post = GlobalPost(
-            author_id=current_user.id,
-            content=content if content else None,
-            file_id=linked_file.id if linked_file else None,
-            visibility="public",
-            timestamp=datetime.now(timezone.utc),
-        )
-
-        if linked_file:
-            db.session.add(linked_file)
-
-        db.session.add(new_post)
-        db.session.commit()
-
-        app.logger.info(f"User {current_user.username} created GlobalPost ID {new_post.id}.")
-
-        # --- THIS IS THE FIX ---
-        # We fetch the post with its necessary data.
-        post_for_render = db.session.get(GlobalPost, new_post.id)
-        
-        # We render ONLY the post partial.
-        # This avoids the server error caused by the partial trying to render a form.
-        post_html = render_template(
-            "partials/_global_post_item.html",
-            post=post_for_render,
-            current_user=current_user
-        )
-
-        return jsonify({
-            "success": True,
-            "message": "Post created successfully!",
-            "post_html": post_html, # Send the pre-rendered HTML to the client
-        }), 201
-
-    except Exception as e:
-        db.session.rollback()
-        # Clean up orphaned file if one was saved
-        if linked_file and hasattr(linked_file, 'filepath') and linked_file.filepath:
-             try:
-                # This logic assumes UPLOAD_FOLDER is configured and filepath is relative
-                full_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(linked_file.filepath))
-                if os.path.exists(full_path):
-                    os.remove(full_path)
-             except Exception as cleanup_e:
-                app.logger.error(f"Error cleaning up orphaned file on post create fail: {cleanup_e}")
-        app.logger.error(f"Error creating GlobalPost for user {current_user.id}: {e}", exc_info=True)
-        return api_error_response(500, "Server error creating post.")  
 @app.route("/api/v1/global_posts", methods=["GET"])
 @login_required  # All authenticated users can view public posts
 def get_global_posts():
@@ -15357,9 +15483,7 @@ def get_global_posts():
     except Exception as e:
         app.logger.error(f"Error retrieving GlobalPosts: {e}", exc_info=True)
         return api_error_response(500, "Server error retrieving posts.")
-
-# --- START: CORRECTED FUNCTION ---
-
+        
 @app.route("/api/v1/global_posts/<int:post_id>/comments", methods=["POST"])
 @login_required
 def create_global_comment(post_id):
@@ -15369,12 +15493,13 @@ def create_global_comment(post_id):
     if not post.allow_comments:
         return api_error_response(403, "Comments are disabled for this post.")
 
-    if not request.is_json:
-        return api_error_response(400, "Invalid request format: JSON expected.")
+    if request.is_json:
+        data = request.get_json()
+        content = data.get("content", "").strip()
+    else:
+        content = request.form.get("content", "").strip()
 
-    data = request.get_json()
-    content = data.get("content", "").strip()
-    parent_comment_id = data.get("parent_comment_id")
+    parent_comment_id = request.values.get("parent_comment_id")
 
     if not content:
         return api_error_response(400, "Comment content cannot be empty.")
@@ -15388,7 +15513,7 @@ def create_global_comment(post_id):
             parent_comment = db.session.get(GlobalComment, parent_id_int)
             if not parent_comment or parent_comment.post_id != post.id:
                 return api_error_response(400, "Invalid parent comment ID.")
-        except ValueError:
+        except (ValueError, TypeError):
             return api_error_response(400, "Invalid parent_comment_id format.")
 
     try:
@@ -15400,36 +15525,29 @@ def create_global_comment(post_id):
             timestamp=datetime.now(timezone.utc),
         )
         db.session.add(new_comment)
-        db.session.commit()  # Commit to get ID and persisted state
+        db.session.commit()
 
         app.logger.info(
             f"User {current_user.username} created GlobalComment ID {new_comment.id} on GlobalPost ID {post.id}."
         )
-
-        # --- SOCKETIO EMIT ---
-        comment_for_render = (
-            db.session.query(GlobalComment)
-            .options(joinedload(GlobalComment.author).joinedload(User.role))
-            .get(new_comment.id)
-        )
-
-        # **THIS IS THE FIX:** Changed the template name to match the file you provided.
+        
+        comment_for_render = db.session.get(GlobalComment, new_comment.id)
+        
+        # --- THIS IS THE FIX ---
+        # The template path was incorrect. It should be "partials/_comment_item.html"
+        # as the partials directory is at the root of the templates folder.
         rendered_comment_html = render_template(
-            "partials/_social_comment_item.html",
+            "partials/_comment_item.html", # Corrected path
             comment=comment_for_render,
             current_user=current_user,
             post_type='global',
-            parent_post_author_id=post.author_id
+            parent_post_author_id=post.author_id,
+            can_current_user_manage_parent_content=False
         )
 
-        new_total_comment_count = (
-            db.session.scalar(
-                db.select(func.count(GlobalComment.id)).where(
-                    GlobalComment.post_id == post.id
-                )
-            )
-            or 0
-        )
+        new_total_comment_count = db.session.scalar(
+            db.select(func.count(GlobalComment.id)).where(GlobalComment.post_id == post.id)
+        ) or 0
 
         socketio.emit(
             "new_comment",
@@ -15441,16 +15559,13 @@ def create_global_comment(post_id):
             room=f"global_post-{post.id}",
         )
         app.logger.info(f"SocketIO 'new_comment' emitted for GlobalPost ID {post.id}.")
-        # --- END SOCKETIO EMIT ---
 
         comment_data_for_ajax_response = {
             "id": new_comment.id,
             "post_id": new_comment.post_id,
             "author_id": new_comment.author_id,
-            "parent_comment_id": new_comment.parent_comment_id,
             "content": new_comment.content,
             "timestamp": new_comment.timestamp.isoformat() + "Z",
-            "is_edited": new_comment.is_edited,
             "author": {
                 "id": current_user.id,
                 "username": current_user.username,
@@ -15459,16 +15574,11 @@ def create_global_comment(post_id):
             },
         }
 
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "comment": comment_data_for_ajax_response,
-                    "post_comment_count": new_total_comment_count,
-                }
-            ),
-            201,
-        )
+        return jsonify({
+            "success": True,
+            "comment": comment_data_for_ajax_response,
+            "post_comment_count": new_total_comment_count,
+        }), 201
 
     except Exception as e:
         db.session.rollback()
@@ -16157,32 +16267,92 @@ def view_global_post_redirect(post_id):
         url_for("social_feed_placeholder", highlight_post_id=post.id)
     )  # Assuming a general feed page
 
+# In app.py, replace your existing social_feed_placeholder function with this one.
 
-# A placeholder for a generic feed page, if you create one.
-# In app.py, find this function and replace it.
-
-# Make sure PostContentForm is imported at the top of app.py
-# (It is already defined in your provided file, so no import needed if in the same file)
-
-@app.route("/feed")
+@app.route("/feed", methods=["GET", "POST"])
 @login_required
 def social_feed_placeholder():
     """
-    Renders the main global feed page, "Nexus Pulse".
-    This route now correctly passes the form needed for creating new posts.
+    Renders the main global feed page ("Nexus Pulse") and handles the
+    creation of new posts via POST requests from the same page.
     """
-    # Instantiate the form for creating a new global post.
-    # The template expects this to be named 'global_post_create_form'.
+    # This form is used for both rendering the page (GET) and validating the submission (POST).
     form = PostContentForm()
 
-    # The template also expects a highlight_post_id, so we keep that.
+    # This block executes only on a valid POST submission from the form.
+    if form.validate_on_submit():
+        content = form.content.data.strip()
+        file_storage = form.attached_file.data # This is a FileStorage object
+
+        linked_file = None
+        if file_storage and file_storage.filename:
+            # The save_uploaded_file helper handles security, saving, and DB object creation.
+            linked_file = save_uploaded_file(file_storage)
+            if not linked_file:
+                # The helper should flash an error, and we return a JSON error for the AJAX call.
+                return api_error_response(400, "File upload failed. Please check file type and size.")
+
+        try:
+            # Create the new post record in the database.
+            new_post = GlobalPost(
+                author_id=current_user.id,
+                content=content if content else None,
+                file_id=linked_file.id if linked_file else None,
+                visibility="public", # Default visibility
+                timestamp=datetime.now(timezone.utc),
+            )
+
+            if linked_file:
+                db.session.add(linked_file)
+
+            db.session.add(new_post)
+            db.session.commit()
+
+            app.logger.info(f"User {current_user.username} created GlobalPost ID {new_post.id} via /feed endpoint.")
+
+            # Fetch the newly created post with all necessary data for rendering.
+            post_for_render = db.session.get(GlobalPost, new_post.id)
+            
+            # Render the HTML for just the new post item.
+            post_html = render_template(
+                "partials/_global_post_item.html",
+                post=post_for_render,
+                current_user=current_user
+            )
+
+            # Return a JSON response to the JavaScript, which will then inject the HTML into the page.
+            return jsonify({
+                "success": True,
+                "message": "Post created successfully!",
+                "post_html": post_html,
+            }), 201
+
+        except Exception as e:
+            db.session.rollback()
+            # If the database commit failed, clean up any file that was saved to the disk.
+            if linked_file and hasattr(linked_file, 'filepath') and linked_file.filepath:
+                 try:
+                    full_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(linked_file.filepath))
+                    if os.path.exists(full_path):
+                        os.remove(full_path)
+                 except Exception as cleanup_e:
+                    app.logger.error(f"Error cleaning up orphaned file on post create fail: {cleanup_e}")
+            app.logger.error(f"Error creating GlobalPost for user {current_user.id}: {e}", exc_info=True)
+            return api_error_response(500, "Server error creating post.")
+
+    # This part runs for GET requests or if the POST request's form validation failed.
+    if request.method == "POST" and form.errors:
+        # If an AJAX POST fails validation, return errors as JSON.
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": False, "errors": form.errors}), 400
+        # For a standard non-AJAX POST, WTForms flashes errors and we just re-render the page below.
+
+    # Logic for a standard GET request to display the feed page.
     highlight_post_id = request.args.get("highlight_post_id")
-    
-    # Render the correct template, passing the form object.
     return render_template(
-        "social/global/feed.html",  # Renders the correct feed template
+        "social/global/feed.html",
         title="Nexus Pulse - Community Feed",
-        global_post_create_form=form,  # Pass the form object
+        global_post_create_form=form, # Pass the form object to the template
         highlight_post_id=highlight_post_id,
     )
 
@@ -17409,22 +17579,24 @@ def get_item_summary_for_saved_list(item_type, item_id, requesting_user):
 
     return details
 # File: app.py
+# In app.py, replace your entire existing save_item_api function with this one.
 
-# Replace your entire existing save_item_api function with this one.
 @app.route("/api/v1/saved_items", methods=["POST"])
 @login_required
 def save_item_api():
-    # --- START: THIS IS THE FIX ---
-    # The 'force=True' parameter will attempt to parse the request body as JSON
-    # even if the Content-Type header is missing or incorrect.
-    # We wrap it in a try...except block for safety.
-    try:
-        data = request.get_json(force=True)
-        if not data:
-            return api_error_response(400, "Request body is empty or not valid JSON.")
-    except Exception:
-        return api_error_response(400, "Failed to decode JSON from request body.")
-    # --- END: THIS IS THE FIX ---
+    data = None
+    # --- THIS IS THE FIX ---
+    # We now check if the request is JSON. If not, we fall back to checking standard form data.
+    # This makes the endpoint more robust to different types of AJAX requests.
+    if request.is_json:
+        data = request.get_json()
+    else:
+        # If not JSON, it's likely form-data. Create a dictionary from the form fields.
+        data = request.form.to_dict()
+
+    if not data:
+        return api_error_response(400, "Request body is empty or data is missing.")
+    # --- END OF FIX ---
 
     item_type = data.get("item_type")
     item_id_from_req = data.get("item_id")
@@ -17444,7 +17616,7 @@ def save_item_api():
 
     try:
         item_id = int(item_id_from_req)
-    except ValueError:
+    except (ValueError, TypeError):
         return api_error_response(400, "Invalid item_id format: Must be an integer.")
 
     if not can_user_view_item(current_user, item_type, item_id):
@@ -22735,10 +22907,195 @@ def create_tc_community_message():
             jsonify({"success": False, "error": "Server error sending message."}),
             500,
         )
+        
+# --- Weather Routes ---
 
+@app.route("/weather")
+@login_required
+def weather_dashboard():
+    """Renders the main weather dashboard page."""
+    user_home_city = None
+    if current_user.is_authenticated and hasattr(current_user, 'home_city') and current_user.home_city:
+        user_home_city = current_user.home_city
+    return render_template("weather/weather.html", title="Weather Dashboard", user_home_city=user_home_city)
 
-# Route to remove a ban/mute (POST only)
+@app.route("/weather/api/get_data", methods=["POST"])
+@login_required
+@cache.cached(timeout=600, key_prefix='weather_data', query_string=True)
+def get_weather_data():
+    """API endpoint to fetch weather and air quality data. This is cached."""
+    try:
+        data = request.get_json()
+        city = data.get("city")
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        
+        if not city and not (latitude and longitude) and current_user.is_authenticated and hasattr(current_user, 'home_city'):
+             city = current_user.home_city
 
+        if not city and not (latitude and longitude):
+            return jsonify({"error": "City name or coordinates are required."}), 400
+
+        if city:
+            geo_params = {"name": city, "count": 1}
+            geo_response = requests.get(WEATHER_GEOCODING_URL, params=geo_params)
+            geo_response.raise_for_status()
+            geo_data = geo_response.json()
+            if not geo_data.get("results"):
+                return jsonify({"error": "Location not found"}), 404
+            latitude = geo_data["results"][0]["latitude"]
+            longitude = geo_data["results"][0]["longitude"]
+            location_name = geo_data["results"][0].get("name", city)
+        else:
+            latitude = float(latitude)
+            longitude = float(longitude)
+            location_name = f"Coords: {latitude:.2f}, {longitude:.2f}"
+
+        # Weather API Call
+        weather_params = {
+            "latitude": latitude, "longitude": longitude,
+            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation_probability,weather_code,wind_speed_10m",
+            "hourly": "temperature_2m,weather_code,is_day",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max",
+            "timezone": "auto", "forecast_days": 5
+        }
+        weather_response = requests.get(WEATHER_BASE_URL, params=weather_params)
+        weather_response.raise_for_status()
+        weather_data = weather_response.json()
+
+        # Air Quality API Call
+        air_quality_params = {
+            "latitude": latitude, "longitude": longitude,
+            "current": "us_aqi,pm2_5"
+        }
+        air_quality_response = requests.get(WEATHER_AIR_QUALITY_URL, params=air_quality_params)
+        air_quality_response.raise_for_status()
+        air_quality_data = air_quality_response.json()
+        
+        processed = process_weather_data(weather_data, air_quality_data, location_name)
+        return jsonify(processed)
+        
+    except requests.exceptions.RequestException as e:
+        current_app.logger.error(f"Weather API request failed: {e}", exc_info=True)
+        return jsonify({"error": "Could not connect to the weather service."}), 503
+    except Exception as e:
+        current_app.logger.error(f"Weather API processing error: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+@app.route('/weather/api/save_location', methods=['POST'])
+@login_required
+def save_weather_location():
+    """API endpoint for users to save their default location."""
+    data = request.get_json()
+    city = data.get('city')
+
+    if not city:
+        return jsonify({"error": "City name is required."}), 400
+    
+    try:
+        # We need the User model and db object, which are already available in app.py
+        user = db.session.get(User, current_user.id)
+        user.home_city = city
+        db.session.commit()
+        current_app.logger.info(f"User {user.username} saved home city: {city}")
+        return jsonify({"success": True, "message": f"Default location saved as {city}."})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error saving user location for {current_user.username}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to save location."}), 500
+
+# In app.py
+@app.route("/debug/teacher/<int:user_id>")
+def debug_teacher_profiles(user_id):
+    """A temporary route to directly inspect a teacher's profiles from the DB."""
+    teacher = db.session.get(User, user_id)
+    if not teacher or teacher.role.name != 'teacher':
+        return f"<h1>Error: User with ID {user_id} not found or is not a teacher.</h1>"
+
+    # Directly query the TeacherProfile table for this user ID
+    profiles = db.session.scalars(
+        select(TeacherProfile).where(TeacherProfile.user_id == user_id)
+    ).all()
+    
+    output = f"<h1>Debugging Teacher: {teacher.username} (ID: {teacher.id})</h1>"
+    
+    if not profiles:
+        output += "<h2>No TeacherProfile records found for this user in the database.</h2>"
+        return output
+
+    output += f"<h2>Found {len(profiles)} profile(s):</h2>"
+    output += "<table border='1' cellpadding='5'><tr><th>ID</th><th>Subject</th><th>Grade</th><th>Section</th></tr>"
+    for profile in profiles:
+        output += f"<tr><td>{profile.id}</td><td>{profile.subject}</td><td>{profile.grade}</td><td>{profile.section}</td></tr>"
+    output += "</table>"
+    
+    return output
+
+# In app.py, add this to PART 3 (Core Helpers) with other notification helpers
+
+def notify_asset_approved(asset):
+    """Notifies the user who added an asset that it has been approved."""
+    if not asset or not asset.added_by_user:
+        return # Cannot notify if asset or its creator is missing
+
+    sender = current_user
+    receiver = asset.added_by_user
+
+    if not receiver.is_active or receiver.id == sender.id:
+        return # Don't notify inactive users or if approver is the creator
+
+    if is_notification_allowed(sender, receiver):
+        try:
+            message_content = f"Your submitted asset '{asset.name}' has been approved and is now available in the system."
+            link_url = url_for("my_assets", _external=True) # Link to their list of added assets
+
+            notification = Notification(
+                sender_id=sender.id,
+                receiver_id=receiver.id,
+                content=message_content,
+                link_url=link_url,
+                timestamp=datetime.now(timezone.utc),
+                notification_type="asset_approved"
+            )
+            db.session.add(notification)
+            db.session.commit()
+            app.logger.info(f"Sent 'asset_approved' notification to user {receiver.id} for asset {asset.id}.")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error sending asset approval notification for asset {asset.id}: {e}", exc_info=True)
+
+# In app.py, add this to PART 8 (HR/CEO & System Admin Management Features)
+
+@app.route("/assets/<int:asset_id>/approve", methods=["POST"])
+@login_required
+@role_required("hr_ceo", "system_admin")
+def approve_asset(asset_id):
+    """
+    Handles the 'Quick Approve' action for a pending asset.
+    Changes status from 'Pending Review' to 'Available'.
+    """
+    asset = db.get_or_404(Asset, asset_id, description="Asset not found.")
+
+    if asset.status != "Pending Review":
+        flash(f"This asset ('{asset.name}') is not currently pending review.", "warning")
+        return redirect(url_for("list_pending_assets"))
+
+    try:
+        asset.status = "Available"
+        db.session.commit()
+
+        # Notify the user who originally added the asset
+        notify_asset_approved(asset) # We will create this helper next
+
+        flash(f"Asset '{asset.name}' has been approved and is now available.", "success")
+        app.logger.info(f"User {current_user.username} quick-approved asset ID {asset.id}.")
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error quick-approving asset ID {asset.id} by {current_user.username}: {e}", exc_info=True)
+        flash("An unexpected error occurred while approving the asset.", "danger")
+
+    return redirect(url_for("list_pending_assets"))
 
 @app.route("/talent_club/leader/member/<int:user_id>/unban_unmute", methods=["POST"])
 @login_required
@@ -23680,84 +24037,40 @@ def inspect_grade_sections_command():
             )
 
         print("\n--- Inspection Complete ---")
-
-
+        
 @app.cli.command("seed-db")
 @click.argument("count", default=10)
 def seed_db_command(count):
-    """Seeds the database with dummy data, including specific lab/category assignments and Talent Club data."""  # Updated docstring
+    """Seeds the database with dummy data, including specific lab/category assignments and Talent Club data.""" # Updated docstring
     with app.app_context():
-        print(
-            f"Seeding database with {count} dummy users (students, teachers, talent club) and assets..."
-        )
+        print(f"Seeding database with {count} dummy users (students, teachers, talent club) and assets...")
         try:
             # Fetch necessary roles
             student_role = db.session.scalar(select(Role).filter_by(name="student"))
             teacher_role = db.session.scalar(select(Role).filter_by(name="teacher"))
             hr_ceo_role = db.session.scalar(select(Role).filter_by(name="hr_ceo"))
-            system_admin_role = db.session.scalar(
-                select(Role).filter_by(name="system_admin")
-            )
-            talent_club_role = db.session.scalar(
-                select(Role).filter_by(name="talent_club")
-            )
+            system_admin_role = db.session.scalar(select(Role).filter_by(name="system_admin"))
+            talent_club_role = db.session.scalar(select(Role).filter_by(name="talent_club"))
             librarian_role = db.session.scalar(select(Role).filter_by(name="librarian"))
 
-            if not all(
-                [
-                    student_role,
-                    teacher_role,
-                    hr_ceo_role,
-                    system_admin_role,
-                    talent_club_role,
-                    librarian_role,
-                ]
-            ):
-                print(
-                    "Error: Required roles not found. Run 'flask create-initial' first.",
-                    file=sys.stderr,
-                )
+            if not all([student_role, teacher_role, hr_ceo_role, system_admin_role, talent_club_role, librarian_role]):
+                print("Error: Required roles not found. Run 'flask create-initial' first.", file=sys.stderr)
                 sys.exit(1)
 
             # Fetch necessary categories
-            classroom_category = db.session.scalar(
-                select(AssetCategory).filter_by(name="Classroom Assets")
-            )
-            lab_equipment_category = db.session.scalar(
-                select(AssetCategory).filter_by(name="Lab Equipment")
-            )
-            books_category = db.session.scalar(
-                select(AssetCategory).filter_by(name="Books")
-            )
-            tc_gear_category = db.session.scalar(
-                select(AssetCategory).filter_by(name="Talent Club Gear")
-            )
-            general_equipment_category = db.session.scalar(
-                select(AssetCategory).filter_by(name="General Equipment")
-            )
+            classroom_category = db.session.scalar(select(AssetCategory).filter_by(name="Classroom Assets"))
+            lab_equipment_category = db.session.scalar(select(AssetCategory).filter_by(name="Lab Equipment"))
+            books_category = db.session.scalar(select(AssetCategory).filter_by(name="Books"))
+            tc_gear_category = db.session.scalar(select(AssetCategory).filter_by(name="Talent Club Gear"))
+            general_equipment_category = db.session.scalar(select(AssetCategory).filter_by(name="General Equipment"))
 
-            if not all(
-                [
-                    classroom_category,
-                    lab_equipment_category,
-                    books_category,
-                    tc_gear_category,
-                    general_equipment_category,
-                ]
-            ):
-                print(
-                    "Error: Required asset categories not found. Run 'flask create-initial' first.",
-                    file=sys.stderr,
-                )
+            if not all([classroom_category, lab_equipment_category, books_category, tc_gear_category, general_equipment_category]):
+                print("Error: Required asset categories not found. Run 'flask create-initial' first.", file=sys.stderr)
                 sys.exit(1)
 
             # Fetch core Labs (or create if missing - create-initial should make these)
-            main_library_lab = db.session.scalar(
-                select(Lab).filter_by(name="Main Library")
-            )
-            talent_club_hq_lab = db.session.scalar(
-                select(Lab).filter_by(name="Talent Club HQ")
-            )
+            main_library_lab = db.session.scalar(select(Lab).filter_by(name="Main Library"))
+            talent_club_hq_lab = db.session.scalar(select(Lab).filter_by(name="Talent Club HQ"))
             # Create a generic Science Lab if it doesn't exist for teachers
             science_lab = db.session.scalar(select(Lab).filter_by(name="Science Lab A"))
             if not science_lab:
@@ -23765,53 +24078,43 @@ def seed_db_command(count):
                 db.session.add(science_lab)
                 # No flush/commit here, will be committed with users later
 
+
             # Create a default admin user if one doesn't exist
             admin_user = db.session.scalar(select(User).filter_by(username="admin"))
             if not admin_user:
-                print("Creating default 'admin' user...")
-                admin_user = User(
-                    username="admin",
-                    email="admin@school.com",
-                    full_name="System Administrator",
-                    first_name="System",
-                    last_name="Administrator",
-                    role=system_admin_role,
-                    is_active=True,
-                    force_password_change=True,
-                    created_at=datetime.now(timezone.utc),
-                )
-                admin_user.set_password("default_admin_password")
-                db.session.add(admin_user)
-                print(
-                    "Default admin user 'admin' created with password 'default_admin_password'. PLEASE CHANGE THIS IMMEDIATELY after first login using the forced change password page."
-                )
+                 print("Creating default 'admin' user...")
+                 admin_user = User(
+                     username="admin",
+                     email="admin@school.com",
+                     full_name="System Administrator",
+                     first_name="System",
+                     last_name="Administrator",
+                     role=system_admin_role,
+                     is_active=True,
+                     force_password_change=True,
+                     created_at=datetime.now(timezone.utc)
+                 )
+                 admin_user.set_password("default_admin_password")
+                 db.session.add(admin_user)
+                 print("Default admin user 'admin' created with password 'default_admin_password'. PLEASE CHANGE THIS IMMEDIATELY after first login using the forced change password page.")
+
 
             # Create dummy users (mix of students, teachers, librarians, and talent_club members)
             grades = ["9", "10", "11", "12"]
             sections = ["A", "B", "C"]
-            subjects = [
-                "Math",
-                "Science",
-                "History",
-                "English",
-                "Physics",
-                "Chemistry",
-                "Biology",
-            ]
+            subjects = ["Math", "Science", "History", "English", "Physics", "Chemistry", "Biology"]
             genders = ["Male", "Female"]
 
             print("\nCreating dummy users and associated assets...")
             for i in range(count):
-                role_choice = (
-                    i % 4
-                )  # Now 4 categories: student, teacher, talent_club, librarian
+                role_choice = i % 4 # Now 4 categories: student, teacher, talent_club, librarian
                 if role_choice == 0:
                     role = student_role
                 elif role_choice == 1:
                     role = teacher_role
                 elif role_choice == 2:
                     role = talent_club_role
-                else:  # role_choice == 3
+                else: # role_choice == 3
                     role = librarian_role
 
                 dummy_username = f"{role.name}_{i+1}".lower()
@@ -23843,8 +24146,8 @@ def seed_db_command(count):
                     phone=f"555-123-{1000 + i}",
                     address=f"Dummy Address {i+1}",
                     force_password_change=False,
-                    is_tc_member=False,  # Default False, set True below for some students
-                    is_tc_leader=False,  # Default False, set True below for some talent_club role users
+                    is_tc_member=False, # Default False, set True below for some students
+                    is_tc_leader=False # Default False, set True below for some talent_club role users
                 )
                 user.set_password("password")
 
@@ -23853,16 +24156,12 @@ def seed_db_command(count):
                     user.grade = grades[i % len(grades)]
                     user.section = sections[i % len(sections)]
                     # Dynamically create/get classroom lab for students
-                    classroom_name = (
-                        f"Grade {user.grade} Section {user.section} Classroom"
-                    )
-                    classroom_lab = db.session.scalar(
-                        select(Lab).filter_by(name=classroom_name)
-                    )
+                    classroom_name = f"Grade {user.grade} Section {user.section} Classroom"
+                    classroom_lab = db.session.scalar(select(Lab).filter_by(name=classroom_name))
                     if not classroom_lab:
                         classroom_lab = Lab(name=classroom_name)
                         db.session.add(classroom_lab)
-                        db.session.flush()  # Flush to get ID for newly created lab
+                        db.session.flush() # Flush to get ID for newly created lab
                     # Assign student to their classroom lab (conceptual)
                     user.lab_id = classroom_lab.id
 
@@ -23876,17 +24175,18 @@ def seed_db_command(count):
                             description="Projector for class use.",
                             quantity=1,
                             condition="Good",
-                            added_by_user=user,  # Link to the user being created
+                            added_by_user=user, # Link to the user being created
                             category=classroom_category,
                             lab=classroom_lab,
-                            status="Available",
+                            status="Available"
                         )
                         db.session.add(classroom_asset)
                     # Make some students TC members
-                    if i % 2 == 0:  # Example: Make every other student a TC member
+                    if i % 2 == 0: # Example: Make every other student a TC member
                         user.is_tc_member = True
                         print(f"  - User {user.username} is a Talent Club Member.")
                         # Adding to community group is handled *after* the loop
+
 
                 elif role == teacher_role:
                     # Assign teachers to a lab (e.g., Science Lab A)
@@ -23898,293 +24198,216 @@ def seed_db_command(count):
                     dummy_grade = grades[i % len(grades)]
                     dummy_section = sections[i % len(sections)]
                     teacher_profile = TeacherProfile(
-                        user=user,  # Link to the user being created
-                        subject=dummy_subject,
-                        grade=dummy_grade,
-                        section=dummy_section,
-                        salary=50000.0 + i * 1000.0,
+                         user=user, # Link to the user being created
+                         subject=dummy_subject,
+                         grade=dummy_grade,
+                         section=dummy_section,
+                         salary=50000.0 + i * 1000.0
                     )
                     db.session.add(teacher_profile)
 
                     # Add an asset for this teacher in their lab
-                    if (
-                        science_lab and lab_equipment_category
-                    ):  # Ensure prerequisites exist
-                        lab_asset = Asset(
-                            name=f"Microscope {i}",
-                            description="For science experiments.",
-                            quantity=2,
-                            condition="Good",
-                            added_by_user=user,  # Link to the user being created
-                            category=lab_equipment_category,
-                            lab=science_lab,
-                            status="Available",
-                        )
-                        db.session.add(lab_asset)
+                    if science_lab and lab_equipment_category: # Ensure prerequisites exist
+                         lab_asset = Asset(
+                             name=f"Microscope {i}",
+                             description="For science experiments.",
+                             quantity=2,
+                             condition="Good",
+                             added_by_user=user, # Link to the user being created
+                             category=lab_equipment_category,
+                             lab=science_lab,
+                             status="Available"
+                         )
+                         db.session.add(lab_asset)
+
 
                 elif role == talent_club_role:
                     # Ensure Talent Club HQ Lab exists before assigning
                     if talent_club_hq_lab:
-                        user.lab_id = talent_club_hq_lab.id
+                         user.lab_id = talent_club_hq_lab.id
 
                     if i % 2 == 0:
                         user.is_tc_leader = True
                         print(f"  - User {user.username} is a Talent Club Leader.")
                         # Add an asset for this talent club leader in Talent Club HQ
-                        if (
-                            talent_club_hq_lab and tc_gear_category
-                        ):  # Ensure prerequisites exist
-                            tc_asset = Asset(
-                                name=f"Stage Light {i}",
-                                description="Lighting equipment for club performances.",
-                                quantity=1,
-                                condition="Fair",
-                                added_by_user=user,  # Link to the user being created
-                                category=tc_gear_category,
-                                lab=talent_club_hq_lab,
-                                status="Available",
-                            )
-                            db.session.add(tc_asset)
+                        if talent_club_hq_lab and tc_gear_category: # Ensure prerequisites exist
+                             tc_asset = Asset(
+                                 name=f"Stage Light {i}",
+                                 description="Lighting equipment for club performances.",
+                                 quantity=1,
+                                 condition="Fair",
+                                 added_by_user=user, # Link to the user being created
+                                 category=tc_gear_category,
+                                 lab=talent_club_hq_lab,
+                                 status="Available"
+                             )
+                             db.session.add(tc_asset)
+
 
                 elif role == librarian_role:
                     # Ensure Main Library Lab exists before assigning
                     if main_library_lab:
-                        user.lab_id = main_library_lab.id
+                         user.lab_id = main_library_lab.id
                     # Add a book asset for the librarian
-                    if (
-                        main_library_lab and books_category
-                    ):  # Ensure prerequisites exist
-                        book_asset = Asset(
-                            name=f"Math Textbook Vol {i}",
-                            description="Calculus textbook.",
-                            quantity=10,
-                            condition="New",
-                            added_by_user=user,  # Link to the user being created
-                            category=books_category,  # Corrected typo here as well
-                            lab=main_library_lab,
-                            status="Available",
-                        )
-                        db.session.add(book_asset)
+                    if main_library_lab and books_category: # Ensure prerequisites exist
+                         book_asset = Asset(
+                             name=f"Math Textbook Vol {i}",
+                             description="Calculus textbook.",
+                             quantity=10,
+                             condition="New",
+                             added_by_user=user, # Link to the user being created
+                             category=books_category, # Corrected typo here as well
+                             lab=main_library_lab,
+                             status="Available"
+                         )
+                         db.session.add(book_asset)
 
                 # Add the user to the session after all specific attributes/relations are set for their role
                 db.session.add(user)
 
             # --- Code AFTER the main user loop finishes ---
 
-            db.session.commit()  # Commit all users and assets created *within* the loop
+            db.session.commit() # Commit all users and assets created *within* the loop
 
             # Ensure TC Community group exists (should be done by create-initial, but double-check)
             community_group = get_tc_community_group()
             if not community_group:
-                print(
-                    f"Error: '{TC_COMMUNITY_GROUP_NAME}' group not found. Run 'flask create-initial' first.",
-                    file=sys.stderr,
-                )
-                sys.exit(1)
+                 print(f"Error: '{TC_COMMUNITY_GROUP_NAME}' group not found. Run 'flask create-initial' first.", file=sys.stderr)
+                 sys.exit(1)
+
 
             # Add all is_tc_member students to the TC Community group
             print("\nAdding TC Members to Community Group...")
-            tc_members = db.session.scalars(
-                select(User).where(User.is_tc_member == True, User.is_active == True)
-            ).all()
+            tc_members = db.session.scalars(select(User).where(User.is_tc_member == True, User.is_active == True)).all()
             for member in tc_members:
-                # Use the helper which checks if they are already a member
-                add_to_tc_community_group(member)
-                # The helper commits internally, so no separate commit needed here for this loop
+                 # Use the helper which checks if they are already a member
+                 add_to_tc_community_group(member)
+                 # The helper commits internally, so no separate commit needed here for this loop
 
             # Create some dummy Talent Clubs, Feeds, Memberships, and Follows
             print("\nCreating dummy Talent Clubs...")
-            tc_categories = db.session.scalars(
-                select(SocialCategory).order_by(SocialCategory.name)
-            ).all()
+            tc_categories = db.session.scalars(select(SocialCategory).order_by(SocialCategory.name)).all()
             if not tc_categories:
-                print(
-                    "Error: No Social Categories found. Cannot create dummy Talent Clubs.",
-                    file=sys.stderr,
-                )
+                 print("Error: No Social Categories found. Cannot create dummy Talent Clubs.", file=sys.stderr)
             else:
-                # Select some TC members to be club owners (ensure they are active and TC members)
-                tc_owners = db.session.scalars(
-                    select(User)
-                    .where(User.is_tc_member == True, User.is_active == True)
-                    .order_by(User.id)
-                    .limit(3)
-                ).all()  # Get 3 owners, consistent order
-                if not tc_owners:
-                    print(
-                        "Warning: No TC members found to be club owners. Skipping dummy club creation."
-                    )
-                else:
-                    for i, owner in enumerate(tc_owners):
-                        club_name = f"{owner.full_name}'s Awesome Club {i+1}"
-                        # Check if club name already exists
-                        existing_club = db.session.scalar(
-                            select(TalentClub).filter_by(name=club_name)
-                        )
-                        if existing_club:
-                            print(f"Skipping club '{club_name}': already exists.")
-                            continue
+                 # Select some TC members to be club owners (ensure they are active and TC members)
+                 tc_owners = db.session.scalars(select(User).where(User.is_tc_member == True, User.is_active == True).order_by(User.id).limit(3)).all() # Get 3 owners, consistent order
+                 if not tc_owners:
+                      print("Warning: No TC members found to be club owners. Skipping dummy club creation.")
+                 else:
+                      for i, owner in enumerate(tc_owners):
+                          club_name = f"{owner.full_name}'s Awesome Club {i+1}"
+                          # Check if club name already exists
+                          existing_club = db.session.scalar(select(TalentClub).filter_by(name=club_name))
+                          if existing_club:
+                               print(f"Skipping club '{club_name}': already exists.")
+                               continue
 
-                        try:
-                            category = tc_categories[i % len(tc_categories)]
-                            new_club = TalentClub(
-                                name=club_name,
-                                description=f"A dummy club created by {owner.full_name or owner.username}.",
-                                owner=owner,
-                                social_category=category,
-                                level=(i % 5) + 1,  # Levels 1-5
-                                warning_count=i % 3,  # Warnings 0-2
-                                is_active=True,
-                                created_at=datetime.now(timezone.utc)
-                                - timedelta(days=i * 10),  # Backdate creation
-                            )
-                            db.session.add(new_club)
-                            db.session.flush()  # Flush to get club ID
+                          try:
+                              category = tc_categories[i % len(tc_categories)]
+                              new_club = TalentClub(
+                                   name=club_name,
+                                   description=f"A dummy club created by {owner.full_name or owner.username}.",
+                                   owner=owner,
+                                   social_category=category,
+                                   level=(i % 5) + 1, # Levels 1-5
+                                   warning_count=i % 3, # Warnings 0-2
+                                   is_active=True,
+                                   created_at=datetime.now(timezone.utc) - timedelta(days=i*10) # Backdate creation
+                              )
+                              db.session.add(new_club)
+                              db.session.flush() # Flush to get club ID
 
-                            # Create the linked feed
-                            club_feed = TalentClubFeed(talent_club=new_club)
-                            db.session.add(club_feed)
+                              # Create the linked feed
+                              club_feed = TalentClubFeed(talent_club=new_club)
+                              db.session.add(club_feed)
 
-                            # Add owner as a member ('creator' role)
-                            owner_membership = TalentClubMembership(
-                                club=new_club, user=owner, role="creator"
-                            )
-                            db.session.add(owner_membership)
+                              # Add owner as a member ('creator' role)
+                              owner_membership = TalentClubMembership(club=new_club, user=owner, role='creator')
+                              db.session.add(owner_membership)
 
-                            # Add a few other random TC members as 'member' (ensure they are active TC members)
-                            other_members = db.session.scalars(
-                                select(User)
-                                .where(
-                                    User.is_tc_member == True,
-                                    User.id != owner.id,
-                                    User.is_active == True,
-                                )
-                                .order_by(db.func.random())  # Random members
-                                .limit(5)
-                            ).all()
-                            for other_member in other_members:
-                                try:
-                                    # Check if they are already a member of this specific club instance (unlikely but safe)
-                                    is_already_member = db.session.scalar(
-                                        select(TalentClubMembership)
-                                        .filter_by(
-                                            talent_club=new_club, user=other_member
-                                        )
-                                        .exists()
-                                    )
-                                    if not is_already_member:
-                                        member_membership = TalentClubMembership(
-                                            club=new_club,
-                                            user=other_member,
-                                            role="member",
-                                        )
-                                        db.session.add(member_membership)
-                                        # Add some dummy posts to the feed from a few members
-                                        if (
-                                            len(new_club.feed.posts.all()) < 5
-                                        ):  # Add a few posts per club
-                                            post_content = f"Hello from {other_member.full_name or other_member.username} in {new_club.name}!"
-                                            feed_post = TalentClubFeedPost(
-                                                feed=club_feed,
-                                                author=other_member,
-                                                content=post_content,
-                                            )
-                                            db.session.add(feed_post)
-                                except IntegrityError:
-                                    db.session.rollback()  # Rollback only this specific membership/post add
-                                    print(
-                                        f"    - User {other_member.username} already member of club {new_club.name} (IntegrityError).",
-                                        file=sys.stderr,
-                                    )
-                                except Exception as e:
-                                    db.session.rollback()  # Rollback only this specific membership/post add
-                                    print(
-                                        f"    - Error adding member {other_member.username} or post to club {new_club.name}: {e}",
-                                        file=sys.stderr,
-                                    )
+                              # Add a few other random TC members as 'member' (ensure they are active TC members)
+                              other_members = db.session.scalars(
+                                   select(User)
+                                   .where(User.is_tc_member == True, User.id != owner.id, User.is_active == True)
+                                   .order_by(db.func.random()) # Random members
+                                   .limit(5)
+                              ).all()
+                              for other_member in other_members:
+                                   try:
+                                        # Check if they are already a member of this specific club instance (unlikely but safe)
+                                        is_already_member = db.session.scalar(select(TalentClubMembership).filter_by(talent_club=new_club, user=other_member).exists())
+                                        if not is_already_member:
+                                            member_membership = TalentClubMembership(club=new_club, user=other_member, role='member')
+                                            db.session.add(member_membership)
+                                            # Add some dummy posts to the feed from a few members
+                                            if len(new_club.feed.posts.all()) < 5: # Add a few posts per club
+                                                 post_content = f"Hello from {other_member.full_name or other_member.username} in {new_club.name}!"
+                                                 feed_post = TalentClubFeedPost(feed=club_feed, author=other_member, content=post_content)
+                                                 db.session.add(feed_post)
+                                   except IntegrityError:
+                                        db.session.rollback() # Rollback only this specific membership/post add
+                                        print(f"    - User {other_member.username} already member of club {new_club.name} (IntegrityError).", file=sys.stderr)
+                                   except Exception as e:
+                                        db.session.rollback() # Rollback only this specific membership/post add
+                                        print(f"    - Error adding member {other_member.username} or post to club {new_club.name}: {e}", file=sys.stderr)
 
-                            # Add some dummy followers (can be any active user)
-                            followers = db.session.scalars(
-                                select(User)
-                                .where(User.is_active == True)
-                                .order_by(db.func.random())
-                                .limit(10)
-                            ).all()  # Any active user can follow
-                            for follower in followers:
-                                # Avoid adding user if they are already a member of this specific club instance
-                                is_member = db.session.scalar(
-                                    select(TalentClubMembership)
-                                    .filter_by(talent_club=new_club, user=follower)
-                                    .exists()
-                                )
-                                # Avoid adding user if they already follow this specific club instance
-                                is_already_following = db.session.scalar(
-                                    select(TalentClubFollow)
-                                    .filter_by(club=new_club, user=follower)
-                                    .exists()
-                                )
-                                if not is_member and not is_already_following:
-                                    try:
-                                        follow_entry = TalentClubFollow(
-                                            club=new_club, user=follower
-                                        )
-                                        db.session.add(follow_entry)
-                                    except IntegrityError:
-                                        db.session.rollback()  # Rollback only this specific follow add
-                                        print(
-                                            f"    - User {follower.username} already follows club {new_club.name} (IntegrityError).",
-                                            file=sys.stderr,
-                                        )
-                                    except Exception as e:
-                                        db.session.rollback()  # Rollback only this specific follow add
-                                        print(
-                                            f"    - Error adding follower {follower.username} to club {new_club.name}: {e}",
-                                            file=sys.stderr,
-                                        )
 
-                            db.session.commit()  # Commit the new club, feed, memberships, posts, and follows
-                            print(
-                                f"Created club '{new_club.name}' (ID: {new_club.id}) with {new_club.memberships.filter_by(is_active=True).count()} members and {new_club.follows.count()} followers."
-                            )
+                              # Add some dummy followers (can be any active user)
+                              followers = db.session.scalars(select(User).where(User.is_active == True).order_by(db.func.random()).limit(10)).all() # Any active user can follow
+                              for follower in followers:
+                                  # Avoid adding user if they are already a member of this specific club instance
+                                  is_member = db.session.scalar(select(TalentClubMembership).filter_by(talent_club=new_club, user=follower).exists())
+                                  # Avoid adding user if they already follow this specific club instance
+                                  is_already_following = db.session.scalar(select(TalentClubFollow).filter_by(club=new_club, user=follower).exists())
+                                  if not is_member and not is_already_following:
+                                      try:
+                                          follow_entry = TalentClubFollow(club=new_club, user=follower)
+                                          db.session.add(follow_entry)
+                                      except IntegrityError:
+                                          db.session.rollback() # Rollback only this specific follow add
+                                          print(f"    - User {follower.username} already follows club {new_club.name} (IntegrityError).", file=sys.stderr)
+                                      except Exception as e:
+                                          db.session.rollback() # Rollback only this specific follow add
+                                          print(f"    - Error adding follower {follower.username} to club {new_club.name}: {e}", file=sys.stderr)
 
-                        except IntegrityError:
-                            db.session.rollback()
-                            print(
-                                f"Skipping club '{club_name}': name already exists.",
-                                file=sys.stderr,
-                            )
-                        except Exception as e:
-                            db.session.rollback()
-                            print(
-                                f"Error creating club '{club_name}': {e}",
-                                file=sys.stderr,
-                            )
+
+                              db.session.commit() # Commit the new club, feed, memberships, posts, and follows
+                              print(f"Created club '{new_club.name}' (ID: {new_club.id}) with {new_club.memberships.filter_by(is_active=True).count()} members and {new_club.follows.count()} followers.")
+
+
+                          except IntegrityError:
+                               db.session.rollback()
+                               print(f"Skipping club '{club_name}': name already exists.", file=sys.stderr)
+                          except Exception as e:
+                              db.session.rollback()
+                              print(f"Error creating club '{club_name}': {e}", file=sys.stderr)
 
             # Add a few general assets by admin for testing HR/CEO view (if admin_user was created/exists)
-            if admin_user and general_equipment_category:  # Ensure prerequisites exist
-                print("\nCreating dummy admin assets...")
-                for i in range(3):
-                    admin_asset = Asset(
-                        name=f"Admin PC {i + 1}",
-                        description="Office computer for staff.",
-                        quantity=1,
-                        condition="Good",
-                        added_by_user=admin_user,
-                        category=general_equipment_category,
-                        lab=None,  # No specific lab initially
-                        status="Pending Review",
-                    )
-                    db.session.add(admin_asset)
-                db.session.commit()  # Commit admin assets
+            if admin_user and general_equipment_category: # Ensure prerequisites exist
+                 print("\nCreating dummy admin assets...")
+                 for i in range(3):
+                     admin_asset = Asset(
+                         name=f"Admin PC {i + 1}",
+                         description="Office computer for staff.",
+                         quantity=1,
+                         condition="Good",
+                         added_by_user=admin_user,
+                         category=general_equipment_category,
+                         lab=None, # No specific lab initially
+                         status="Pending Review"
+                     )
+                     db.session.add(admin_asset)
+                 db.session.commit() # Commit admin assets
+
 
             print("\nDatabase seeding process complete.")
-            sys.exit(0)  # Exit successfully
+            sys.exit(0) # Exit successfully
 
         except Exception as e:
-            db.session.rollback()  # Rollback everything in case of a general error
+            db.session.rollback() # Rollback everything in case of a general error
             print(f"General error during seeding: {e}", file=sys.stderr)
-            sys.exit(1)  # Exit with error code
-
+            sys.exit(1) # Exit with error code
 
 # --- Error Handlers ---
 # Define custom error pages for common HTTP errors
@@ -24467,18 +24690,474 @@ def favicon():
         app.logger.debug("favicon.ico not found in static directory.")
         abort(404)
 
+# In app.py, PART 15, after your other CLI commands
 
-# --- Main Execution Block ---
-# This block runs when the script is executed directly.
-# It typically starts the Flask development server or the SocketIO server.
-# --- PART 15 START: CLI Commands, Error Handlers, and Main Execution ---
+def generate_parent_secret_code(session, existing_codes_set):
+    """Generates a unique 6-character code for parent registration."""
+    # Using a slightly different length/format to distinguish from student codes
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = ''.join(random.choices(chars, k=6))
+        if code not in existing_codes_set:
+            # Final check against the database to be absolutely sure
+            if not session.scalar(select(SecretCode).filter_by(code=code)):
+                existing_codes_set.add(code)
+                return code
 
-# ... (all your CLI commands and error handlers) ...
+# In app.py, PART 15, with other CLI commands
 
-# --- Main Execution Block ---
-# This block runs when the script is executed directly.
-# It typically starts the Flask development server or the SocketIO server.
+@app.cli.command("link-teachers")
+def link_teachers_command():
+    """
+    Interactively links Teacher user records to TeacherProfile records.
+    This is for fixing cases where the user_id in teacher_profile might be incorrect or missing.
+    WARNING: This command modifies data. BACK UP YOUR DATABASE FIRST.
+    """
+    with app.app_context():
+        print("\n--- Interactive Teacher Profile Linker ---")
+        
+        # --- Step 1: Fetch all teachers and all profiles ---
+        teacher_role = db.session.scalar(select(Role).filter_by(name='teacher'))
+        if not teacher_role:
+            print("Error: 'teacher' role not found. Cannot proceed.")
+            return
 
+        all_teachers = db.session.scalars(select(User).where(User.role_id == teacher_role.id)).all()
+        # Fetch profiles that might be unlinked (user_id is NULL or points to a non-existent/non-teacher user)
+        all_profiles = db.session.scalars(select(TeacherProfile)).all()
+        
+        teacher_map = {t.id: t for t in all_teachers}
+        linked_profile_ids = set()
+
+        print(f"Found {len(all_teachers)} users with the 'teacher' role.")
+        print(f"Found {len(all_profiles)} total records in 'teacher_profile'.")
+
+        # --- Step 2: Identify already correctly linked profiles ---
+        print("\n--- Checking for correctly linked profiles ---")
+        for profile in all_profiles:
+            if profile.user_id in teacher_map:
+                print(f"  - Profile ID {profile.id} (Subject: {profile.subject}) is already correctly linked to Teacher: {teacher_map[profile.user_id].username}")
+                linked_profile_ids.add(profile.id)
+
+        unlinked_profiles = [p for p in all_profiles if p.id not in linked_profile_ids]
+
+        if not unlinked_profiles:
+            print("\nAll TeacherProfile records seem to be correctly linked. No action needed.")
+            return
+
+        print(f"\n--- Found {len(unlinked_profiles)} potentially unlinked or mislinked profiles ---")
+        
+        # --- Step 3: Interactive Linking ---
+        for profile in unlinked_profiles:
+            print("-" * 40)
+            print(f"Processing Profile ID: {profile.id}")
+            print(f"  - Subject: {profile.subject}")
+            print(f"  - Grade: {profile.grade}, Section: {profile.section}")
+            
+            # Suggest potential matches based on grade/section if possible
+            # This is a heuristic and might not be accurate.
+            suggested_teachers = [
+                t for t in all_teachers 
+                if t.grade == profile.grade and t.section == profile.section
+            ]
+
+            print("\nAvailable Teachers:")
+            for i, teacher in enumerate(all_teachers):
+                suggestion_marker = " (Suggested Match)" if teacher in suggested_teachers else ""
+                print(f"  {i+1}) ID: {teacher.id}, Username: {teacher.username}, Name: {teacher.full_name}{suggestion_marker}")
+
+            while True:
+                choice = input("\nEnter the number of the teacher to link this profile to (or 's' to skip, 'q' to quit): ").strip().lower()
+                
+                if choice == 'q':
+                    print("Quitting process.")
+                    return
+                if choice == 's':
+                    print("Skipping this profile.")
+                    break
+                
+                try:
+                    choice_index = int(choice) - 1
+                    if 0 <= choice_index < len(all_teachers):
+                        selected_teacher = all_teachers[choice_index]
+                        
+                        # Confirmation before making the change
+                        if click.confirm(f"\nLink Profile ID {profile.id} (Subject: {profile.subject}) to Teacher '{selected_teacher.username}'?"):
+                            profile.user_id = selected_teacher.id
+                            db.session.commit()
+                            print(f"  [SUCCESS] Linked profile {profile.id} to {selected_teacher.username}.")
+                            break
+                        else:
+                            print("  Operation cancelled for this profile. Please choose again.")
+                            continue
+                    else:
+                        print("  Invalid number. Please try again.")
+                except ValueError:
+                    print("  Invalid input. Please enter a number, 's', or 'q'.")
+        
+        print("\n--- Linking Process Finished ---")
+
+# In app.py
+
+# Make sure these imports are at the top of your file
+import click
+from sqlalchemy.orm import joinedload
+from sqlalchemy import select
+import sys
+# ... other imports ...
+
+# ... (Your existing Flask app, models, etc.) ...
+
+
+# Add this new command with your other CLI commands
+@app.cli.command("link-users")
+def link_users_to_secret_codes():
+    """
+    Links existing Users to SecretCodes if they are not already linked.
+
+    This command iterates through all users. For each user, it checks if they
+    already have an associated secret code.
+    - If a link exists, it skips the user.
+    - If no link exists, it searches for an available (unclaimed) SecretCode
+      with a matching full_name and establishes the link by setting the
+      user_id on the secret_code record.
+    """
+    with app.app_context():
+        # Safety confirmation prompt
+        if not click.confirm(
+            "This command will modify the 'secret_codes' table by linking it to 'users'.\n"
+            "It is highly recommended to back up your database before proceeding.\n"
+            "Do you want to continue?"
+        ):
+            click.echo("Operation cancelled by user.")
+            return
+
+        click.echo("\n--- Starting User to Secret Code Linking Process ---")
+
+        # Fetch all users, pre-loading the secret_code relationship
+        # to prevent N+1 query issues.
+        all_users = db.session.scalars(select(User).options(joinedload(User.secret_code))).all()
+
+        if not all_users:
+            click.echo("No users found in the database. Exiting.")
+            return
+
+        linked_count = 0
+        skipped_count = 0
+        not_found_count = 0
+
+        # --- Main Logic Loop ---
+        for user in all_users:
+            # 1. Check if the user is already linked. If so, skip.
+            if user.secret_code:
+                skipped_count += 1
+                click.echo(
+                    f"[SKIP] User '{user.username}' (ID: {user.id}) is already linked."
+                )
+                continue
+
+            # 2. If not linked, find a matching and available secret code.
+            # An "available" code is one that has not been claimed yet (user_id is NULL).
+            click.echo(f"[PROCESS] User '{user.username}' is not linked. Searching for code...")
+            matching_code = db.session.scalar(
+                select(SecretCode).where(
+                    SecretCode.full_name == user.full_name,
+                    SecretCode.user_id.is_(None)  # Most important check: is it available?
+                ).limit(1) # Get the first available one
+            )
+
+            # 3. If a matching code is found, establish the link.
+            if matching_code:
+                # This assignment is the magic. SQLAlchemy updates the
+                # secret_code.user_id column with user.id behind the scenes.
+                matching_code.user = user
+
+                linked_count += 1
+                click.secho(
+                    f"[SUCCESS] Linked User '{user.username}' to SecretCode ID {matching_code.id}.",
+                    fg="green",
+                )
+            else:
+                # 4. If no code is found, report it.
+                not_found_count += 1
+                click.secho(
+                    f"[WARN] No available SecretCode found for User '{user.username}' (Full Name: '{user.full_name}').",
+                    fg="yellow",
+                )
+
+        # --- Commit and Summarize ---
+        if linked_count > 0:
+            try:
+                click.echo(f"\nCommitting {linked_count} new link(s) to the database...")
+                db.session.commit()
+                click.secho("Database commit successful!", fg="green", bold=True)
+            except Exception as e:
+                db.session.rollback()
+                click.secho(f"\nERROR: An error occurred during commit: {e}", fg="red", err=True)
+                click.secho("All changes have been rolled back.", fg="red", err=True)
+                sys.exit(1) # Exit with an error code
+        else:
+            click.echo("\nNo new links were made. No changes to commit.")
+
+        click.echo("\n--- Linking Process Summary ---")
+        click.echo(f"  Users already linked (Skipped): {skipped_count}")
+        click.secho(f"  New links created successfully: {linked_count}", fg="green")
+        click.secho(f"  Users without a matching code: {not_found_count}", fg="yellow")
+        click.echo("--- Process Complete ---")
+
+@app.cli.command("link-parents")
+def link_parents_command():
+    """
+    Creates parent accounts based on student last names and links them.
+    - Groups students by last_name.
+    - For each group, creates one parent user (e.g., 'p_lastname').
+    - Generates a unique secret code for each new parent.
+    - Links all students in the group to that parent.
+    - Skips families where a parent account already exists.
+    """
+    with app.app_context():
+        print("\n--- Starting Parent-Student Linking Process ---")
+
+        # 1. Get necessary Role objects
+        student_role = db.session.scalar(select(Role).filter_by(name='student'))
+        parent_role = db.session.scalar(select(Role).filter_by(name='parent'))
+
+        if not student_role or not parent_role:
+            print("Error: 'student' or 'parent' role not found. Run 'flask create-initial' first.")
+            return
+
+        # 2. Pre-fetch all existing usernames and secret codes for efficiency
+        print("Fetching existing user and code data...")
+        existing_usernames = {u.username for u in db.session.query(User.username).all()}
+        existing_secret_codes = {s.code for s in db.session.query(SecretCode.code).all()}
+
+        # 3. Get all active students with a valid last name
+        all_students = db.session.scalars(
+            select(User)
+            .where(
+                User.role_id == student_role.id,
+                User.is_active == True,
+                User.last_name.isnot(None),
+                User.last_name != ''
+            )
+            .order_by(User.last_name)
+        ).all()
+
+        if not all_students:
+            print("No active students with last names found to process.")
+            return
+
+        # 4. Group students by their last name (case-insensitive)
+        families = defaultdict(list)
+        for student in all_students:
+            # Sanitize last name for use in username
+            clean_last_name = ''.join(e for e in student.last_name.lower() if e.isalnum())
+            if clean_last_name:
+                families[clean_last_name].append(student)
+
+        print(f"Found {len(all_students)} students grouped into {len(families)} families.")
+        
+        created_parents = 0
+        created_links = 0
+
+        # 5. Iterate through each family and create/link parents
+        for last_name, students_in_family in families.items():
+            parent_username = f"p_{last_name}"
+            family_name_display = students_in_family[0].last_name # Use original casing for display
+
+            print(f"\nProcessing family: '{family_name_display}' ({len(students_in_family)} student(s))")
+            
+            # Check if a parent user for this family already exists
+            parent_user = db.session.scalar(select(User).filter_by(username=parent_username))
+
+            if parent_user:
+                print(f"  [INFO] Parent user '{parent_username}' already exists. Skipping user creation.")
+            else:
+                # --- Create the Parent User and Secret Code ---
+                print(f"  [CREATE] Creating new parent account with username '{parent_username}'.")
+                
+                # Generate a unique secret code for the parent
+                secret_code_str = generate_parent_secret_code(db.session, existing_secret_codes)
+                
+                # Create User object
+                parent_full_name = f"Guardian of the {family_name_display} Family"
+                parent_user = User(
+                    username=parent_username,
+                    full_name=parent_full_name,
+                    role_id=parent_role.id,
+                    is_active=False,  # Parent is inactive until they complete registration
+                    force_password_change=True # They must set a password
+                )
+                parent_user.set_password(str(uuid.uuid4())) # Set a random, unusable password
+                
+                # Create Parent profile object
+                parent_profile = Parent(user=parent_user)
+                
+                # Create SecretCode object
+                parent_secret_code = SecretCode(
+                    code=secret_code_str,
+                    full_name=parent_full_name,
+                    role_id=parent_role.id
+                )
+                
+                db.session.add(parent_user)
+                db.session.add(parent_profile)
+                db.session.add(parent_secret_code)
+                
+                created_parents += 1
+                print(f"  [INFO] Generated Secret Code for '{parent_username}': {secret_code_str}")
+
+            # --- Link all students in this family to the parent ---
+            parent_profile_obj = parent_user.parent_profile
+            if not parent_profile_obj:
+                 # This can happen if the parent_user existed but the Parent record didn't
+                 print(f"  [WARN] Parent user '{parent_username}' exists but has no Parent profile. Creating one now.")
+                 parent_profile_obj = Parent(user=parent_user)
+                 db.session.add(parent_profile_obj)
+
+            for student in students_in_family:
+                # Check if a link already exists
+                existing_link = db.session.scalar(
+                    select(ParentStudent).filter_by(parent_id=parent_profile_obj.id, student_id=student.id)
+                )
+                if existing_link:
+                    print(f"  [SKIP] Link for student '{student.full_name}' to parent '{parent_username}' already exists.")
+                else:
+                    print(f"  [LINK] Linking student '{student.full_name}' to parent '{parent_username}'.")
+                    new_link = ParentStudent(
+                        parent=parent_profile_obj,
+                        student=student,
+                        verification_status='verified', # Auto-verify since admin is running this
+                        verified_at=datetime.now(timezone.utc)
+                    )
+                    db.session.add(new_link)
+                    created_links += 1
+
+        # 6. Final commit to the database
+        try:
+            print("\nCommitting all changes to the database...")
+            db.session.commit()
+            print("Commit successful!")
+        except Exception as e:
+            db.session.rollback()
+            print(f"\nAn error occurred during the final commit: {e}", file=sys.stderr)
+            print("All changes have been rolled back.")
+            return
+
+        print("\n--- Linking Process Summary ---")
+        print(f"New Parent Accounts Created: {created_parents}")
+        print(f"New Parent-Student Links Created: {created_links}")
+        print("--- Process Complete ---")
+# In app.py, replace the populate-labs command with this one
+
+@app.cli.command("populate-labs")
+def populate_labs_command():
+    """
+    Clears and repopulates the Lab table with standardized classroom and subject labs.
+    WARNING: This is a destructive operation on the Lab table.
+    """
+    with app.app_context():
+        if not click.confirm(
+            "\nWARNING: This will DELETE all existing entries in the 'lab' table and repopulate it.\n"
+            "This will also UNASSIGN all users and assets from their current labs.\n"
+            "This is a destructive action. Make sure you have a backup.\n"
+            "Do you want to continue?"
+        ):
+            print("Operation cancelled by user.")
+            return
+
+        print("\n--- Starting Lab Population Process ---")
+        try:
+            print("1. Un-assigning all users from their current labs...")
+            user_update_count = db.session.query(User).update({User.lab_id: None})
+            print(f"   Cleared lab assignments for {user_update_count} users.")
+
+            print("2. Un-assigning all assets from their current labs...")
+            asset_update_count = db.session.query(Asset).update({Asset.lab_id: None})
+            print(f"   Cleared lab assignments for {asset_update_count} assets.")
+
+            db.session.commit()
+            print("   Un-assignment complete.")
+
+            print("\n3. Clearing all existing records from the Lab table...")
+            num_deleted = db.session.query(Lab).delete()
+            print(f"   Deleted {num_deleted} existing lab records.")
+            
+            lab_names_to_add = set()
+
+            print("\n4. Creating Classroom Labs from unique Grade/Section pairs in the User table...")
+            student_role = db.session.scalar(select(Role).filter_by(name='student'))
+            if student_role:
+                # --- THIS IS THE FIX ---
+                # The checks for `!= ''` have been removed. `isnot(None)` is all that's needed for an Integer column.
+                grade_section_pairs_query = (
+                    select(User.grade, User.section)
+                    .where(
+                        User.role_id == student_role.id,
+                        User.is_active == True,
+                        User.grade.isnot(None),  # Keep this check
+                        User.section.isnot(None) # Keep this check
+                    )
+                    .distinct()
+                )
+                # --- END OF FIX ---
+                
+                grade_section_pairs = db.session.execute(grade_section_pairs_query).all()
+
+                for grade, section in grade_section_pairs:
+                    lab_name = f"Grade {grade} - Section {section}"
+                    if lab_name not in lab_names_to_add:
+                        new_lab = Lab(
+                            name=lab_name,
+                            lab_type='classroom',
+                            grade=str(grade),
+                            section=str(section),
+                            subject=None
+                        )
+                        db.session.add(new_lab)
+                        lab_names_to_add.add(lab_name)
+                        print(f"   - Added: {lab_name}")
+
+            print("\n5. Creating Subject Labs from unique subjects in the TeacherProfile table...")
+            subjects = db.session.scalars(
+                select(TeacherProfile.subject).where(
+                    TeacherProfile.subject.isnot(None),
+                    TeacherProfile.subject != ''
+                ).distinct()
+            ).all()
+
+            for subject in subjects:
+                lab_name = f"{subject} Lab"
+                if lab_name not in lab_names_to_add:
+                    new_lab = Lab(
+                        name=lab_name,
+                        lab_type='subject',
+                        grade=None,
+                        section=None,
+                        subject=subject
+                    )
+                    db.session.add(new_lab)
+                    lab_names_to_add.add(lab_name)
+                    print(f"   - Added: {lab_name}")
+            
+            print("\n6. Adding essential facility labs...")
+            essential_labs = ["Main Library", "Talent Club HQ", "General Storage"]
+            for lab_name in essential_labs:
+                if lab_name not in lab_names_to_add:
+                    new_lab = Lab(name=lab_name, lab_type='facility')
+                    db.session.add(new_lab)
+                    lab_names_to_add.add(lab_name)
+                    print(f"   - Added Essential Lab: {lab_name}")
+
+            print("\n7. Committing all new lab records to the database...")
+            db.session.commit()
+            print(f"\n--- Process Complete! Successfully added {len(lab_names_to_add)} labs. ---")
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"\nAn error occurred: {e}", file=sys.stderr)
+            print("The transaction has been rolled back. No changes were saved to the database.")
+        
 if __name__ == "__main__":
     # If you are using Flask-SocketIO, you should run the app using socketio.run()
     # in the main execution block, not app.run().

@@ -1,0 +1,104 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Attendance Grid for Grade {{ grade }} - Section {{ section }}{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-grid-3x3-gap-fill me-2 text-primary"></i>Attendance Grid
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('teacher_select_classroom') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-arrow-left-circle me-1"></i>Back to Classroom Selection
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header bg-light-subtle d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0 font-heading">Monthly Grid for Grade {{ grade }} - Section {{ section }}</h5>
+            <small class="text-body-secondary">{{ nav_links.current_month_display }}</small>
+        </div>
+        <div class="d-flex align-items-center">
+            <!-- Month Navigation -->
+            <a href="{{ url_for('attendance_grid', grade=grade, section=section, year=nav_links.prev_month.year, month=nav_links.prev_month.month) }}" class="btn btn-outline-primary btn-sm me-2" title="Previous Month">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <a href="{{ url_for('attendance_grid', grade=grade, section=section) }}" class="btn btn-outline-secondary btn-sm" title="Go to Current Month">
+                Today
+            </a>
+            <a href="{{ url_for('attendance_grid', grade=grade, section=section, year=nav_links.next_month.year, month=nav_links.next_month.month) }}" class="btn btn-outline-primary btn-sm ms-2" title="Next Month">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle text-center" style="min-width: 1200px;">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th scope="col" style="min-width: 200px; text-align: left;">Student Name</th>
+                        {# Loop through the days of the month to create headers #}
+                        {% for day in days_in_month %}
+                            <th scope="col" class="font-monospace small p-1 {% if day.weekday() >= 5 %}bg-light-subtle{% endif %}">
+                                {{ day.strftime('%a') }}<br>{{ day.day }}
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Loop through each student to create a row #}
+                    {% for student in students %}
+                    <tr>
+                        <td class="fw-medium text-start">
+                            <a href="{{ url_for('teacher_student_profile_view', user_id=student.id) }}" class="text-decoration-none">{{ student.full_name }}</a>
+                        </td>
+                        {# Loop through the days again to fill in the data for this student #}
+                        {% for day in days_in_month %}
+                            {% set status = attendance_data.get(student.id, {}).get(day) %}
+                            {# Set the icon and color based on the status #}
+                            {% if status == 'Present' %}
+                                {% set icon = '✅' %}
+                                {% set color_class = 'text-success' %}
+                                {% set title_text = 'Present' %}
+                            {% elif status == 'Late' %}
+                                {% set icon = '❗' %}
+                                {% set color_class = 'text-warning' %}
+                                {% set title_text = 'Late' %}
+                            {% elif status == 'Absent' %}
+                                {% set icon = '❌' %}
+                                {% set color_class = 'text-danger' %}
+                                {% set title_text = 'Absent' %}
+                            {% elif status == 'Excused' %}
+                                {% set icon = '🚑' %}
+                                {% set color_class = 'text-info' %}
+                                {% set title_text = 'Excused Absence' %}
+                            {% else %}
+                                {# No record for this day #}
+                                {% set icon = '—' %}
+                                {% set color_class = 'text-muted' %}
+                                {% set title_text = 'Not Marked' %}
+                            {% endif %}
+                            <td class="{{ color_class }}" title="{{ title_text }} on {{ day.strftime('%Y-%m-%d') }}">
+                                <span class="fs-5">{{ icon }}</span>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer text-center small text-muted">
+        <strong>Legend:</strong>
+        <span class="mx-2">✅ Present</span>
+        <span class="mx-2">❗ Late</span>
+        <span class="mx-2">❌ Absent</span>
+        <span class="mx-2">🚑 Excused</span>
+        <span class="mx-2">— Not Marked</span>
+    </div>
+</div>
+{% endblock %}

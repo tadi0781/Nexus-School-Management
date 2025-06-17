@@ -130,36 +130,52 @@ function initializeFilePreviewModal() {
  * @returns {Promise<object>} - A promise that resolves with the JSON response.
  * @throws {Error} - Throws an error if the network response is not ok or if parsing fails.
  */
-async function postData(url = '', data = {}) {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-    const isFormData = data instanceof FormData;
+// Place this in your main helper file (e.g., api.js or main.js)
 
-    const headers = {};
+async function postData(url, data = {}) {
+    // Attempt to get the CSRF token, which is a good practice for POST requests.
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
     if (csrfToken) {
         headers['X-CSRFToken'] = csrfToken;
-    }
-    // Don't set Content-Type for FormData; the browser does it correctly with the boundary.
-    if (!isFormData) {
-        headers['Content-Type'] = 'application/json';
     }
 
     try {
         const response = await fetch(url, {
             method: 'POST',
             headers: headers,
-            body: isFormData ? data : JSON.stringify(data)
+            body: JSON.stringify(data) // The key fix: convert the JS object to a JSON string
         });
 
-        const responseData = await response.json();
         if (!response.ok) {
-            // Extract a clean error message from the server's JSON response if possible
-            const errorMessage = responseData.error || responseData.message || `HTTP error! Status: ${response.status}`;
-            throw new Error(errorMessage);
+            // Try to parse the error for better messages, otherwise use status text
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch (e) {
+                // Not a JSON error response
+                throw new Error(`HTTP error! Status: ${response.status} ${response.statusText}`);
+            }
+            // Throw an error with the server-provided message if available
+            throw new Error(errorData.error || errorData.message || `HTTP error! Status: ${response.status}`);
         }
-        return responseData;
+
+        // If the response has no content, return a success object.
+        // Useful for 204 No Content responses.
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return response.json();
+        } else {
+            return { success: true };
+        }
+        
     } catch (error) {
-        // Re-throw the error so the calling function's .catch() block can handle it
-        console.error(`Error in postData to ${url}:`, error);
+        console.error('There was a problem with the fetch operation:', error);
+        // Re-throw the error so the calling function's catch block can handle it
         throw error;
     }
 }

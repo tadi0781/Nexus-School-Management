@@ -1,0 +1,30 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+<div class="container-fluid px-4 py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0 rounded-lg">
+                <div class="card-header bg-success text-white">
+                    <h3 class="text-center font-weight-light my-4">Select Section for Attendance</h3>
+                    <h5 class="text-center fw-normal">{{ subject }} - Grade {{ grade }}</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">Choose the section for which you want to mark attendance.</p>
+                    <div class="list-group">
+                        {% for profile in profiles %}
+                            <a href="{{ url_for('mark_attendance', grade=profile.grade, section=profile.section) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                Mark Attendance for Section {{ profile.section }}
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-footer text-center py-3">
+                     <!-- Example Correction: Check your app.py for the real name --> <a href="{{ url_for('teacher_select_classroom') }}"><i class="bi bi-arrow-left-circle me-1"></i>Back to Class Selection</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

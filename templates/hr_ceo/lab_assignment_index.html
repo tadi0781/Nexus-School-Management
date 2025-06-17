@@ -1,0 +1,43 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Assign Labs to Teachers{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2 font-heading">
+        <i class="bi bi-person-bounding-box me-2 text-primary"></i>Assign Labs to Teachers
+    </h1>
+    <a href="{{ url_for('hr_ceo_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left-circle me-1"></i>Back to Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="mb-0">Select a Subject to Begin</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">For performance, teachers are grouped by the subjects they teach. Select a subject to view all associated teachers and assign their primary lab/location.</p>
+        
+        {% if subjects %}
+            <div class="list-group">
+            {% for subject, count in subjects %}
+                <a href="{{ url_for('assign_lab_to_teachers', subject=subject) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 font-heading">{{ subject }}</h6>
+                        <small class="text-muted">{{ count }} teacher(s)</small>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center">
+                <p class="mb-0">No teachers or subjects found in the system.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,169 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Weather Dashboard{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+{# Chart.js for the hourly forecast graph #}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{# Font Awesome for icons #}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    /* Custom styles for the DARK, modern weather dashboard */
+    .weather-card {
+        /* Glassmorphism on a dark background */
+        background: rgba(40, 40, 60, 0.4); /* Dark translucent background */
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        color: #E0E0E0; /* Light text color for contrast */
+    }
+
+    .weather-card-light-text {
+        color: #FFFFFF !important;
+    }
+
+    .weather-card-muted-text {
+        color: #A0A0B0 !important;
+    }
+
+    .hourly-forecast-container {
+        display: flex;
+        overflow-x: auto;
+        padding-bottom: 1rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(150, 150, 150, 0.5) transparent;
+    }
+
+    .hourly-forecast-container::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .hourly-forecast-container::-webkit-scrollbar-thumb {
+        background-color: rgba(150, 150, 150, 0.5);
+        border-radius: 10px;
+    }
+
+    .hourly-item {
+        flex: 0 0 auto;
+        width: 80px;
+        text-align: center;
+    }
+
+    /* Icon sizes */
+    .weather-icon-lg { font-size: 4.5rem; text-shadow: 0 0 15px rgba(255, 255, 255, 0.2); }
+    .weather-icon-md { font-size: 2.5rem; }
+    .weather-icon-sm { font-size: 1.5rem; }
+
+    /* Chart.js Global Font Color for Dark Mode */
+    Chart.defaults.color = '#A0A0B0';
+    Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="container-fluid pt-4 px-4">
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="bg-secondary rounded p-4">
+                <h4 class="mb-3">Weather Dashboard</h4>
+                
+                <!-- Search Controls -->
+                <form id="weatherForm" class="row g-3 align-items-center mb-4">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="cityInput" placeholder="Enter City Name (e.g., London)" value="{{ user_home_city or '' }}">
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i> Get Weather
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-info" id="geolocateBtn">
+                            <i class="fas fa-map-marker-alt me-1"></i> Use My Location
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Loading Spinner -->
+                <div id="loadingSpinner" class="text-center d-none py-5">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Fetching weather data...</p>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="errorMessage" class="alert alert-danger d-none" role="alert"></div>
+
+                <!-- Weather Data Display Area -->
+                <div id="weatherResults" class="d-none">
+
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 id="locationName" class="weather-card-light-text"></h5>
+                        <button class="btn btn-outline-success btn-sm" id="saveLocationBtn" title="Set as my default location">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </div>
+                    
+                    <div class="row g-4 mb-4">
+                        <!-- Current Weather Card -->
+                        <div class="col-md-7">
+                            <div class="weather-card rounded p-4 h-100">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-4 text-primary">
+                                        <i id="currentIcon" class="fas weather-icon-lg"></i>
+                                    </div>
+                                    <div>
+                                        <h2 class="mb-0 weather-card-light-text display-4" id="currentTemp">--°</h2>
+                                        <p class="mb-0 weather-card-muted-text">Feels like <span id="currentApparentTemp">--</span>°</p>
+                                    </div>
+                                    <div class="ms-auto text-end">
+                                        <p class="mb-1"><i class="fas fa-tint me-2 text-info"></i>Humidity: <span id="currentHumidity">--</span>%</p>
+                                        <p class="mb-1"><i class="fas fa-wind me-2 text-info"></i>Wind: <span id="currentWind">--</span> km/h</p>
+                                        <p class="mb-0"><i class="fas fa-cloud-rain me-2 text-info"></i>Precip: <span id="currentPrecip">--</span>%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Air & Sun Card -->
+                        <div class="col-md-5">
+                             <div class="weather-card rounded p-4 h-100">
+                                <h6 class="mb-3 weather-card-light-text">Air & Sun</h6>
+                                <p class="mb-2"><i class="fas fa-lungs-virus me-2 text-warning"></i>US AQI: <span id="airQualityAqi">--</span></p>
+                                <p class="mb-2"><i class="fas fa-sun me-2 text-warning"></i>UV Index: <span id="dailyUvIndex">--</span></p>
+                                <p class="mb-1"><i class="fas fa-sunrise me-2 text-light"></i>Sunrise: <span id="dailySunrise">--:--</span></p>
+                                <p class="mb-0"><i class="fas fa-sunset me-2 text-light"></i>Sunset: <span id="dailySunset">--:--</span></p>
+                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Hourly Forecast Chart -->
+                    <div class="weather-card rounded p-4 mb-4">
+                        <h6 class="weather-card-light-text">Hourly Temperature Forecast</h6>
+                        <div style="height: 200px;">
+                            <canvas id="hourlyChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Daily Forecast -->
+                    <h6 class="mb-3">5-Day Forecast</h6>
+                    <div id="dailyForecastContainer" class="row g-3">
+                        <!-- Daily cards will be inserted here by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+{{ super() }}
+{# The existing weather.js file works perfectly with this new dark UI #}
+<script src="{{ url_for('static', filename='js/weather.js') }}"></script>
+{% endblock %}

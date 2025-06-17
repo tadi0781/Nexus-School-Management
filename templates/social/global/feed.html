@@ -13,13 +13,16 @@
 <div class="row">
     <div class="col-lg-8 mx-auto">
         
-        {# UPDATE: Post creation form is now inside a card for better styling #}
+        {# Post creation form is now inside a card for better styling #}
         <div class="card mb-4" id="globalPostCreateContainer">
             <div class="card-body">
                 {% if global_post_create_form %}
+                    {# --- THIS IS THE FIX --- #}
+                    {# The submit_url variable was pointing to the old, deleted endpoint. #}
+                    {# It now correctly points to the 'social_feed_placeholder' function, which handles POSTs. #}
                     {% with 
                         form = global_post_create_form,
-                        submit_url = url_for('create_global_post'),
+                        submit_url = url_for('social_feed_placeholder'),
                         placeholder_text = "Share something with the community...",
                         submit_button_text = "Post",
                         form_id = "globalPostCreateForm",
@@ -35,7 +38,7 @@
             </div>
         </div>
 
-        {# UPDATE: Added filter tabs for the feed #}
+        {# Filter tabs for the feed #}
         <div class="feed-filters mb-3">
             <ul class="nav nav-pills nav-fill">
                 <li class="nav-item">

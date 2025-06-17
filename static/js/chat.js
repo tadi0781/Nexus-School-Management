@@ -19,20 +19,17 @@ let sendChatMessageBtn = null;
 let typingIndicator = null;
 let filePreviewArea = null;
 let actualFileInput = null;
-
 /**
- * Initializes the chat interface and sets up all event listeners.
- * This is the main entry point called from the HTML template.
+ * Initializes the chat interface, populates module-level variables,
+ * and sets up all necessary event listeners.
  * @param {number} targetUserId - The ID of the user to chat with.
  * @param {number} currentUserId - The ID of the currently logged-in user.
  */
 function initializeChat(targetUserId, currentUserId) {
     console.log(`Initializing chat with User ID: ${targetUserId}`);
-
-    // Stop any previous polling before setting up a new chat
     stopMessagePolling();
 
-    // --- Populate global variables and DOM references ---
+    // Populate module-level variables from DOM
     currentChatTargetUserId = targetUserId;
     currentChatUserId = currentUserId;
     chatWindowMessages = document.getElementById('chatWindowMessages');
@@ -40,35 +37,37 @@ function initializeChat(targetUserId, currentUserId) {
     chatMessageInput = document.getElementById('chatMessageInput');
     sendChatMessageBtn = document.getElementById('sendChatMessageBtn');
     typingIndicator = document.getElementById('typingIndicator');
-    filePreviewArea = document.getElementById('dmFilePreviewArea');
-    actualFileInput = document.getElementById('chatActualDmFileInput');
     const attachFileBtn = document.getElementById('chatAttachFileBtn');
+    const actualFileInput = document.getElementById('chatActualDmFileInput');
+    const filePreviewArea = document.getElementById('dmFilePreviewArea');
 
-    // --- Attach Core Event Listeners ---
-    if (chatMessageForm) {
-        chatMessageForm.addEventListener('submit', handleSendMessage);
-    } else {
-        console.error("Critical Error: Chat message form #chatMessageForm not found.");
+    if (!chatMessageForm || !chatWindowMessages || !chatMessageInput) {
+        console.error("Critical chat UI elements are missing. Chat cannot be initialized.");
         return;
     }
 
-    if (attachFileBtn && actualFileInput) {
+    // Attach core event listeners
+    chatMessageForm.addEventListener('submit', handleSendMessage);
+    
+    if(attachFileBtn && actualFileInput){
         attachFileBtn.addEventListener('click', () => actualFileInput.click());
-        actualFileInput.addEventListener('change', handleFileSelection);
-    }
-
-    if (chatMessageInput) {
-        chatMessageInput.addEventListener('input', () => {
-            chatMessageInput.style.height = 'auto';
-            chatMessageInput.style.height = (chatMessageInput.scrollHeight) + 'px';
+        actualFileInput.addEventListener('change', () => {
+             if (actualFileInput.files.length > 0) {
+                filePreviewArea.innerHTML = `<span class="badge bg-secondary">${actualFileInput.files[0].name} <button type="button" class="btn-close btn-close-white ms-1" style="font-size: .6em;" onclick="this.parentElement.remove(); document.getElementById('chatActualDmFileInput').value='';"></button></span>`;
+            } else {
+                filePreviewArea.innerHTML = '';
+            }
         });
-        // Set initial height
-        chatMessageInput.dispatchEvent(new Event('input'));
     }
 
-    // --- Final Setup ---
+    // Auto-resize textarea
+    chatMessageInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    // Set initial scroll position and start polling for new messages
     scrollToChatBottom(true);
-    // Start polling for new messages (initial fetch happens inside)
     startMessagePolling();
 }
 
@@ -78,47 +77,57 @@ function initializeChat(targetUserId, currentUserId) {
  */
 async function handleSendMessage(event) {
     event.preventDefault();
-    const message = chatMessageInput.value.trim();
-    const file = actualFileInput ? actualFileInput.files[0] : null;
-
-    if (!message && !file) {
-        return; // Don't send empty messages
+    if (!chatMessageForm || !currentChatTargetUserId) {
+        console.error("Chat form or target user not set.");
+        return;
     }
 
-    const formData = new FormData();
-    if (message) formData.append('message', message);
-    if (file) formData.append('dm_file', file);
+    const content = chatMessageInput.value.trim();
+    const fileInput = document.getElementById('chatActualDmFileInput');
+    const file = fileInput ? fileInput.files[0] : null;
 
-    setSendButtonLoading(true);
+    if (!content && !file) {
+        // Do not send empty messages
+        return;
+    }
+    
+    const originalButtonHTML = sendChatMessageBtn.innerHTML;
+    sendChatMessageBtn.disabled = true;
+    sendChatMessageBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
+    chatMessageInput.disabled = true;
 
+    const formData = new FormData(chatMessageForm);
+    // FormData will correctly handle both the message textarea and the file input
+    
     try {
-        const response = await fetch(`/chat/user/${currentChatTargetUserId}`, {
+        const response = await fetch(chatMessageForm.action, {
             method: 'POST',
             body: formData,
-            headers: {
-                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
+            headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') }
         });
+
         const data = await response.json();
 
-        if (data.success && data.message_data) {
-            const messageHtml = createChatMessageHtml(data.message_data);
-            chatWindowMessages.insertAdjacentHTML('beforeend', messageHtml);
-            scrollToChatBottom(true);
+        if (response.ok && data.success && data.message_data) {
+            appendMessageToChat(data.message_data, currentChatUserId);
             
-            // Reset the form
-            chatMessageInput.value = '';
-            chatMessageInput.dispatchEvent(new Event('input')); // Recalculate height
-            filePreviewArea.innerHTML = '';
-            if (actualFileInput) actualFileInput.value = '';
+            // Reset form state
+            chatMessageForm.reset();
+            const filePreviewArea = document.getElementById('dmFilePreviewArea');
+            if (filePreviewArea) filePreviewArea.innerHTML = '';
+            chatMessageInput.style.height = 'auto';
+            lastMessageTimestamp = new Date(data.message_data.timestamp).getTime();
         } else {
-            showToast('Error', data.error || 'Failed to send message.', 'error');
+            showNexusNotification('Send Error', data.error || 'Failed to send message.', 'error');
         }
     } catch (error) {
         console.error('Error sending message:', error);
-        showToast('Error', 'A network error occurred while sending the message.', 'error');
+        showNexusNotification('Send Error', `A network error occurred: ${error.message}`, 'error');
     } finally {
-        setSendButtonLoading(false);
+        sendChatMessageBtn.disabled = false;
+        sendChatMessageBtn.innerHTML = originalButtonHTML;
+        chatMessageInput.disabled = false;
+        chatMessageInput.focus();
     }
 }
 
@@ -263,7 +272,85 @@ async function fetchNewMessages() {
 // Cleanup polling when the user navigates away
 window.addEventListener('beforeunload', stopMessagePolling);
 
+function appendMessageToChat(messageData, currentUserId) {
+    if (!chatWindowMessages || !messageData) return;
 
+    const isSender = messageData.sender_id === currentUserId;
+    const senderName = messageData.sender ? (messageData.sender.full_name || messageData.sender.username) : "Unknown User";
+    let senderAvatar = messageData.sender?.profile_photo_url ? messageData.sender.profile_photo_url : '/static/img/placeholders/user_avatar_default.png';
+
+    const messageWrapper = document.createElement('div');
+    messageWrapper.className = `chat-message-wrapper d-flex mb-3 ${isSender ? 'justify-content-end' : 'justify-content-start'}`;
+    if (messageData.id) messageWrapper.id = `message-${messageData.id}`;
+
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message d-flex flex-column ${isSender ? 'sent align-items-end' : 'received align-items-start'}`;
+    messageDiv.style.maxWidth = '75%';
+
+    const innerFlex = document.createElement('div');
+    innerFlex.className = `d-flex align-items-end ${isSender ? 'flex-row-reverse' : ''}`;
+
+    if (!isSender) {
+        const img = document.createElement('img');
+        img.src = senderAvatar.startsWith('http') ? senderAvatar : `/static/${senderAvatar}`;
+        img.alt = senderName;
+        img.className = 'rounded-circle me-2 shadow-sm';
+        img.width = 30; img.height = 30; img.style.objectFit = 'cover';
+        innerFlex.appendChild(img);
+    }
+
+    const bubble = document.createElement('div');
+    bubble.className = 'message-bubble p-2 px-3 shadow-sm';
+    
+    if (messageData.file_details) {
+        const file = messageData.file_details;
+        const fileSizeHuman = file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : `${(file.size / 1024).toFixed(1)} KB`;
+        let iconClass = 'bi-file-earmark-text';
+        if (file.mimetype && file.mimetype.startsWith('image/')) iconClass = 'bi-file-earmark-image';
+        if (file.mimetype && file.mimetype.startsWith('video/')) iconClass = 'bi-file-earmark-play';
+
+        const fileHTML = `
+            <a href="${file.download_url}" target="_blank" class="text-decoration-none text-body" title="Download ${file.original_filename}">
+                <div class="d-flex align-items-center">
+                    <i class="bi ${iconClass} fs-3 me-2"></i>
+                    <div>
+                        <div class="fw-bold text-truncate">${file.original_filename}</div>
+                        <small class="text-muted">${fileSizeHuman}</small>
+                    </div>
+                </div>
+            </a>
+        `;
+        const fileDiv = document.createElement('div');
+        fileDiv.innerHTML = fileHTML;
+        if(messageData.content) { fileDiv.classList.add('mb-2'); }
+        bubble.appendChild(fileDiv);
+    }
+
+    if (messageData.content) {
+        const contentP = document.createElement('p');
+        contentP.className = 'mb-0 message-content';
+        contentP.textContent = messageData.content;
+        bubble.appendChild(contentP);
+    }
+    
+    innerFlex.appendChild(bubble);
+    messageDiv.appendChild(innerFlex);
+
+    const timestampSmall = document.createElement('small');
+    timestampSmall.className = `message-timestamp text-muted mt-1 ${isSender ? 'me-1' : 'ms-1'}`;
+    const dateObj = new Date(messageData.timestamp);
+    timestampSmall.title = dateObj.toLocaleString();
+    timestampSmall.innerHTML = `${!isSender ? `<span class="fw-medium">${senderName.split(' ')[0]}</span> • ` : ''}${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    messageDiv.appendChild(timestampSmall);
+
+    messageWrapper.appendChild(messageDiv);
+
+    const placeholder = chatWindowMessages.querySelector('.text-center.text-muted');
+    if (placeholder) { placeholder.remove(); }
+
+    chatWindowMessages.prepend(messageWrapper);
+    scrollToChatBottom(true);
+}
 // =================================================================
 // END OF CORRECT AND COMPLETE chat.js
 // ================================================================= 

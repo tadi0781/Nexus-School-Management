@@ -1,6 +1,6 @@
 {# templates/partials/_global_post_item.html #}
 {# This template renders a single post for the global feed. #}
-{# NOTE: This version contains the fix for the TemplateSyntaxError. #}
+{# This version hides the Like, Save, and Delete buttons. #}
 
 {% set post_dom_id = 'global_post-' ~ post.id %}
 
@@ -22,16 +22,14 @@
                     {% if post.is_edited %}<span class="fst-italic ms-1">(edited)</span>{% endif %}
                 </div>
             </div>
-            {% if post.author_id == current_user.id or current_user.role.name in ['system_admin', 'hr_ceo'] %}
+            {# --- MODIFICATION: Only show dropdown if user can edit --- #}
+            {% if post.author_id == current_user.id %}
             <div class="dropdown">
                 <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Post options">
                     <i class="bi bi-three-dots-vertical"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    {% if post.author_id == current_user.id %}
-                        <li><a class="dropdown-item edit-post-btn" href="#" data-post-id="{{ post.id }}" data-post-type="global"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>
-                    {% endif %}
-                    <li><button class="dropdown-item text-danger delete-post-btn" data-post-id="{{ post.id }}" data-post-type="global"><i class="bi bi-trash me-2"></i>Delete Post</button></li>
+                    <li><a class="dropdown-item edit-post-btn" href="#" data-post-id="{{ post.id }}" data-post-type="global"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>
                 </ul>
             </div>
             {% endif %}
@@ -46,14 +44,12 @@
             {% include 'partials/_file_attachment.html' with context %}
         {% endif %}
         
-        {# Post Actions: Like, Comment, Share, Save #}
+        {# --- MODIFICATION: Post Actions bar now excludes Like, Save #}
         <div class="post-actions d-flex justify-content-start align-items-center gap-2 border-top pt-2 mt-2">
-            {% include 'partials/social_actions/_like_button.html' with context %}
             {% if post.allow_comments %}
                 {% include 'partials/social_actions/_comment_button.html' with context %}
             {% endif %}
             {% include 'partials/social_actions/_share_button.html' with context %}
-            {% include 'partials/social_actions/_save_button.html' with context %}
         </div>
     </div>
 
@@ -69,10 +65,6 @@
                  <button class="btn btn-link btn-sm load-more-comments-btn" data-post-id="{{ post.id }}" data-post-type="global">Load more comments</button>
             </div>
             
-            {# 
-               THE FIX IS APPLIED HERE:
-               The problematic `{# ... #}` comment is removed from the `with` block arguments.
-            #}
             {% with 
                 form = get_comment_form(),
                 submit_url = url_for('create_global_comment', post_id=post.id),

@@ -1,4 +1,4 @@
-{% extends "layout/base.html" %}
+{% extends 'layout/base.html' %}
 
 {# DEFINE MACROS AT THE TOP #}
 {% macro render_stat_card(title, value, icon, color_class, url=None, url_text='View Details') %}
@@ -22,28 +22,6 @@
 </div>
 {% endmacro %}
 
-{% macro render_quick_links(links, title="Quick Actions", icon="bi-lightning-charge-fill") %}
-    {% if links %}
-    <div class="card shadow-sm dashboard-quick-links-card">
-        <div class="card-header bg-light-subtle">
-            <h5 class="mb-0 font-heading"><i class="bi {{ icon }} me-2"></i>{{ title }}</h5>
-        </div>
-        <div class="list-group list-group-flush">
-            {% for link in links %}
-                {# This condition now correctly handles the permissions check #}
-                {% if link.condition is not defined or link.condition %}
-                    <a href="{{ link.url | default('#') }}" class="list-group-item list-group-item-action d-flex align-items-center py-3">
-                        <i class="bi {{ link.icon | default('bi-link-45deg') }} fs-5 me-3 {{ link.color_class | default('text-primary') }}" style="min-width: 24px;"></i>
-                        <span class="fw-medium">{{ link.text or 'Link' }}</span>
-                        <i class="bi bi-chevron-right ms-auto small"></i>
-                    </a>
-                {% endif %}
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-{% endmacro %}
-
 {% macro render_recent_activity(activities) %}
 <div class="card shadow-sm recent-activity-card">
     <div class="card-header bg-light-subtle">
@@ -60,7 +38,6 @@
                             </span>
                         </div>
                         <div class="activity-content">
-                            {# FIX: Correctly accesses Notification object properties #}
                             <p class="mb-1">{{ activity.content | safe }}</p>
                             <small class="text-muted">
                                 <i class="bi bi-calendar3 me-1"></i>{{ activity.timestamp | humanize_time_diff }}
@@ -76,7 +53,7 @@
             <div class="text-center text-muted p-4"><i class="bi bi-moon-stars fs-1 mb-2"></i><p>No recent activity.</p></div>
         {% endif %}
     </div>
-    {% if activities and activities|length > 5 %}
+    {% if activities and activities|length >= 5 %}
     <a href="{{ url_for('view_notifications') }}" class="card-footer text-center text-decoration-none text-muted bg-light-subtle hover-bg-light small">View All Activity</a>
     {% endif %}
 </div>
@@ -95,44 +72,59 @@
 <div class="container-fluid px-0">
     <div class="alert alert-primary-subtle border-primary-subtle mb-4">
         <h4 class="alert-heading font-heading">Welcome, {{ current_user.full_name or current_user.username }}!</h4>
-        {% if teacher_profile and teacher_profile.subject %}
-            <p class="mb-0">You are assigned to teach <strong>{{ teacher_profile.subject }}</strong> for <strong>Grade {{ teacher_profile.grade or 'N/A' }} - Section {{ teacher_profile.section or 'N/A' }}</strong>.</p>
-        {% else %}
-            <p class="mb-0">Your teaching profile seems incomplete. Please contact an administrator.</p>
-        {% endif %}
+        <p class="mb-0">This is your central hub for managing your classes, tasks, and communications.</p>
     </div>
 
+    {# --- STATS CARDS --- #}
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4 mb-4">
+        {{ render_stat_card("Total Students", students_count|default(0), "bi-people-fill", "text-info", url_for('teacher_select_classroom')) }}
         {{ render_stat_card("Unread Notifications", unread_notifications_count|default(0), "bi-bell-fill", "text-warning", url_for('view_notifications')) }}
         {{ render_stat_card("Unread Messages", unread_messages_count|default(0), "bi-chat-left-text-fill", "text-success", url_for('contacts_list')) }}
-        {{ render_stat_card("Students in Class", students_count|default(0), "bi-people-fill", "text-info", url_for('student_database_block', grade=(teacher_profile.grade or '0'), section=(teacher_profile.section or '0')) if teacher_profile and teacher_profile.grade and teacher_profile.section else "#") }}
         {{ render_stat_card("Assigned Tasks", my_tasks|length, "bi-list-task", "text-primary", url_for('my_tasks')) }}
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-4">
-            {% set teacher_quick_links = [
-                {'url': url_for('mark_attendance'), 'text': 'Mark Attendance', 'icon': 'bi-calendar-check-fill', 'color_class': 'text-primary'},
-                {'url': url_for('enter_marks'), 'text': 'Enter Student Marks', 'icon': 'bi-pencil-square', 'color_class': 'text-success'},
-                {'url': url_for('teacher_lab_equipment'), 'text': 'My Lab Equipment', 'icon': 'bi-binoculars-fill', 'color_class': 'text-info'},
-                {'url': url_for('my_tasks'), 'text': 'My Tasks', 'icon': 'bi-list-task', 'color_class': 'text-secondary'},
-                {'url': url_for('submit_request'), 'text': 'Submit a Request', 'icon': 'bi-file-earmark-plus-fill', 'color_class': 'text-warning', 'condition': permissions and permissions.can_create_request }
-            ] %}
-            {{ render_quick_links(teacher_quick_links, title="Classroom Actions") }}
-
-            <div class="card shadow-sm mt-4 content-placeholder">
-                <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading"><i class="bi bi-table me-2"></i>My Schedule</h5></div>
-                <div class="card-body text-center text-muted placeholder-glow py-5"><span class="placeholder col-8 rounded-pill"></span></div>
+        {# --- LEFT COLUMN --- #}
+        <div class="col-lg-7">
+            {# --- MY ASSIGNMENTS CARD --- #}
+            <div class="card shadow-sm">
+                <div class="card-header bg-light-subtle">
+                    <h5 class="mb-0 font-heading"><i class="bi bi-card-checklist me-2"></i>My Class Assignments</h5>
+                </div>
+                {% if assignments %}
+                    <div class="list-group list-group-flush">
+                        {% for assignment in assignments %}
+                            <a href="{{ url_for('teacher_select_classroom') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
+                                <div>
+                                    <h6 class="mb-1 fw-bold">{{ assignment.subject }} - Grade {{ assignment.grade }}</h6>
+                                    <small class="text-muted">Sections: {{ assignment.sections|sort|join(', ') }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">Manage</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                     <a href="{{ url_for('teacher_select_classroom') }}" class="card-footer text-center text-decoration-none text-muted bg-light-subtle hover-bg-light small">
+                        Go to My Classroom Hub <i class="bi bi-arrow-right-short ms-1"></i>
+                     </a>
+                {% else %}
+                    <div class="card-body text-center text-danger">
+                        <p class="mb-0">
+                            <i class="bi bi-exclamation-circle-fill me-2"></i>You have no specific class assignments in your profile.
+                        </p>
+                        <small>Please contact an administrator to get assigned to your classes.</small>
+                    </div>
+                {% endif %}
             </div>
-        </div>
-
-        <div class="col-lg-8">
-            {{ render_recent_activity(recent_activities) }}
 
             <div class="card shadow-sm mt-4 content-placeholder">
                 <div class="card-header bg-light-subtle"><h5 class="mb-0 font-heading"><i class="bi bi-graph-up-arrow me-2"></i>Class Performance Overview</h5></div>
-                <div class="card-body text-center text-muted placeholder-glow py-5"><span class="placeholder col-6 rounded-pill"></span></div>
+                <div class="card-body text-center text-muted placeholder-glow py-5"><span class="placeholder col-6 rounded-pill"></span><p class="mt-2 small">Analytics coming soon.</p></div>
             </div>
+        </div>
+
+        {# --- RIGHT COLUMN --- #}
+        <div class="col-lg-5">
+            {{ render_recent_activity(recent_activities) }}
         </div>
     </div>
 </div>

@@ -78,45 +78,57 @@ const nexusSocial = {
             mutationObserver.observe(this.config.uiSelectors.feedContainer, { childList: true });
         }
     },
-
-// FILE: static/js/social.js
-
     handleSaveItem: async function(buttonElement) {
         const { itemId, itemType } = buttonElement.dataset;
+        if (!itemId || !itemType) {
+            console.error("Save button is missing data-item-id or data-item-type attribute.");
+            return;
+        }
+        
         const isSaved = buttonElement.classList.contains('active');
         const endpoint = this.config.apiEndpoints.global.saveItem;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
         this.setButtonLoading(buttonElement, true, "");
 
         try {
-            let responseData;
+            let response;
             if (isSaved) {
-                // This part of the code is not being executed for saving, only for un-saving.
-                // It likely has its own bug if `deleteData` isn't defined.
-                // We are focused on the 'else' block for now.
-                responseData = await deleteData(`${endpoint}?item_type=${itemType}&item_id=${itemId}`);
+                // To un-save, send a DELETE request. The data is in the URL.
+                response = await fetch(`${endpoint}?item_type=${itemType}&item_id=${itemId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrfToken }
+                });
             } else {
-                // --- START: MODIFICATION FOR DIAGNOSIS ---
-                const payload = { item_type: itemType, item_id: itemId };
-                console.log("--- Sending SAVE request ---");
-                console.log("Endpoint:", endpoint);
-                console.log("Payload:", payload);
-                console.log("Payload as JSON string:", JSON.stringify(payload));
-                // --- END: MODIFICATION FOR DIAGNOSIS ---
-                
-                responseData = await postData(endpoint, payload); 
+                // To save, send a POST request with FormData, as the server expects form data, not JSON.
+                const formData = new FormData();
+                formData.append('item_type', itemType);
+                formData.append('item_id', itemId);
+
+                response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken }, // No 'Content-Type', browser sets it for FormData
+                    body: formData
+                });
             }
-            
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Server responded with an error.');
+            }
+
             if (responseData.success) {
                 buttonElement.classList.toggle('active', !isSaved);
                 const textElement = buttonElement.querySelector('.save-text');
                 if (textElement) textElement.textContent = isSaved ? 'Save' : 'Saved';
-                showNexusNotification(responseData.message || 'Updated!', 'success');
+                showNexusNotification('Success', responseData.message || 'Saved items updated!', 'success');
             } else {
-                showNexusNotification(responseData.error || 'Failed to update.', 'danger');
+                showNexusNotification('Error', responseData.error || 'Failed to update save status.', 'danger');
             }
         } catch (error) {
-            showNexusNotification('Save Failed', 'Could not update save status.', 'danger');
+            console.error("Error in handleSaveItem:", error);
+            showNexusNotification('Action Failed', `Could not update save status: ${error.message}`, 'danger');
         } finally {
             const originalText = buttonElement.classList.contains('active') ? 'Saved' : 'Save';
             this.setButtonLoading(buttonElement, false, `<i class="bi bi-bookmark"></i> <span class="save-text">${originalText}</span>`);
@@ -178,63 +190,75 @@ const nexusSocial = {
         // Global FilePond init should be handled by main.js
     },
     
-    handleGlobalPostCreateSubmit: async function(formElement) {
-        const submitButton = formElement.querySelector('.post-submit-btn');
-        if (!submitButton) return;
-        const originalButtonText = submitButton.innerHTML;
-        this.setButtonLoading(submitButton, true, "Posting...");
+handleGlobalPostCreateSubmit: async function(formElement) {
+    const submitButton = formElement.querySelector('.post-submit-btn');
+    if (!submitButton) return;
+    const originalButtonText = submitButton.innerHTML;
+    this.setButtonLoading(submitButton, true, "Posting...");
 
-        const formData = new FormData(formElement);
-        const endpoint = this.config.apiEndpoints.global.createPost;
+    const formData = new FormData(formElement);
+    const endpoint = this.config.apiEndpoints.global.createPost;
 
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                body: formData,
-                headers: { 'X-CSRFToken': formData.get('csrf_token') }
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': formData.get('csrf_token') }
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok && responseData.success && responseData.post_html) {
+            showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
+
+            // NEW: REMOVE EMBEDDED FORMS + INITIALIZE COMMENT FORMS
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = responseData.post_html;
+            
+            // Remove embedded post forms
+            tempContainer.querySelectorAll('.social-content-form-card').forEach(el => el.remove());
+            
+            const newPost = tempContainer.firstElementChild;
+            this.config.uiSelectors.feedContainer.insertAdjacentElement('afterbegin', newPost);
+            
+            // Initialize comment forms in new post
+            const self = this;
+            newPost.querySelectorAll('.comments-section form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    self.handleGlobalCommentCreateSubmit(form);
+                });
             });
 
-            const responseData = await response.json();
-
-            if (response.ok && responseData.success && responseData.post_html) {
-                showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
-
-                this.config.uiSelectors.feedContainer.insertAdjacentHTML('afterbegin', responseData.post_html);
-
-                if (this.config.uiSelectors.emptyPlaceholder) {
-                    this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
-                }
-
-                formElement.reset();
-                const pondInstance = typeof FilePond !== 'undefined' ? FilePond.find(formElement.querySelector('.filepond-input')) : null;
-                if (pondInstance) {
-                    pondInstance.removeFiles();
-                }
-                const textarea = formElement.querySelector('.post-content-textarea');
-                if (textarea) this.autoResizeTextarea(textarea, true);
-
-            } else {
-                showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
+            if (this.config.uiSelectors.emptyPlaceholder) {
+                this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
             }
-        } catch (error) {
-            console.error('Error creating global post:', error);
-            showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
-        } finally {
-            this.setButtonLoading(submitButton, false, originalButtonText);
+
+            formElement.reset();
+            const pondInstance = typeof FilePond !== 'undefined' ? FilePond.find(formElement.querySelector('.filepond-input')) : null;
+            if (pondInstance) {
+                pondInstance.removeFiles();
+            }
+            const textarea = formElement.querySelector('.post-content-textarea');
+            if (textarea) this.autoResizeTextarea(textarea, true);
+
+        } else {
+            showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
         }
-    },
-
-// In social.js, replace the entire setupGlobalEventListeners function with this one.
-// In social.js, replace your entire setupGlobalEventListeners function with this one.
-
+    } catch (error) {
+        console.error('Error creating global post:', error);
+        showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
+    } finally {
+        this.setButtonLoading(submitButton, false, originalButtonText);
+    }
+},
+    
 setupGlobalEventListeners: function() {
     const self = this;
-    // This correctly uses the container element identified during initialization.
     const feedContainer = this.config.uiSelectors.feedContainer;
 
     if (feedContainer) {
         feedContainer.addEventListener('click', function(event) {
-            
             const likeButton = event.target.closest('.like-post-btn');
             const commentToggleButton = event.target.closest('.comment-toggle-btn');
             const deleteButton = event.target.closest('.delete-post-btn');
@@ -246,10 +270,7 @@ setupGlobalEventListeners: function() {
 
             if (likeButton) {
                 event.preventDefault();
-                // --- THIS IS THE FIX ---
-                // The function call now correctly matches the defined function name.
                 self.handleGlobalLikeToggle(likeButton);
-                // --- END OF FIX ---
             }
             if (commentToggleButton) {
                 self.handleCommentToggle(commentToggleButton);
@@ -280,14 +301,26 @@ setupGlobalEventListeners: function() {
             }
         });
 
+        // NEW SUBMIT HANDLER
+        feedContainer.addEventListener('submit', function(event) {
+            const form = event.target.closest('form');
+            if (!form) return;
+            
+            event.preventDefault();
+            
+            if (form.closest('.comments-section')) {
+                self.handleGlobalCommentCreateSubmit(form);
+            } 
+            else if (form.dataset.formType === 'global_post_create') {
+                self.handleGlobalPostCreateSubmit(form);
+            }
+        });
+
         self.setupInfiniteScroll(feedContainer);
     } else {
         console.error("Feed container not found for setting up global event listeners.");
     }
 },
-    // --- All other methods like loadInitialPosts, renderGlobalPostItem, etc., go here ---
-    // (Pasting a combined version of all the methods from your file below)
-
     loadInitialPosts: async function() {
         if (this.config.uiSelectors.loadingPlaceholder) this.config.uiSelectors.loadingPlaceholder.classList.remove('d-none');
         if (this.config.uiSelectors.emptyPlaceholder) this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
@@ -336,15 +369,112 @@ setupGlobalEventListeners: function() {
             }
         }
     },
+   
+handleGlobalPostCreateSubmit: async function(formElement) {
+    const submitButton = formElement.querySelector('.post-submit-btn');
+    if (!submitButton) return;
+
+    const originalButtonText = submitButton.innerHTML;
+    this.setButtonLoading(submitButton, true, "Posting...");
+
+    const formData = new FormData(formElement);
+    const endpoint = this.config.apiEndpoints.global.createPost;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': formData.get('csrf_token') }
+        });
+
+        // Always expect and parse the JSON response from the API
+        const responseData = await response.json();
+
+        // Check for a successful response and the presence of the post_html key
+        if (response.ok && responseData.success && responseData.post_html) {
+            showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
+
+            // **CORRECTION**: Only insert the post_html content, not the whole response object
+            this.config.uiSelectors.feedContainer.insertAdjacentHTML('afterbegin', responseData.post_html);
+
+            // Hide the 'empty feed' placeholder if it's currently visible
+            if (this.config.uiSelectors.emptyPlaceholder) {
+                this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
+            }
+
+            // Reset the form to clear the content for the next post
+            formElement.reset();
+
+            // If using FilePond for file uploads, clear the instance
+            const pondInstance = typeof FilePond !== 'undefined' ? FilePond.find(formElement.querySelector('.filepond-input')) : null;
+            if (pondInstance) {
+                pondInstance.removeFiles();
+            }
+
+            // Reset the height of the textarea if it auto-resizes
+            const textarea = formElement.querySelector('.post-content-textarea');
+            if (textarea && typeof this.autoResizeTextarea === 'function') {
+                this.autoResizeTextarea(textarea, true); 
+            }
+
+        } else {
+            // Display a specific error from the server's JSON response, or a generic one
+            showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
+        }
+    } catch (error) {
+        console.error('Error creating global post:', error);
+        showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
+    } finally {
+        // Always restore the submit button to its original state
+        this.setButtonLoading(submitButton, false, originalButtonText);
+    }
+},
+
+
+
+    
     renderGlobalPostItem: function(postData, postType = 'global') {
         const postDomId = `${postType}_post-${postData.id}`;
+        const itemTypeMapping = {
+            'global': 'GlobalPost',
+            'channel': 'ChannelPost',
+            'tc_feed': 'TalentClubFeedPost'
+        };
+        const savedItemType = itemTypeMapping[postType] || postType;
+
         const currentUserIdString = document.body.dataset.currentUserId;
-        const canEditDelete = (postData.author && postData.author.id.toString() === currentUserIdString) || (window.currentUserRole && ['system_admin', 'hr_ceo'].includes(window.currentUserRole));
+        const canEdit = (postData.author && postData.author.id.toString() === currentUserIdString);
+        
         const div = document.createElement('div');
         div.className = 'card social-post-item mb-3 shadow-sm';
         div.id = postDomId;
         div.dataset.postId = postData.id;
         div.dataset.postType = postType;
+
+        const optionsDropdownHtml = canEdit ? `
+            <div class="dropdown">
+                <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Post options"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item edit-post-btn" href="#" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>
+                </ul>
+            </div>` : '';
+        
+        const postActionsHtml = `
+            <div class="post-actions d-flex justify-content-start align-items-center gap-2 border-top pt-2 mt-2">
+                ${postData.allow_comments !== false ? `<button class="btn btn-subtle btn-sm comment-toggle-btn" data-bs-toggle="collapse" href="#commentsCollapse-${postDomId}" role="button"><i class="bi bi-chat-dots"></i> Comment (<span class="comment-count">${postData.comment_count || 0}</span>)</button>` : ''}
+                <button class="btn btn-subtle btn-sm share-post-btn" data-post-id="${postData.id}" data-post-type="${postType}" data-share-url="${postData.share_url || '#'}"><i class="bi bi-share"></i> Share</button>
+            </div>`;
+
+        const fileHtml = postData.file ? `
+            <div class="post-attachment mb-3">
+                ${postData.file.mimetype && postData.file.mimetype.startsWith('image/') ? 
+                    `<a href="${postData.file.download_url}" data-bs-toggle="modal" data-bs-target="#viewFileModal" data-file-url="${postData.file.download_url}" data-file-mimetype="${postData.file.mimetype}" data-file-name="${postData.file.original_filename}"><img src="${postData.file.download_url}" class="img-fluid rounded border" alt="Attachment" style="max-height: 450px;"></a>` : 
+                (postData.file.mimetype && postData.file.mimetype.startsWith('video/') ? 
+                    `<video controls class="img-fluid rounded border" style="max-height: 450px; width:100%;"><source src="${postData.file.download_url}" type="${postData.file.mimetype}"></video>` : 
+                    `<div class="d-flex align-items-center p-2 border rounded-3 bg-light-subtle"><i class="bi bi-file-earmark-text-fill fs-2 me-2 text-secondary"></i><div class="flex-grow-1"><a href="${postData.file.download_url}" class="fw-semibold text-decoration-none stretched-link" target="_blank" download="${postData.file.original_filename}">${postData.file.original_filename}</a><div class="text-muted small">${(postData.file.size > 1024*1024) ? (postData.file.size / (1024*1024)).toFixed(2) + ' MB' : (postData.file.size / 1024).toFixed(1) + ' KB'}</div></div><a href="${postData.file.download_url}" class="btn btn-sm btn-outline-secondary ms-2" download="${postData.file.original_filename}"><i class="bi bi-download"></i></a></div>`
+                )}
+            </div>` : '';
+
         div.innerHTML = `
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
@@ -359,16 +489,11 @@ setupGlobalEventListeners: function() {
                             ${postData.is_edited ? '<span class="fst-italic ms-1">(edited)</span>' : ''}
                         </div>
                     </div>
-                    ${canEditDelete ? `<div class="dropdown"><button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Post options"><i class="bi bi-three-dots-vertical"></i></button><ul class="dropdown-menu dropdown-menu-end">${postData.author.id.toString() === currentUserIdString ? `<li><a class="dropdown-item edit-post-btn" href="#" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit Post</a></li>` : ''}<li><button class="dropdown-item text-danger delete-post-btn" data-post-id="${postData.id}" data-post-type="${postType}"><i class="bi bi-trash me-2"></i>Delete Post</button></li></ul></div>` : ''}
+                    ${optionsDropdownHtml}
                 </div>
                 ${postData.content ? `<div class="post-content-text mb-3">${postData.content.replace(/\n/g, '<br>')}</div>` : ''}
-                ${postData.file ? `<div class="post-attachment mb-3">${postData.file.mimetype && postData.file.mimetype.startsWith('image/') ? `<a href="${postData.file.download_url}" data-bs-toggle="modal" data-bs-target="#viewFileModal" data-file-url="${postData.file.download_url}" data-file-mimetype="${postData.file.mimetype}" data-file-name="${postData.file.original_filename}"><img src="${postData.file.download_url}" class="img-fluid rounded border" alt="Attachment" style="max-height: 450px;"></a>` : (postData.file.mimetype && postData.file.mimetype.startsWith('video/') ? `<video controls class="img-fluid rounded border" style="max-height: 450px; width:100%;"><source src="${postData.file.download_url}" type="${postData.file.mimetype}"></video>` : `<div class="d-flex align-items-center p-2 border rounded-3 bg-light-subtle"><i class="bi bi-file-earmark-text-fill fs-2 me-2 text-secondary"></i><div class="flex-grow-1"><a href="${postData.file.download_url}" class="fw-semibold text-decoration-none stretched-link" target="_blank" download="${postData.file.original_filename}">${postData.file.original_filename}</a><div class="text-muted small">${(postData.file.size > 1024*1024) ? (postData.file.size / (1024*1024)).toFixed(2) + ' MB' : (postData.file.size / 1024).toFixed(1) + ' KB'}</div></div><a href="${postData.file.download_url}" class="btn btn-sm btn-outline-secondary ms-2" download="${postData.file.original_filename}"><i class="bi bi-download"></i></a></div>`)}</div>` : ''}
-                <div class="post-actions d-flex justify-content-start align-items-center gap-2 border-top pt-2 mt-2">
-                    <button class="btn btn-subtle btn-sm reaction-btn like-post-btn ${postData.current_user_liked ? 'active' : ''}" data-post-id="${postData.id}" data-post-type="${postType}" aria-pressed="${postData.current_user_liked}"><i class="bi ${postData.current_user_liked ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> <span class="like-text">${postData.current_user_liked ? 'Liked' : 'Like'}</span>(<span class="like-count">${postData.like_count || 0}</span>)</button>
-                    ${postData.allow_comments !== false ? `<button class="btn btn-subtle btn-sm comment-toggle-btn" data-bs-toggle="collapse" href="#commentsCollapse-${postDomId}" role="button"><i class="bi bi-chat-dots"></i> Comment (<span class="comment-count">${postData.comment_count || 0}</span>)</button>` : ''}
-                    <button class="btn btn-subtle btn-sm share-post-btn" data-post-id="${postData.id}" data-post-type="${postType}" data-share-url="${postData.share_url || '#'}"><i class="bi bi-share"></i> Share</button>
-                    <button class="btn btn-subtle btn-sm save-item-btn" data-item-id="${postData.id}" data-item-type="${postType}"><i class="bi bi-bookmark"></i> <span class="save-text">Save</span></button>
-                </div>
+                ${fileHtml}
+                ${postActionsHtml}
             </div>
             ${postData.allow_comments !== false ? `<div class="collapse comments-section-wrapper" id="commentsCollapse-${postDomId}"><div class="card-footer bg-light-subtle p-2 comments-section" id="comments-for-${postDomId}"><div class="text-center py-3 comments-loading-placeholder d-none"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div><div class="comments-list" id="comments-list-${postDomId}"></div><div class="load-more-comments-container text-center my-2 d-none"><button class="btn btn-link btn-sm load-more-comments-btn" data-post-id="${postData.id}" data-post-type="${postType}">Load more comments</button></div><div class="social-content-form-card card mb-2 border-0 shadow-none p-0"><div class="card-body p-0"><form method="POST" action="${this.config.apiEndpoints[postType].createComment.replace('{postId}', postData.id)}" id="commentForm-${postDomId}" class="social-content-submission-form comment-submission-form" data-form-type="global_comment_create" data-post-id="${postData.id}"><input type="hidden" name="csrf_token" value="${document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''}"><div class="d-flex align-items-start"><div class="flex-shrink-0 me-2"><img src="${window.currentUserAvatarUrl || '/static/img/placeholders/user_avatar_default.png'}" alt="Your avatar" class="rounded-circle" width="32" height="32" style="object-fit: cover;"></div><div class="flex-grow-1"><textarea name="content" class="form-control post-content-textarea comment-input" placeholder="Write a thoughtful comment..." rows="1" id="commentTextarea-${postDomId}"></textarea><div class="d-flex justify-content-end align-items-center mt-2"><button type="submit" class="btn btn-primary btn-sm post-submit-btn comment-submit-btn"><span class="spinner-border spinner-border-sm d-none me-1" role="status"></span>Reply</button></div></div></div></form></div></div></div></div>` : ''}
         `;
@@ -386,34 +511,61 @@ setupGlobalEventListeners: function() {
         div.innerHTML = `<a href="/user/${commentData.author.id}" class="me-2 flex-shrink-0"><img src="${commentData.author.profile_photo_url || '/static/img/placeholders/user_avatar_default.png'}" alt="${commentData.author.full_name || commentData.author.username}" class="rounded-circle" width="32" height="32" style="object-fit: cover;"></a><div class="flex-grow-1"><div class="comment-bubble bg-light-subtle p-2 rounded-3"><div class="d-flex justify-content-between align-items-center mb-1"><a href="/user/${commentData.author.id}" class="text-decoration-none"><small class="fw-bold text-dark font-heading">${commentData.author.full_name || commentData.author.username}</small></a>${(canEdit || canDelete) ? `<div class="dropdown comment-actions ms-auto"><button class="btn btn-sm btn-link text-muted py-0 px-1" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu dropdown-menu-end">${canEdit ? `<li><a class="dropdown-item edit-comment-btn" href="#" data-comment-id="${commentData.id}" data-post-id="${postId}" data-post-type="${postType}"><i class="bi bi-pencil me-2"></i>Edit</a></li>` : ''}${canDelete ? `<li><button class="dropdown-item text-danger delete-comment-btn" data-comment-id="${commentData.id}" data-post-id="${postId}" data-post-type="${postType}"><i class="bi bi-trash me-2"></i>Delete</button></li>` : ''}</ul></div>` : ''}</div><p class="mb-0 comment-content-text text-dark-emphasis small" id="comment-content-${commentDomId}">${commentData.content.replace(/\n/g, '<br>')}</p></div><div class="d-flex justify-content-between align-items-center mt-1"><small class="text-muted ms-1 comment-timestamp" title="${new Date(commentData.timestamp).toLocaleString()}">${humanizeTimeDiff(commentData.timestamp)}${commentData.is_edited ? '<span class="fst-italic ms-1">(edited)</span>' : ''}</small><div></div></div></div>`;
         return div;
     },
-    handleGlobalCommentCreateSubmit: async function(formElement) {
-        const postId = formElement.dataset.postId;
-        const contentTextarea = formElement.querySelector('textarea[name="content"]');
-        const content = contentTextarea.value.trim();
-        if (!content) return;
-        const submitButton = formElement.querySelector('.post-submit-btn');
-        const originalButtonText = submitButton.textContent;
-        this.setButtonLoading(submitButton, true);
-        const endpoint = this.config.apiEndpoints.global.createComment.replace('{postId}', postId);
-        try {
-            const responseData = await postData(endpoint, { content: content });
-            if (responseData.success && responseData.comment) {
-                contentTextarea.value = ''; this.autoResizeTextarea(contentTextarea, true);
-                const commentsList = document.getElementById(`comments-list-global_post-${postId}`);
-                if (commentsList) {
-                    const commentElement = this.config.commentTemplateFunction(responseData.comment, postId, 'global');
-                    commentsList.appendChild(commentElement);
-                    const postEl = document.getElementById(`global_post-${postId}`);
-                    const countEl = postEl?.querySelector('.comment-toggle-btn .comment-count');
-                    if(countEl) countEl.textContent = responseData.post_comment_count;
-                }
+    
+handleGlobalPostCreateSubmit: async function(formElement) {
+    const submitButton = formElement.querySelector('.post-submit-btn');
+    if (!submitButton) return;
+    const originalButtonText = submitButton.innerHTML;
+    this.setButtonLoading(submitButton, true, "Posting...");
+
+    const formData = new FormData(formElement);
+    const endpoint = this.config.apiEndpoints.global.createPost;
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': formData.get('csrf_token') }
+        });
+
+        const responseData = await response.json();
+
+        if (response.ok && responseData.success && responseData.post_html) {
+            showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
+
+            // Create temporary container to parse HTML
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = responseData.post_html;
+
+            // Remove ONLY the embedded post creation forms
+            const embeddedForms = tempContainer.querySelectorAll('.social-content-form-card');
+            embeddedForms.forEach(formContainer => formContainer.remove());
+
+            // Insert cleaned HTML
+            this.config.uiSelectors.feedContainer.insertAdjacentElement('afterbegin', tempContainer.firstElementChild);
+
+            if (this.config.uiSelectors.emptyPlaceholder) {
+                this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
             }
-        } catch (error) {
-            showNexusNotification('Network Error', `Could not post comment: ${error.message}`, 'error');
-        } finally {
-            this.setButtonLoading(submitButton, false, originalButtonText);
+
+            formElement.reset();
+            const pondInstance = typeof FilePond !== 'undefined' ? FilePond.find(formElement.querySelector('.filepond-input')) : null;
+            if (pondInstance) {
+                pondInstance.removeFiles();
+            }
+            const textarea = formElement.querySelector('.post-content-textarea');
+            if (textarea) this.autoResizeTextarea(textarea, true);
+
+        } else {
+            showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
         }
-    },
+    } catch (error) {
+        console.error('Error creating global post:', error);
+        showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
+    } finally {
+        this.setButtonLoading(submitButton, false, originalButtonText);
+    }
+},   
     handleGlobalLikeToggle: async function(buttonElement) {
         const postId = buttonElement.dataset.postId;
         const endpoint = this.config.apiEndpoints.global.toggleLike.replace('{postId}', postId);
@@ -633,6 +785,7 @@ async function sendMessage(clubId, messageContent) {
         // Handle network errors
     }
 }
+
 
 // Example usage (replace with your actual values and call when a user submits a message)
 // const myClubId = 123; // Get this dynamically, e.g., from a hidden input or data attribute

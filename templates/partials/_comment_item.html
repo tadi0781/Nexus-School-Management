@@ -2,27 +2,27 @@
 {#
     Context:
     - comment: The comment object (e.g., GlobalComment, ChannelComment)
-               Expected attributes: id, content, timestamp, is_edited,
-                                  author (User object with id, full_name, username, profile_photo_url),
-                                  post_id (or parent_post_id if more generic)
     - current_user: The logged-in user.
-    - post_type: 'global', 'channel', 'tc_feed' etc. (used for data attributes)
+    - post_type: 'global', 'channel', 'tc_feed' etc.
     - parent_post_author_id: ID of the author of the parent post
-    - can_current_user_manage_parent_content: Boolean (e.g., is channel owner/admin)
+    - can_current_user_manage_parent_content: Boolean
 #}
 {% set post_type = post_type | default('global') %}
 {% set commenter_name = comment.author.full_name or comment.author.username if comment.author else "Anonymous" %}
 {% set commenter_avatar = comment.author.profile_photo_url or url_for('static', filename='img/placeholders/user_avatar_default.png') if comment.author else url_for('static', filename='img/placeholders/user_avatar_default.png') %}
 {% set comment_dom_id = "comment-" ~ post_type ~ "-" ~ comment.id %}
+{# --- FIX: Corrected endpoint name from 'user_profile_view' to 'teacher_student_profile_view' --- #}
+{% set profile_url = url_for('teacher_student_profile_view', user_id=comment.author.id) if comment.author and comment.author.role and comment.author.role.name == 'student' else '#' %}
+
 
 <div class="social-comment-item d-flex mb-2 pt-2 {% if not loop or not loop.last %}pb-2 border-bottom border-light-subtle{% endif %}" id="{{ comment_dom_id }}" data-comment-id="{{ comment.id }}">
-    <a href="{{ url_for('user_profile_view', user_id=comment.author.id) if comment.author else '#' }}" class="me-2 flex-shrink-0" aria-label="{{ commenter_name }}'s profile">
+    <a href="{{ profile_url }}" class="me-2 flex-shrink-0" aria-label="{{ commenter_name }}'s profile">
         <img src="{{ commenter_avatar }}" alt="{{ commenter_name }}" class="rounded-circle" width="32" height="32" style="object-fit: cover;">
     </a>
     <div class="flex-grow-1">
-        <div class="comment-bubble bg-light-subtle p-2 rounded-3"> {# Added rounded-3 #}
+        <div class="comment-bubble bg-light-subtle p-2 rounded-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <a href="{{ url_for('user_profile_view', user_id=comment.author.id) if comment.author else '#' }}" class="text-decoration-none">
+                <a href="{{ profile_url }}" class="text-decoration-none">
                     <small class="fw-bold text-dark font-heading">{{ commenter_name }}</small>
                 </a>
                 {# Comment Actions: Edit/Delete. Permissions refined. #}
@@ -67,10 +67,6 @@
                         aria-label="Save comment">
                     <i class="bi bi-bookmark small"></i>
                 </button>
-                {# Reply to Comment (Future) #}
-                {# <button class="btn btn-sm btn-link text-muted p-0 ms-2 reply-to-comment-btn" data-comment-id="{{ comment.id }}">
-                    <i class="bi bi-reply small"></i> Reply
-                </button> #}
             </div>
         </div>
     </div>

@@ -13,7 +13,7 @@ except ImportError as e:
     exit(1)
 
 # Configuration
-CSV_FILE_PATH = "static/csv/grade12_students.csv"
+CSV_FILE_PATH = "static/csv/grade10_students.csv"
 DEFAULT_PASSWORD = "NexusStudent2024!"  # CHANGE THIS if needed
 
 def generate_unique_code(existing_codes):

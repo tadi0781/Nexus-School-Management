@@ -29,8 +29,8 @@
                     Enter scores for each semester. Total, Average, and Rank are calculated automatically upon saving. You can save partial marks (e.g., only Semester 1) and update the rest later.
                 </div>
 
-                <form method="POST" action="{{ url_for('enter_marks') }}" novalidate>
-                    {{ csrf_token() }} {# Assumes a global CSRF token function #}
+                <form method="POST" action="{{ url_for('enter_marks', grade=grade, subject=subject) }}" novalidate>
+                    {{ form.hidden_tag() if form else '' }}
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-hover align-middle" id="marksTable">
                             <thead class="table-light text-center">

@@ -1,19 +1,25 @@
 {% extends "layout/base.html" %}
 
-{% block title %}Take Attendance - Grade {{ teacher_profile.grade or 'N/A' }} Section {{ teacher_profile.section or 'N/A' }}{% endblock %}
+{% block title %}Mark Attendance - Grade {{ teacher_profile.grade or 'N/A' }} Section {{ teacher_profile.section or 'N/A' }}{% endblock %}
 
 {% block content_header %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2 font-heading">
-        <i class="bi bi-person-check-fill me-2 text-primary"></i>Take Attendance
+        <i class="bi bi-person-check-fill me-2 text-primary"></i>Mark Attendance
     </h1>
     <div class="d-flex align-items-center">
         {# Date selector form #}
-        <form method="GET" action="{{ url_for('mark_attendance') }}" class="d-inline-block me-2">
+        <form method="GET" action="{{ url_for('mark_attendance', grade=grade, section=section) }}" class="d-inline-block me-2">
             <input type="date" name="date" class="form-control form-control-sm"
                    value="{{ attendance_date_str }}" onchange="this.form.submit()"
                    data-bs-toggle="tooltip" title="Select a date to view or mark attendance">
         </form>
+        {# --- THIS IS THE FIX --- #}
+        {# "View Grid" button is now here in the header for easy access #}
+        <a href="{{ url_for('attendance_grid', grade=grade, section=section) }}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View Monthly Grid">
+            <i class="bi bi-grid-3x3-gap"></i>
+        </a>
+        {# --- END OF FIX --- #}
     </div>
 </div>
 {% endblock %}
@@ -25,7 +31,7 @@
     <div class="card shadow-sm">
         <div class="card-header bg-light-subtle d-flex justify-content-between align-items-center">
             <div>
-                <h5 class="mb-0 font-heading">Class: Grade {{ teacher_profile.grade or 'N/A' }} | Section: {{ teacher_profile.section or 'N/A' }}</h5>
+                <h5 class="mb-0 font-heading">Class: Grade {{ grade or 'N/A' }} | Section: {{ section or 'N/A' }}</h5>
                 <small class="text-body-secondary">Date: {{ attendance_date_obj.strftime('%A, %B %d, %Y') if attendance_date_obj else 'N/A' }}</small>
             </div>
             <button type="button" id="markAllPresentBtn" class="btn btn-sm btn-outline-success">
@@ -34,8 +40,8 @@
         </div>
         <div class="card-body p-0">
             {% if students %}
-            <form method="POST" action="{{ url_for('mark_attendance') }}">
-                {{ form.csrf_token }} {# Assumes form object is passed for CSRF protection #}
+            <form method="POST" action="{{ url_for('mark_attendance', grade=grade, section=section) }}">
+                {{ form.csrf_token if form else '' }}
                 <input type="hidden" name="date" value="{{ attendance_date_str }}">
 
                 <div class="table-responsive">
@@ -44,13 +50,12 @@
                             <tr>
                                 <th scope="col" style="width: 5%;">#</th>
                                 <th scope="col">Student Name</th>
-                                <th scope="col" class="text-center" style="width: 30%;">Status</th>
-                                <th scope="col">Notes (Optional)</th>
+                                <th scope="col" class="text-center" style="width: 35%;">Status</th>
+                                <th scope="col" style="width: 30%;">Notes (Optional)</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for student in students %}
-                                {# This simplifies the logic by setting the status once per student. Defaults to 'Present' if no record exists. #}
                                 {% set existing_record = existing_attendance_map.get(student.id) %}
                                 {% set current_status = existing_record.status if existing_record else 'Present' %}
                                 {% set current_notes = existing_record.notes if existing_record else '' %}
@@ -112,10 +117,16 @@
 {% block body_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Enable Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // "Mark All Present" button functionality
     const markAllPresentBtn = document.getElementById('markAllPresentBtn');
     if (markAllPresentBtn) {
         markAllPresentBtn.addEventListener('click', function () {
-            // Find all radio buttons with the value "Present" and check them
             const presentRadios = document.querySelectorAll('input[type="radio"][value="Present"]');
             presentRadios.forEach(function(radio) {
                 radio.checked = true;
