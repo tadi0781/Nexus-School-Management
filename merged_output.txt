@@ -17737,10 +17737,10 @@ FILE: ./templates/hr_ceo/pending_assets.html
         <div class="card-header">
             <h5 class="mb-0 font-heading">New Assets Awaiting Your Approval</h5>
         </div>
-        <div class="card-body p-0"> {# Remove padding for full-width table #}
+        <div class="card-body p-0">
             {% if pending_assets and pending_assets | length > 0 %}
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
+                    <table class="table table-hover table-striped mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
                                 <th scope="col">ID</th>
@@ -17763,7 +17763,10 @@ FILE: ./templates/hr_ceo/pending_assets.html
                                     </a>
                                 </td>
                                 <td>{{ asset.added_by_user.full_name or asset.added_by_user.username if asset.added_by_user else 'N/A' }}</td>
-                                <td>{{ asset.created_at | dateformat if asset.created_at else (asset.reports[0].report_date | dateformat if asset.reports else 'N/A') }}</td> {# Assuming created_at for new assets #}
+                                <td>
+                                    {# Use created_at for assets, which is more reliable than report_date #}
+                                    {{ asset.created_at | dateformat if asset.created_at else 'N/A' }}
+                                </td>
                                 <td>{{ asset.quantity }}</td>
                                 <td>
                                     {% if asset.category %}
@@ -17782,10 +17785,23 @@ FILE: ./templates/hr_ceo/pending_assets.html
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="btn btn-sm btn-primary" title="Review and Edit Asset">
+                                    {# --- BEGIN: MODIFIED ACTION BUTTONS --- #}
+                                    
+                                    {# 1. Review & Edit Button (links to the full edit page) #}
+                                    <a href="{{ url_for('edit_asset', asset_id=asset.id) }}" class="btn btn-sm btn-primary" title="Review and Edit Asset Details">
                                         <i class="bi bi-pencil-square me-1"></i> Review
                                     </a>
-                                    {# Optional: Quick Approve/Reject if simple cases exist, but edit_asset is safer #}
+
+                                    {# 2. Quick Approve Button (a mini-form for the POST request) #}
+                                    <form action="{{ url_for('approve_asset', asset_id=asset.id) }}" method="POST" class="d-inline ms-1">
+                                        {# This hidden input provides the CSRF token for security #}
+                                        {{ csrf_form.csrf_token }}
+                                        <button type="submit" class="btn btn-sm btn-success" title="Approve with current details">
+                                            <i class="bi bi-check-circle-fill me-1"></i> Approve
+                                        </button>
+                                    </form>
+                                    
+                                    {# --- END: MODIFIED ACTION BUTTONS --- #}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -17800,8 +17816,6 @@ FILE: ./templates/hr_ceo/pending_assets.html
                 </div>
             {% endif %}
         </div>
-        {# Optional: Pagination if the list can be very long #}
-        {# {% if paginated_assets and (paginated_assets.has_prev or paginated_assets.has_next) %} ... {% endif %} #}
     </div>
 </div>
 {% endblock %}
@@ -18960,6 +18974,11 @@ FILE: ./templates/hr_ceo/assign_lab_to_teachers.html
         <h5 class="mb-0">Manage Lab Assignments for {{ subject }} Teachers</h5>
     </div>
     <form method="POST" action="{{ url_for('assign_lab_to_teachers', subject=subject) }}">
+        
+        {# --- THIS IS THE GUARANTEED FIX --- #}
+        {# Manually create the hidden input field and call the global function to get the token value. #}
+        <input type="hidden" name="csrf_token" value="{{ get_csrf_token_value() }}">
+
         <div class="card-body p-0">
             {% if teachers %}
             <div class="table-responsive">
@@ -35080,7 +35099,6 @@ handleGlobalPostCreateSubmit: async function(formElement) {
     const submitButton = formElement.querySelector('.post-submit-btn');
     if (!submitButton) return;
 
-    // Store original button content to restore it later
     const originalButtonText = submitButton.innerHTML;
     this.setButtonLoading(submitButton, true, "Posting...");
 
@@ -35091,63 +35109,52 @@ handleGlobalPostCreateSubmit: async function(formElement) {
         const response = await fetch(endpoint, {
             method: 'POST',
             body: formData,
-            // Ensure your backend expects the CSRF token in a header
-            headers: { 
-                'X-CSRFToken': formData.get('csrf_token') 
-            }
+            headers: { 'X-CSRFToken': formData.get('csrf_token') }
         });
 
-        // --- START OF CORRECTION ---
-        // 1. Parse the response as JSON. This is the critical step.
+        // Always expect and parse the JSON response from the API
         const responseData = await response.json();
 
-        // 2. Check for a successful response and the presence of post_html.
+        // Check for a successful response and the presence of the post_html key
         if (response.ok && responseData.success && responseData.post_html) {
             showNexusNotification('Post Created!', 'Your post is now live on the feed.', 'success');
 
-            // 3. Use a temporary element to safely parse the HTML string.
-            const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = responseData.post_html;
-            
-            // 4. Extract the actual post element.
-            const newPostElement = tempContainer.firstElementChild;
+            // **CORRECTION**: Only insert the post_html content, not the whole response object
+            this.config.uiSelectors.feedContainer.insertAdjacentHTML('afterbegin', responseData.post_html);
 
-            // 5. Insert the new post into the feed.
-            if (newPostElement) {
-                this.config.uiSelectors.feedContainer.insertAdjacentElement('afterbegin', newPostElement);
-            }
-            
-            // Hide the 'empty feed' placeholder if it's visible.
+            // Hide the 'empty feed' placeholder if it's currently visible
             if (this.config.uiSelectors.emptyPlaceholder) {
                 this.config.uiSelectors.emptyPlaceholder.classList.add('d-none');
             }
 
-            // Reset the form and any file inputs.
+            // Reset the form to clear the content for the next post
             formElement.reset();
+
+            // If using FilePond for file uploads, clear the instance
             const pondInstance = typeof FilePond !== 'undefined' ? FilePond.find(formElement.querySelector('.filepond-input')) : null;
             if (pondInstance) {
                 pondInstance.removeFiles();
             }
+
+            // Reset the height of the textarea if it auto-resizes
             const textarea = formElement.querySelector('.post-content-textarea');
-            if (textarea) {
+            if (textarea && typeof this.autoResizeTextarea === 'function') {
                 this.autoResizeTextarea(textarea, true); 
             }
 
         } else {
-            // Handle server-side errors.
+            // Display a specific error from the server's JSON response, or a generic one
             showNexusNotification('Post Error', responseData.error || 'Failed to create the post.', 'danger');
         }
-        // --- END OF CORRECTION ---
-
     } catch (error) {
-        // Handle network errors.
         console.error('Error creating global post:', error);
         showNexusNotification('Network Error', `Could not create post: ${error.message}`, 'danger');
     } finally {
-        // Always restore the button state.
+        // Always restore the submit button to its original state
         this.setButtonLoading(submitButton, false, originalButtonText);
     }
 },
+
 
 
     
