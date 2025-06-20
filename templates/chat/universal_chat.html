@@ -17,12 +17,11 @@
         border-top: 1px solid var(--nexus-border-color);
         background-color: var(--nexus-content-bg);
     }
-    /* Message bubble styles will be in style.scss */
 </style>
 {% endblock %}
 
 {% block content_header %}
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-0 border-bottom bg-light-subtle sticky-top shadow-sm" style="top: 56px; z-index: 1010;"> {# Sticky header for chat target #}
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-0 border-bottom bg-light-subtle sticky-top shadow-sm" style="top: 56px; z-index: 1010;">
         <div class="d-flex align-items-center">
             <a href="{{ url_for('contacts_list') }}" class="btn btn-sm btn-outline-secondary me-3" title="Back to Contacts">
                 <i class="bi bi-arrow-left-circle"></i>
@@ -68,10 +67,13 @@
         {% endif %}
     </div>
 
-    <!-- FIX: The complete and correct form is restored here -->
+    <!-- The form is now corrected to use the passed csrf_form object -->
     <div class="chat-input-area p-3">
-        <form id="chatMessageForm" method="POST" enctype="multipart/form-data" novalidate>
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <form id="chatMessageForm" method="POST" action="{{ url_for('universal_chat', target_user_id=target_user.id) }}" enctype="multipart/form-data" novalidate>
+            
+            {# --- THIS IS THE FIX --- #}
+            {# This uses the form object passed from the Flask route to render the token. #}
+            {{ form.csrf_token }}
             
             <div id="dmFilePreviewArea" class="mb-2 small"></div>
             <input type="file" id="chatActualDmFileInput" name="dm_file" class="d-none" 
@@ -116,6 +118,7 @@
             messageInput.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
+                    // Use the native requestSubmit() which triggers the 'submit' event listener
                     document.getElementById('chatMessageForm').requestSubmit();
                 }
             });

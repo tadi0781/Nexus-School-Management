@@ -2,6 +2,66 @@
 
 {% block page_title %}Create New Task{% endblock %}
 
+{# --- START: CSS for Enhanced Assignee Picker --- #}
+{% block head_css %}
+<style>
+    /* Style the TomSelect dropdown menu */
+    .ts-dropdown {
+        font-size: 0.9rem;
+    }
+    .ts-dropdown .optgroup-header {
+        font-weight: 600;
+        color: var(--nexus-primary);
+        background-color: var(--nexus-bg-subtle);
+        padding: 0.5rem 0.75rem;
+    }
+    .ts-dropdown .option {
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--nexus-border-color);
+    }
+    .ts-dropdown .option:last-child {
+        border-bottom: none;
+    }
+    .ts-dropdown .option .text-dark {
+        font-weight: 500;
+    }
+
+    /* Style the selected items (pills) in the control box */
+    .ts-control .item {
+        background-color: var(--nexus-primary);
+        color: var(--nexus-light);
+        border: none;
+        border-radius: 0.375rem; /* Bootstrap's default rounded-pill is .5rem, this is a bit squarer */
+        padding: 0.25rem 0.6rem;
+        font-weight: 500;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* Style the remove button on the pills */
+    .ts-control .item .remove {
+        color: inherit;
+        opacity: 0.7;
+        font-size: 1.1em;
+        margin-left: 0.5rem;
+        border-left: 1px solid rgba(255, 255, 255, 0.25);
+        padding-left: 0.5rem;
+    }
+    .ts-control .item .remove:hover {
+        opacity: 1;
+        background-color: transparent !important; /* Override TomSelect's default red hover */
+    }
+
+    /* Add a nice focus ring to the control box */
+    .ts-control.focus {
+        border-color: var(--nexus-primary) !important;
+        box-shadow: 0 0 0 0.25rem rgba(var(--nexus-primary-rgb), 0.25) !important;
+    }
+</style>
+{% endblock %}
+{# --- END: CSS --- #}
+
 {% block content_header %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="page-title font-heading mb-0">
@@ -25,9 +85,9 @@
                     {% include 'layout/_flash_messages.html' %}
 
                     <form method="POST" action="{{ url_for('create_task') }}" id="createTaskForm" novalidate>
-                        {{ form.hidden_tag() if form.hidden_tag }} {# CSRF Token #}
+                        {{ form.hidden_tag() if form.hidden_tag }}
 
-                        {# --- Task Information (Unchanged) --- #}
+                        {# --- Task Information Section --- #}
                         <fieldset class="mb-4">
                             <legend class="font-heading fs-5 mb-3 border-bottom pb-2">Task Information</legend>
                             <div class="mb-3">
@@ -54,21 +114,22 @@
                             </div>
                         </fieldset>
 
-                        {# --- MODERN UNIFIED ASSIGNMENT SECTION --- #}
+                        {# --- Unified Assignment Section with New Design --- #}
                         <fieldset class="mb-4">
                             <legend class="font-heading fs-5 mb-3 border-bottom pb-2">Assign Task To</legend>
                             <div class="mb-3">
                                 <label for="assigneePicker" class="form-label fw-medium">Assignees</label>
-                                <select id="assigneePicker" multiple placeholder="Search for users, roles, or classes..."></select>
-                                <small class="form-text text-muted">You can assign this task to individual users, entire roles (e.g., all Teachers), or specific classes (e.g., Grade 9, Section A).</small>
+                                {# This select input will be enhanced by TomSelect #}
+                                <select id="assigneePicker" multiple></select>
+                                <small class="form-text text-muted">You can assign this task to individuals, entire roles, classes, or all teachers of a subject.</small>
                                 
-                                {# Hidden input to store the structured selection data #}
-                                <input type="hidden" name="assignees_data" id="assignees_data">
+                                {# The hidden input that will be populated by our JavaScript #}
+                                {{ form.assignees_data() }}
                             </div>
                         </fieldset>
 
                         <div class="d-flex justify-content-end mt-4">
-                            <a href="{{ url_for('my_assigned_tasks') if current_user.role.name in TASK_CREATOR_ROLES else url_for('my_tasks') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                            <a href="{{ url_for('my_assigned_tasks') }}" class="btn btn-outline-secondary me-2">Cancel</a>
                             {{ form.submit(class="btn btn-primary px-4 btn-lg", value="Create & Assign Task") }}
                         </div>
                     </form>
@@ -83,15 +144,12 @@
 <script src="{{ url_for('static', filename='js/tasks.js') }}?v={{ range(1, 100000) | random }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Initialize the new, modern assignee picker
         if (typeof initializeModernAssigneePicker === 'function') {
             initializeModernAssigneePicker({
                 pickerId: 'assigneePicker',
                 hiddenInputId: 'assignees_data',
-                searchUrl: "{{ url_for('api_search_assignees') }}" // Use the new API endpoint
+                searchUrl: "{{ url_for('api_search_assignees') }}"
             });
-        } else {
-            console.error('initializeModernAssigneePicker function not found in tasks.js');
         }
     });
 </script>

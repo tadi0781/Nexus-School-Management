@@ -1,0 +1,592 @@
+{% extends 'layout/base.html' %}
+
+{% block page_title %}About Us{% endblock %}
+
+{% block head_css %}
+<style>
+    /* Base Styles (Light Mode Default) */
+    .hero-section {
+        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+        color: white;
+        padding: 80px 0;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+        animation: rotateGradient 20s linear infinite;
+        z-index: 0;
+    }
+
+    @keyframes rotateGradient {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .profile-photo-container {
+        width: 180px;
+        height: 180px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto 25px auto;
+        border: 7px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.2);
+        transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    }
+
+    .profile-photo-container:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+
+    .profile-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .bible-quote {
+        font-style: italic;
+        font-size: 1.15rem;
+        margin-top: 30px;
+        opacity: 0.9;
+        color: rgba(255, 255, 255, 0.9); /* Ensure it's visible in light hero */
+    }
+
+    .section-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 40px;
+        color: #343a40; /* Darker color for headings in light mode */
+        position: relative;
+        display: inline-block;
+    }
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -10px;
+        width: 80px;
+        height: 4px;
+        background-color: #2575fc; /* Accent color in light mode */
+        border-radius: 2px;
+    }
+
+    .feature-card {
+        background-color: #ffffff;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 30px;
+        margin-bottom: 30px;
+        transition: all 0.3s ease;
+        border: 1px solid #e0e0e0;
+        height: 100%; /* Ensure cards in a row have same height */
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+    }
+
+    .feature-card .icon {
+        font-size: 3rem;
+        color: #2575fc; /* Accent color for icons in light mode */
+        margin-bottom: 20px;
+        display: inline-block;
+        animation: pulseIcon 1.5s infinite alternate;
+    }
+
+    @keyframes pulseIcon {
+        from {
+            transform: scale(1);
+            opacity: 1;
+        }
+        to {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+    }
+
+    .feature-card h4 {
+        color: #343a40;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .feature-card p {
+        color: #6c757d;
+        line-height: 1.7;
+    }
+
+    .contact-info-section {
+        background-color: #f8f9fa; /* Light background for contact section */
+        padding: 60px 0;
+        text-align: center;
+    }
+
+    .contact-item {
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        height: 100%;
+    }
+
+    .contact-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .contact-item .icon {
+        font-size: 2.5rem;
+        color: #2575fc; /* Accent color for contact icons in light mode */
+        margin-bottom: 15px;
+    }
+
+    .contact-item h5 {
+        color: #343a40;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+
+    .contact-item p {
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+    .contact-item p a {
+        color: #6c757d; /* Link color in light mode */
+    }
+
+    .social-icons a {
+        font-size: 2.2rem;
+        color: #6c757d; /* Default social icon color */
+        margin: 0 15px;
+        transition: color 0.3s ease, transform 0.2s ease;
+        display: inline-block;
+    }
+
+    .social-icons a:hover {
+        color: #2575fc; /* Hover color in light mode */
+        transform: scale(1.15);
+    }
+
+    /* General animation utilities */
+    .fade-in-section {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    }
+    .fade-in-section.appear {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Dark Mode Styles */
+    [data-bs-theme="dark"] body {
+        background-color: #121212; /* Very dark background */
+        color: #e0e0e0; /* Light text for readability */
+    }
+
+    [data-bs-theme="dark"] .hero-section {
+        background: linear-gradient(135deg, #1e004a 0%, #0d1a38 100%); /* Darker, richer gradient */
+        box-shadow: inset 0 0 50px rgba(0,0,0,0.5); /* Inner shadow for depth */
+    }
+    [data-bs-theme="dark"] .hero-section::before {
+        background: radial-gradient(circle at center, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 70%); /* More subtle shimmer */
+    }
+
+    [data-bs-theme="dark"] .bible-quote {
+        color: #b0c4de; /* Softer white for quote */
+    }
+
+    [data-bs-theme="dark"] .section-title {
+        color: #ffffff; /* White title in dark mode */
+    }
+    [data-bs-theme="dark"] .section-title::after {
+        background-color: #8a2be2; /* Purple accent for dark mode */
+    }
+
+    [data-bs-theme="dark"] .bg-light {
+        background-color: #1a1a1a !important; /* Dark equivalent for light sections */
+        border-top: 1px solid #2a2a2a; /* Subtle separation */
+        border-bottom: 1px solid #2a2a2a;
+    }
+
+    [data-bs-theme="dark"] .bg-white {
+        background-color: #121212 !important; /* Dark equivalent for white sections */
+    }
+
+    [data-bs-theme="dark"] .text-muted {
+        color: #b0b0b0 !important; /* Lighter muted text for contrast */
+    }
+
+    [data-bs-theme="dark"] .feature-card {
+        background-color: #1e1e1e; /* Darker card background */
+        border: 1px solid #333333; /* Darker border */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* More pronounced shadow in dark mode */
+    }
+
+    [data-bs-theme="dark"] .feature-card:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    [data-bs-theme="dark"] .feature-card .icon {
+        color: #8a2be2; /* Purple accent for icons in dark mode */
+    }
+
+    [data-bs-theme="dark"] .feature-card h4,
+    [data-bs-theme="dark"] .feature-card p {
+        color: #e0e0e0; /* Light text for readability */
+    }
+
+    [data-bs-theme="dark"] .contact-info-section {
+        background-color: #1a1a1a; /* Dark background for contact section */
+        border-top: 1px solid #2a2a2a;
+    }
+
+    [data-bs-theme="dark"] .contact-item {
+        background-color: #1e1e1e; /* Darker contact item background */
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        border: 1px solid #333333;
+    }
+    [data-bs-theme="dark"] .contact-item:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    [data-bs-theme="dark"] .contact-item .icon {
+        color: #8a2be2; /* Purple accent for contact icons in dark mode */
+    }
+
+    [data-bs-theme="dark"] .contact-item h5,
+    [data-bs-theme="dark"] .contact-item p,
+    [data-bs-theme="dark"] .contact-item p a {
+        color: #e0e0e0 !important; /* Ensure all text in contact item is light */
+    }
+
+    [data-bs-theme="dark"] .social-icons a {
+        color: #b0b0b0; /* Lighter social icons */
+    }
+    [data-bs-theme="dark"] .social-icons a:hover {
+        color: #8a2be2; /* Purple hover for dark mode */
+    }
+
+    /* Modal Dark Mode */
+    [data-bs-theme="dark"] .modal-content {
+        background-color: #1e1e1e; /* Dark modal background */
+        color: #e0e0e0;
+        border: 1px solid #333333;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+    }
+    [data-bs-theme="dark"] .modal-header,
+    [data-bs-theme="dark"] .modal-footer {
+        border-color: #333333;
+    }
+    [data-bs-theme="dark"] .modal-title {
+        color: #ffffff;
+    }
+    [data-bs-theme="dark"] .btn-close {
+        filter: invert(1) brightness(1.5); /* Make close button visible and slightly brighter */
+    }
+
+    /* Button styles - ensuring they look good in both modes, primary adjusted for dark */
+    .btn-primary {
+        background-color: #2575fc;
+        border-color: #2575fc;
+        transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+        background-color: #1a5acb;
+        border-color: #1a5acb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    [data-bs-theme="dark"] .btn-primary {
+        background-color: #8a2be2; /* Purple primary for dark mode */
+        border-color: #8a2be2;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    [data-bs-theme="dark"] .btn-primary:hover {
+        background-color: #6a11cb;
+        border-color: #6a11cb;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        transition: all 0.3s ease;
+    }
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+    }
+
+    [data-bs-theme="dark"] .btn-secondary {
+        background-color: #444444;
+        border-color: #555555;
+        color: #e0e0e0;
+    }
+    [data-bs-theme="dark"] .btn-secondary:hover {
+        background-color: #555555;
+        border-color: #666666;
+    }
+
+    /* Subtle background pattern for sections in dark mode */
+    [data-bs-theme="dark"] .bg-light,
+    [data-bs-theme="dark"] .bg-white,
+    [data-bs-theme="dark"] .contact-info-section {
+        background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23555555' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zm1 6v-1L1 0h1z'/%3E%3C/g%3E%3C/svg%3E");
+        background-size: 30px 30px;
+        background-repeat: repeat;
+    }
+
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .hero-section {
+            padding: 60px 0;
+        }
+        .profile-photo-container {
+            width: 150px;
+            height: 150px;
+        }
+        .section-title {
+            font-size: 2rem;
+        }
+        .feature-card, .contact-item {
+            padding: 20px;
+        }
+        .feature-card .icon, .contact-item .icon {
+            font-size: 2rem;
+        }
+        .social-icons a {
+            font-size: 1.8rem;
+            margin: 0 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container hero-content">
+            <div class="profile-photo-container shadow-lg">
+                <img src="{{ url_for('static', filename='img/tadiyos_aschalew.jpg') }}" alt="Tadiyos Aschalew Photo" class="profile-photo">
+            </div>
+            <h1 class="display-4 fw-bold mb-3 animate__animated animate__fadeInUp">Hi, I'm Tadiyos Aschalew</h1>
+            <p class="lead mb-4 animate__animated animate__fadeInUp animate__delay-1s">
+                Your dedicated developer and innovator behind Nexus School Management System.
+            </p>
+            <blockquote class="bible-quote animate__animated animate__fadeInUp animate__delay-2s">
+                "Trust in the Lord with all your heart and lean not on your own understanding; in all your ways submit to him, and he will make your paths straight." — Proverbs 3:5-6 (NIV)
+            </blockquote>
+        </div>
+    </section>
+
+    <!-- About Nexus App Features Section -->
+    <section class="py-5 bg-light fade-in-section">
+        <div class="container">
+            <h2 class="section-title text-center mb-5">About Nexus: Empowering Education 🚀</h2>
+            <p class="text-center lead mb-5 text-muted animate__animated animate__fadeInUp">
+                Nexus is more than just a school management system; it's a comprehensive platform designed to streamline operations, foster collaboration, and enhance the educational experience for everyone.
+            </p>
+
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <div class="col">
+                    <div class="feature-card text-center fade-in-section">
+                        <div class="icon"><i class="bi bi-chat-dots-fill"></i></div>
+                        <h4>Seamless Communication 💬</h4>
+                        <p>Facilitate effortless communication between students, teachers, parents, and administration. Instant messages, announcements, and group chats keep everyone connected.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card text-center fade-in-section">
+                        <div class="icon"><i class="bi bi-calendar-check-fill"></i></div>
+                        <h4>Efficient Task Management ✅</h4>
+                        <p>Assign, track, and manage tasks with ease. From homework assignments to administrative duties, ensure everything is on schedule and nothing falls through the cracks.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card text-center fade-in-section">
+                        <div class="icon"><i class="bi bi-person-lines-fill"></i></div>
+                        <h4>Comprehensive Profiles 🧑‍🏫</h4>
+                        <p>Maintain detailed profiles for every user, including roles, grades, contact info, and more. A centralized hub for all essential data.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card text-center fade-in-section">
+                        <div class="icon"><i class="bi bi-shield-lock-fill"></i></div>
+                        <h4>Robust Security & Permissions 🔒</h4>
+                        <p>Your data's security is paramount. Nexus employs multi-tier access control and robust security measures to protect sensitive information.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card text-center fade-in-section">
+                        <div class="icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+                        <h4>Insightful Analytics 📊</h4>
+                        <p>Gain valuable insights into student performance, attendance trends, and resource utilization with intuitive dashboards and reporting tools.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card text-center fade-in-section">
+                        <div class="icon"><i class="bi bi-hand-thumbs-up-fill"></i></div>
+                        <h4>User-Friendly Experience 🌟</h4>
+                        <p>Designed with simplicity in mind, Nexus offers an intuitive interface that makes navigation easy for users of all technical proficiencies.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Engaging Message Section -->
+    <section class="py-5 bg-white fade-in-section">
+        <div class="container">
+            <h2 class="section-title text-center mb-4">Our Vision: Education Without Limits 🌐</h2>
+            <p class="lead mb-4 animate__animated animate__fadeInUp">
+                At Nexus, we believe technology should empower, not complicate. We envision a future where educational institutions can focus purely on learning and growth, supported by a system that handles the complexities.
+            </p>
+            <p class="text-muted animate__animated animate__fadeInUp animate__delay-1s">
+                Every line of code, every feature, and every design choice in Nexus is made with the goal of creating a harmonious and efficient environment for schools. We're committed to continuous improvement, listening to your needs, and adapting to the evolving landscape of education.
+            </p>
+            <p class="text-muted animate__animated animate__fadeInUp animate__delay-2s">
+                Join us on this journey to redefine school management.
+            </p>
+            <div class="mt-5 animate__animated animate__zoomIn animate__delay-3s">
+                <a href="#" class="btn btn-primary btn-lg shadow-sm" data-bs-toggle="modal" data-bs-target="#contactModal">
+                    <i class="bi bi-envelope-fill me-2"></i> Get in Touch Today!
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Us Section -->
+    <section class="contact-info-section fade-in-section">
+        <div class="container">
+            <h2 class="section-title text-center mb-5">Connect With Us 📞</h2>
+            <div class="row row-cols-1 row-cols-md-2 g-4 justify-content-center">
+                <div class="col-lg-4 col-md-6">
+                    <div class="contact-item">
+                        <div class="icon"><i class="bi bi-phone-fill"></i></div>
+                        <h5>Phone</h5>
+                        <p><a href="tel:+251938749242" class="text-decoration-none">+251 938 749 242</a></p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="contact-item">
+                        <div class="icon"><i class="bi bi-envelope-fill"></i></div>
+                        <h5>Email</h5>
+                        <p><a href="mailto:tadi0781@example.com" class="text-decoration-none">tadi0781@example.com</a></p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-5">
+                <h3 class="fw-bold mb-4 text-dark">Find Me on Social Media:</h3>
+                <div class="social-icons">
+                    <a href="https://t.me/tadi0781" target="_blank" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
+                    <a href="http://tiktok.com/nexus0781" target="_blank" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
+                    <a href="http://x.com/tadi0781" target="_blank" aria-label="X (formerly Twitter)"><i class="bi bi-twitter-x"></i></a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- Contact Modal -->
+<div class="modal fade" id="contactModal" tabindex="-1" aria-labelledby="contactModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="contactModalLabel">Get in Touch!</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Feel free to reach out to Tadiyos Aschalew directly:</p>
+                <ul>
+                    <li><strong>Email:</strong> <a href="mailto:tadi0781@example.com">tadi0781@example.com</a></li>
+                    <li><strong>Phone:</strong> <a href="tel:+251938749242">+251 938 749 242</a></li>
+                </ul>
+                <p>Or connect via social media:</p>
+                <div class="d-flex justify-content-center social-icons-modal">
+                    <a href="https://t.me/tadi0781" target="_blank" aria-label="Telegram" class="me-3"><i class="bi bi-telegram"></i></a>
+                    <a href="http://tiktok.com/nexus0781" target="_blank" aria-label="TikTok" class="me-3"><i class="bi bi-tiktok"></i></a>
+                    <a href="http://x.com/tadi0781" target="_blank" aria-label="X (formerly Twitter)"><i class="bi bi-twitter-x"></i></a>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Intersection Observer for fade-in animations
+        const fadeElements = document.querySelectorAll('.fade-in-section'); // Changed selector to fade-in-section
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('appear');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        fadeElements.forEach(el => {
+            observer.observe(el);
+        });
+
+        // Function to load the profile image
+        function loadProfileImage() {
+            const img = document.querySelector('.profile-photo');
+            // Assuming 'tadiyos_aschalew.jpg' is consistently available.
+            // No dynamic change needed as per prompt, this ensures the image path is correct.
+            if (!img.src.includes('tadiyos_aschalew.jpg')) {
+                img.src = "{{ url_for('static', filename='img/tadiyos_aschalew.jpg') }}";
+            }
+        }
+
+        // Call the image loading function
+        loadProfileImage();
+    });
+</script>
+{% endblock %}
+

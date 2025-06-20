@@ -1,104 +1,115 @@
 {% extends "layout/base.html" %}
 
-{% block page_title %}Manage TC Members (Leader Admin){% endblock %}
+{% block page_title %}Manage TC Members{% endblock %}
 
 {% block content_header %}
-    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="page-title font-heading mb-0">
-            <i class="bi bi-person-fill-slash me-2 text-primary"></i>Manage Talent Club Members
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">
+            <i class="bi bi-person-lines-fill me-2 text-info"></i>Manage TC Members
         </h1>
-        <a href="{{ url_for('talent_club_dashboard') }}" class="btn btn-sm btn-outline-secondary"> {# Or TC Leader specific dashboard #}
-            <i class="bi bi-arrow-left-circle me-1"></i> Back to TC Dashboard
-        </a>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('talent_club_leader_dashboard') }}">TC Leader Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Member Management</li>
+            </ol>
+        </nav>
     </div>
+</div>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-0">
-    {% include 'layout/_flash_messages.html' %}
-
-    <div class="card shadow-sm">
-        <div class="card-header">
-            <h5 class="mb-0 font-heading">All Active Talent Club Members</h5>
-            {# Optional: Filters for grade, section, or specific clubs #}
+<div class="container-fluid">
+    <div class="card nexus-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">All Talent Club Members ({{ tc_members|length }})</h5>
+            {# Add a search bar or filters here in the future if needed #}
         </div>
         <div class="card-body p-0">
-            {% if tc_members and tc_members | length > 0 %}
-                <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0 align-middle tc-member-management-table">
-                        <thead class="table-light">
-                            <tr>
-                                <th scope="col" style="width: 5%;">Avatar</th>
-                                <th scope="col">Name</th>
-                                <th scope="col">Username</th>
-                                <th scope="col">Grade/Section</th>
-                                <th scope="col">Clubs Joined</th>
-                                <th scope="col" class="text-center">System Status</th>
-                                <th scope="col" class="text-center" style="min-width: 150px;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for member in tc_members %}
-                            <tr id="tc-member-row-{{ member.id }}">
-                                <td>
-                                    {% set member_avatar = url_for('static', filename=(member.profile_photo_url if member.profile_photo_url else 'img/placeholders/user_avatar_default.png')) %}
-                                    <img src="{{ member_avatar }}" alt="{{ member.username }}" class="rounded-circle" style="width: 35px; height: 35px; object-fit: cover;">
-                                </td>
-                                <td class="fw-medium">{{ member.full_name or member.username }}</td>
-                                <td><small class="text-muted">{{ member.username }}</small></td>
-                                <td><small>{{ member.grade or 'N/A' }}-{{ member.section or 'N/A' }}</small></td>
-                                <td>
-                                    <small>{{ member.tc_memberships.count() }} Club{{ 's' if member.tc_memberships.count() != 1 else '' }}</small>
-                                    {# Could list first few clubs or link to a detail view #}
-                                </td>
-                                <td class="text-center">
-                                    {% set ban = member_ban_status.get(member.id) %}
-                                    {% if ban %}
-                                        <span class="badge bg-danger-subtle text-danger-emphasis p-2 fs-08rem">
-                                            <i class="bi {{ 'bi-mic-mute-fill' if ban.type == 'mute' else 'bi-person-fill-x' }} me-1"></i>
-                                            {{ ban.type | title }}ned
-                                            {% if ban.expires_at %}
-                                                (til {{ ban.expires_at | dateformat }})
-                                            {% else %}
-                                                (Permanent)
-                                            {% endif %}
-                                        </span>
-                                    {% else %}
-                                        <span class="badge bg-success-subtle text-success-emphasis p-2 fs-08rem">
-                                            <i class="bi bi-check-circle-fill me-1"></i>Active
-                                        </span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                    {% if member.id != current_user.id %} {# TC Leader cannot ban/mute self #}
-                                        {% if ban %}
-                                            <form action="{{ url_for('unban_unmute_tc_member', user_id=member.id) }}" method="POST" class="d-inline">
-                                                {{ csrf_token() if csrf_token else '' }}
-                                                <button type="submit" class="btn btn-sm btn-outline-success p-1" title="Remove {{ ban.type | title }}">
-                                                    <i class="bi {{ 'bi-mic-fill' if ban.type == 'mute' else 'bi-person-fill-check' }} fs-6"></i> Un-{{ ban.type }}
-                                                </button>
-                                            </form>
-                                        {% else %}
-                                            <a href="{{ url_for('ban_mute_tc_member', user_id=member.id) }}" class="btn btn-sm btn-outline-danger p-1" title="Ban or Mute Member">
-                                                <i class="bi bi-slash-circle-fill fs-6"></i> Ban/Mute
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Member</th>
+                            <th scope="col">Primary Role</th>
+                            <th scope="col">Club Memberships</th>
+                            <th scope="col">TC Status</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in tc_members %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ url_for('static', filename=member.profile_photo_url or 'img/placeholders/profile_placeholder.png') }}" alt="{{ member.full_name }}'s profile photo" class="avatar-sm rounded-circle me-3">
+                                    <div>
+                                        <h6 class="mb-0">{{ member.full_name or member.username }}</h6>
+                                        <small class="text-muted">@{{ member.username }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {{ member.role.name.replace('_', ' ').title() if member.role else 'N/A' }}
+                            </td>
+                            <td>
+                                {% if member.tc_memberships %}
+                                    {% for membership in member.tc_memberships %}
+                                        {% if membership.club and membership.is_active %}
+                                            <a href="{{ url_for('view_talent_club_profile', club_id=membership.club.id) }}" class="badge bg-secondary-soft text-secondary text-decoration-none me-1" title="{{ membership.role.title() }} in {{ membership.club.name }}">
+                                                {{ membership.club.name }}
                                             </a>
                                         {% endif %}
-                                    {% else %}
-                                         <small class="text-muted fst-italic">Your Account</small>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted fst-italic">No active club memberships.</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {# Check the ban status dictionary passed from the backend #}
+                                {% set ban_info = member_ban_status.get(member.id) %}
+                                {% if ban_info %}
+                                    {% if ban_info.type == 'ban' %}
+                                        <span class="badge bg-danger" title="Banned from TC System. Reason: {{ ban_info.reason }}">Banned</span>
+                                    {% elif ban_info.type == 'mute' %}
+                                        <span class="badge bg-warning text-dark" title="Muted in TC System. Reason: {{ ban_info.reason }}">Muted</span>
                                     {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="text-center text-muted p-5 content-placeholder">
-                    <i class="bi bi-person-video3 display-3 mb-3"></i>
-                    <h4 class="font-heading">No Active Talent Club Members Found</h4>
-                    <p>Students can opt-in to become Talent Club members from their dashboard.</p>
-                </div>
-            {% endif %}
+                                {% else %}
+                                    <span class="badge bg-success">Active</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {# Prevent leader from taking action on themselves #}
+                                {% if member.id != current_user.id %}
+                                    {% if ban_info %}
+                                        {# Form to LIFT a ban/mute #}
+                                        <form action="{{ url_for('unban_unmute_tc_member', user_id=member.id) }}" method="POST" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-success" title="Lift Restriction">
+                                                <i class="bi bi-unlock-fill"></i> Lift {{ ban_info.type.title() }}
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        {# Link to APPLY a ban/mute #}
+                                        <a href="{{ url_for('ban_mute_tc_member', user_id=member.id) }}" class="btn btn-sm btn-outline-danger" title="Apply Ban/Mute">
+                                            <i class="bi bi-slash-circle"></i> Manage
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-light text-dark">Yourself</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted p-4">
+                                No Talent Club members found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

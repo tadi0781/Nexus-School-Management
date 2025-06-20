@@ -1,0 +1,29 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Mini App{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="page-title font-heading mb-0">
+        <i class="bi bi-joystick me-2 text-primary"></i>Mini App
+    </h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center p-5">
+                    <i class="bi bi-tools display-1 text-muted mb-3"></i>
+                    <h2 class="font-heading">Feature Under Construction</h2>
+                    <p class="lead">This exciting new mini-app is currently being developed.</p>
+                    <p>Check back soon for updates!</p>
+                    <a href="{{ url_for('role_redirect') }}" class="btn btn-primary mt-3">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

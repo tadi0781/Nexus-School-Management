@@ -1,0 +1,45 @@
+{# NEW, CORRECTED CODE #}
+{% extends "layout/base.html" %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Students with Overdue Books</h1>
+        <a href="{{ url_for('librarian_kiosk') }}" class="btn btn-sm btn-secondary shadow-sm"><i class="fas fa-arrow-left fa-sm text-white-50"></i> Back to Kiosk</a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Book Title</th>
+                            <th>Due Date</th>
+                            <th>Days Overdue</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for checkout in checkouts %}
+                        <tr>
+                            <td>{{ checkout.user.full_name }} ({{ checkout.user.grade }}-{{ checkout.user.section }})</td>
+                            <td>{{ checkout.asset.name }}</td>
+                            <td class="text-danger font-weight-bold">{{ checkout.due_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ ( (now.date() - checkout.due_date).days ) }}</td>
+                            <td>
+                                <a href="{{ url_for('librarian_student_profile', user_id=checkout.user.id) }}" class="btn btn-sm btn-info">View Profile</a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No overdue books found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

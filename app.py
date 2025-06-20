@@ -558,400 +558,7 @@ ROLE_PERMISSIONS = {
     'parent': [] # Parents cannot interact with the asset system
 }
 # Define User Model (includes all previous relationships + the fix)
-class User(db.Model, UserMixin):
-    __tablename__ = "user"
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(120), unique=True, nullable=True, index=True)
-    password_hash = db.Column(db.String(128), nullable=False)
-    first_name = db.Column(db.String(50), nullable=True)
-    last_name = db.Column(db.String(50), nullable=True)
-    full_name = db.Column(db.String(120), nullable=False, index=True)
-    date_of_birth = db.Column(db.Date, nullable=True)
-    gender = db.Column(db.String(20), nullable=True)
-    phone = db.Column(db.String(20), nullable=True)
-    address = db.Column(db.Text, nullable=True)
-    is_active = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )
-    last_login = db.Column(db.DateTime, nullable=True)
-    is_leader = db.Column(db.Boolean, default=False, nullable=False)
-    force_password_change = db.Column(db.Boolean, default=False, nullable=False)
-    is_tc_leader = db.Column(db.Boolean, default=False, nullable=False)
-    is_tc_member = db.Column(db.Boolean, default=False, nullable=False)
-    leader_id = db.Column(
-        db.Integer, db.ForeignKey("user.id"), nullable=True, index=True
-    )
-    age = db.Column(db.Integer, nullable=True)
-    sex = db.Column(db.String(20), nullable=True)
-    profile_photo_url = db.Column(db.String(255), nullable=True)
-    grade = db.Column(db.Integer, nullable=True, index=True)
-    section = db.Column(db.Integer, nullable=True, index=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
-    lab_id = db.Column(db.Integer, db.ForeignKey("lab.id"), nullable=True)
-    teacher_profiles = db.relationship("TeacherProfile", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")
-    # ... inside the User model ...
-    secret_code = db.relationship("SecretCode", back_populates="user", uselist=False)
-# ... other relationships ...
-    channel_preferences = db.relationship(
-        "UserChannelPreference",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    custom_channel_categories = db.relationship(
-        "UserChannelCategory",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    saved_items = db.relationship(
-        "UserSavedItem",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    global_posts = db.relationship(
-        "GlobalPost",
-        foreign_keys="GlobalPost.author_id",
-        back_populates="author",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    global_comments = db.relationship(
-        "GlobalComment",
-        foreign_keys="GlobalComment.author_id",
-        back_populates="author",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    global_likes = db.relationship(
-        "GlobalLike",
-        foreign_keys="GlobalLike.user_id",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    role = db.relationship("Role", back_populates="users")
-    lab = db.relationship("Lab", back_populates="lab_assignments")
-    leader = db.relationship(
-        "User", remote_side=[id], backref=db.backref("followers", lazy="dynamic")
-    )
-    sent_messages = db.relationship(
-        "Message",
-        foreign_keys=[Message.sender_id],
-        back_populates="sender",
-        lazy="dynamic",
-    )
-    received_messages = db.relationship(
-        "Message",
-        foreign_keys=[Message.receiver_id],
-        back_populates="receiver",
-        lazy="dynamic",
-    )
-    submitted_requests = db.relationship(
-        "Request",
-        foreign_keys="Request.requester_id",
-        back_populates="requester",
-        lazy="dynamic",
-    )
-    assigned_requests = db.relationship(
-        "Request",
-        foreign_keys="Request.current_handler_id",
-        back_populates="current_handler",
-        lazy="dynamic",
-    )
-    forwarded_requests = db.relationship(
-        "Request",
-        foreign_keys="Request.last_forwarded_by_id",
-        back_populates="last_forwarded_by",
-        lazy="dynamic",
-    )
-    request_history_entries = db.relationship(
-        "RequestHistory", back_populates="changed_by", lazy="dynamic"
-    )
-    staff_attendance_records = db.relationship(
-        "StaffAttendance", back_populates="user", lazy="dynamic"
-    )
-    attendance_entries = db.relationship(
-        "Attendance", back_populates="student", lazy="dynamic"
-    )
-    parent_profile = db.relationship("Parent", back_populates="user", uselist=False)
-    sent_notifications = db.relationship(
-        "Notification",
-        foreign_keys="Notification.sender_id",
-        back_populates="sender",
-        lazy="dynamic",
-    )
-    received_notifications = db.relationship(
-        "Notification",
-        foreign_keys="Notification.receiver_id",
-        back_populates="receiver",
-        lazy="dynamic",
-    )
-    marks = db.relationship("Mark", back_populates="student", lazy="dynamic")
-    added_assets = db.relationship(
-        "Asset", back_populates="added_by_user", lazy="dynamic"
-    )
-    submitted_reports = db.relationship(
-        "AssetReport",
-        foreign_keys="AssetReport.reported_by_id",
-        back_populates="reporter",
-        lazy="dynamic",
-    )
-    resolved_reports = db.relationship(
-        "AssetReport",
-        foreign_keys="AssetReport.resolved_by_id",
-        back_populates="resolver",
-        lazy="dynamic",
-    )
-    book_checkouts = db.relationship(
-        "BookCheckout", back_populates="user", lazy="dynamic"
-    )
-    borrowed_assets = db.relationship(
-        "BorrowedAsset", back_populates="user", lazy="dynamic"
-    )
-    channel_posts = db.relationship(
-        "ChannelPost", back_populates="author", lazy="dynamic"
-    )
-    channel_comments = db.relationship(
-        "ChannelComment", back_populates="author", lazy="dynamic"
-    )
-    channel_reactions = db.relationship(
-        "ChannelReaction", back_populates="user", lazy="dynamic"
-    )
-    group_messages = db.relationship(
-        "GroupMessage", back_populates="author", lazy="dynamic"
-    )
-    social_group_memberships = db.relationship(
-        "SocialGroupMember", back_populates="user", lazy="dynamic"
-    )
-    owned_channels = db.relationship("Channel", back_populates="owner", lazy="dynamic")
-    # In app.py, inside the User model class
-
-    # --- ADD THIS LINE FOR THE WEATHER FEATURE ---
-    home_city = db.Column(db.String(100), nullable=True)
-    # --- END OF ADDITION ---
-    # FIX: Renamed 'owned_social_groups' to 'owned_groups' to match the SocialGroup model.
-    # Also added cascade for better data integrity.
-    owned_groups = db.relationship(
-        "SocialGroup",
-        back_populates="owner",
-        lazy="dynamic",
-        cascade="all, delete-orphan"
-    )
-
-    uploaded_social_files = db.relationship(
-        "File", back_populates="uploader", lazy="dynamic"
-    )
-    parent_associations = db.relationship("ParentStudent", back_populates="student")
-    behavior_records = db.relationship(
-        "BehaviorRecord",
-        foreign_keys="BehaviorRecord.student_id",
-        back_populates="student",
-        lazy="dynamic",
-    )
-    recorded_behavior_records = db.relationship(
-        "BehaviorRecord",
-        foreign_keys="BehaviorRecord.recorded_by_id",
-        back_populates="recorded_by",
-        lazy="dynamic",
-    )
-    channel_subscriptions = db.relationship(
-        "ChannelSubscriber", back_populates="user", lazy="dynamic"
-    )
-    tc_memberships = db.relationship(
-        "TalentClubMembership",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    tc_follows = db.relationship(
-        "TalentClubFollow",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    owned_talent_clubs = db.relationship(
-        "TalentClub", back_populates="owner", lazy="dynamic"
-    )
-    tc_leader_election_initiated = db.relationship(
-        "TalentClubLeaderElection",
-        foreign_keys="TalentClubLeaderElection.initiated_by_id",
-        back_populates="initiated_by",
-        lazy="dynamic",
-    )
-    tc_leader_votes_cast = db.relationship(
-        "TalentClubLeaderVote",
-        foreign_keys="TalentClubLeaderVote.voter_id",
-        back_populates="voter",
-        lazy="dynamic",
-    )
-    tc_bans_issued = db.relationship(
-        "TalentClubBan",
-        foreign_keys="TalentClubBan.issued_by_id",
-        back_populates="issued_by",
-        lazy="dynamic",
-    )
-    tc_bans_received = db.relationship(
-        "TalentClubBan",
-        foreign_keys="TalentClubBan.user_id",
-        back_populates="user",
-        lazy="dynamic",
-    )
-    tc_penalties_issued = db.relationship(
-        "TalentClubPenalty",
-        foreign_keys="TalentClubPenalty.issued_by_id",
-        back_populates="issued_by",
-        lazy="dynamic",
-    )
-    tc_penalties_received = db.relationship(
-        "TalentClubPenalty",
-        foreign_keys="TalentClubPenalty.user_id",
-        back_populates="user",
-        lazy="dynamic",
-    )
-    tc_proposals_created = db.relationship(
-        "TalentClubProposal",
-        foreign_keys="TalentClubProposal.creator_id",
-        back_populates="creator",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    tc_mentions_received = db.relationship(
-        "TalentClubMention",
-        back_populates="user",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    created_tasks = db.relationship(
-        "Task", back_populates="created_by", lazy="dynamic"
-    )
-    assigned_tasks_instances = db.relationship(
-        "UserTask",
-        foreign_keys="UserTask.assigned_by_id",
-        back_populates="assigned_by",
-        lazy="dynamic",
-    )
-    assigned_tasks = db.relationship(
-        "UserTask",
-        foreign_keys="UserTask.user_id",
-        back_populates="user",
-        lazy="dynamic",
-    )
-    task_history_entries = db.relationship(
-        "TaskHistory", back_populates="changed_by", lazy="dynamic"
-    )
-    reviewed_tasks_instances = db.relationship(
-        "UserTask",
-        foreign_keys="UserTask.reviewed_by_id",
-        back_populates="reviewed_by",
-        lazy="dynamic",
-    )
-
-    def set_password(self, password):
-        from werkzeug.security import generate_password_hash
-        self.password_hash = generate_password_hash(password)
-
-    def check_password(self, password):
-        from werkzeug.security import check_password_hash
-        return check_password_hash(self.password_hash, password)
-
-    def has_permission(self, permission):
-        if not self.role:
-            return False
-        role_perms = ROLE_PERMISSIONS.get(self.role.name.lower(), [])
-        return permission in role_perms
-
-    def is_channel_member(self, channel):
-        if not channel or not self.is_authenticated:
-            return False
-        try:
-            return (
-                db.session.scalar(
-                    select(ChannelSubscriber).where(
-                        ChannelSubscriber.channel_id == channel.id,
-                        ChannelSubscriber.user_id == self.id,
-                    )
-                )
-                is not None
-            )
-        except Exception as e:
-            current_app.logger.error(
-                f"Error in is_channel_member for user {self.id}, channel {channel.id}: {e}",
-                exc_info=True,
-            )
-            return False
-
-    def get_channel_role(self, channel):
-        if not channel or not self.is_authenticated:
-            return None
-        try:
-            subscription = db.session.scalar(
-                select(ChannelSubscriber)
-                .where(
-                    ChannelSubscriber.channel_id == channel.id,
-                    ChannelSubscriber.user_id == self.id,
-                )
-                .options(
-                    joinedload(ChannelSubscriber.user),
-                    joinedload(ChannelSubscriber.channel),
-                )
-            )
-            return subscription.role if subscription else None
-        except Exception as e:
-            current_app.logger.error(
-                f"Error in get_channel_role for user {self.id}, channel {channel.id}: {e}",
-                exc_info=True,
-            )
-            return None
-
-    def is_group_member(self, group):
-        if not group or not self.is_authenticated:
-            return False
-        try:
-            return (
-                db.session.scalar(
-                    select(SocialGroupMember).where(
-                        SocialGroupMember.group_id == group.id,
-                        SocialGroupMember.user_id == self.id,
-                    )
-                )
-                is not None
-            )
-        except Exception as e:
-            current_app.logger.error(
-                f"Error in is_group_member for user {self.id}, group {group.id}: {e}",
-                exc_info=True,
-            )
-            return False
-
-    def get_group_role(self, group):
-        if not group or not self.is_authenticated:
-            return None
-        try:
-            membership = db.session.scalar(
-                select(SocialGroupMember)
-                .where(
-                    SocialGroupMember.group_id == group.id,
-                    SocialGroupMember.user_id == self.id,
-                )
-                .options(
-                    joinedload(SocialGroupMember.user),
-                    joinedload(SocialGroupMember.group),
-                )
-            )
-            return membership.role if membership else None
-        except Exception as e:
-            current_app.logger.error(
-                f"Error in get_group_role for user {self.id}, group {group.id}: {e}",
-                exc_info=True,
-            )
-            return None
-
-    def __repr__(self):
-        return f"<User ID:{self.id} Username:'{self.username}' Role:'{self.role.name if self.role else 'N/A'}'>"        
+        
 class SocialGroup(db.Model):
     __tablename__ = "social_group"
     id = db.Column(db.Integer, primary_key=True)
@@ -2115,8 +1722,10 @@ class RecipientSelectionForm(FlaskForm):
     # This field will be populated by JavaScript before the form is submitted.
     recipient_id_list = HiddenField(validators=[DataRequired(message="Please select at least one recipient.")])
 
+# In app.py, replace the old CreateTaskForm
+
 class CreateTaskForm(FlaskForm):
-    """Form for creating a new task."""
+    """Form for creating a new task, now with a unified assignee picker."""
 
     title = StringField("Task Title", validators=[DataRequired(), Length(max=255)])
     description = TextAreaField(
@@ -2137,39 +1746,16 @@ class CreateTaskForm(FlaskForm):
         validators=[DataRequired()],
     )
 
-    # Field to select assignment type - will control visibility of subsequent fields via JS
-    assignment_type = RadioField(
-        "Assign To",
-        choices=[("individual", "Individual User(s)"), ("group", "Group(s)")],
-        validators=[DataRequired()],
-        default="individual",  # Default to individual
-    )
-
-    # Fields for assignment targets (populated dynamically/via JS)
-    # Individual User IDs will be sent via a hidden field populated by a JS picker
-    individual_user_ids = HiddenField(
-        "Individual User IDs"
-    )  # No validator here, validation in route logic
-
-    # Group assignments - These will likely be selected via separate dropdowns/checkboxes in the template,
-    # controlled by `assignment_type`. The selected values will be sent in `request.form`.
-    # We *could* add SelectMultipleFields here if WTForms handles the rendering better, but given
-    # the dynamic nature (list of roles, dynamic list of grades/sections), reading directly from request.form
-    # might be simpler alongside JS.
-    # Placeholder for validation in route:
-    # group_roles = FieldList(StringField('Role Name')) # Not used directly for data, more for validation structure
-    # group_grade_sections = FieldList(StringField('Grade Section')) # Not used directly
-
+    # This single hidden field will be populated by our JavaScript picker.
+    # It will contain a comma-separated list like: "user:123,role:teacher,grade_section:9-A"
+    assignees_data = HiddenField("Assignees Data")
+    
     submit = SubmitField("Create Task")
 
     def validate_due_date(self, field):
-        # Allow empty date if Optional
         if field.data and field.data < datetime.now(timezone.utc).date():
             raise ValidationError("Due date cannot be in the past.")
-
-    # Custom validation for assignment target based on type will be in the route
-
-
+            
 class UpdateUserTaskStatusForm(FlaskForm):
     """Form for an assigned user to update their task status."""
 
@@ -2296,18 +1882,14 @@ class Channel(db.Model):
     def __repr__(self):
         return f"<Channel ID:{self.id} Name:'{self.name}' Type:'{self.type}'>"
 
-
-# END MODIFICATION (Channel Model - REMOVING TC Link)
-
-
-# END MODIFICATION (Channel Model)
+# --- START OF FIX: ADD THE MISSING MODEL HERE ---
 class ChannelSubscriber(db.Model):
     __tablename__ = "social_channel_subscribers"
     channel_id = db.Column(
         db.Integer, db.ForeignKey("social_channels.id"), primary_key=True
     )
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), primary_key=True)
-    role = db.Column(db.String(20), default="subscriber", nullable=False)
+    role = db.Column(db.String(20), default="subscriber", nullable=False) # e.g., 'owner', 'admin', 'subscriber'
     subscribed_at = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -2321,13 +1903,12 @@ class ChannelSubscriber(db.Model):
 
     def __repr__(self):
         return f"<ChannelSubscriber UserID: {self.user_id} in ChannelID: {self.channel_id} as {self.role}>"
+# --- END OF FIX ---
 
 
 # add THIS NEW MODEL ---
 # --- User Channel Category Model ---
-
-# In app.py, find and replace the entire UserChannelCategory class
-
+# ... (rest of your models) ...
 
 class UserChannelCategory(db.Model):
     __tablename__ = "user_channel_category"
@@ -2464,70 +2045,6 @@ class UserSavedItem(db.Model):
 
 
 # --- END User Saved Item Model ---
-
-
-class ChannelPost(db.Model):
-    __tablename__ = "social_channel_posts"
-    id = db.Column(db.Integer, primary_key=True)
-    channel_id = db.Column(
-        db.Integer, db.ForeignKey("social_channels.id"), nullable=False, index=True
-    )
-    author_id = db.Column(
-        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
-    )
-    content = db.Column(db.Text, nullable=True)
-    file_id = db.Column(
-        db.Integer,
-        db.ForeignKey("social_files.id"),
-        nullable=True,
-        unique=True,
-        index=True,
-    )
-    timestamp = db.Column(
-        db.DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        nullable=False,
-        index=True,
-    )
-    is_edited = db.Column(db.Boolean, default=False, nullable=False)
-
-    channel = db.relationship(
-        "Channel", back_populates="posts", foreign_keys=[channel_id]
-    )
-    author = db.relationship(
-        "User", foreign_keys=[author_id], back_populates="channel_posts"
-    )
-    file = db.relationship("File", back_populates="channel_post", uselist=False)
-
-    comments = db.relationship(
-        "ChannelComment",
-        back_populates="post",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-    reactions = db.relationship(
-        "ChannelReaction",
-        back_populates="post",
-        lazy="dynamic",
-        cascade="all, delete-orphan",
-    )
-
-    def get_share_url(self):
-        try:
-            from flask import url_for
-
-            return url_for(
-                "view_social_channel_post_redirect", post_id=self.id, _external=True
-            )
-        except RuntimeError:
-            print(
-                f"Warning: url_for called outside application context for ChannelPost {self.id}"
-            )
-            return f"/social/posts/{self.id}/view"
-
-    def __repr__(self):
-        return f"<ChannelPost ID:{self.id} ChannelID:{self.channel_id} AuthorID:{self.author_id}>"
-
 
 # In app.py, find and replace the entire GlobalPost class
 
@@ -2704,9 +2221,69 @@ class GlobalLike(db.Model):
     def __repr__(self):
         return f"<GlobalLike ID:{self.id} PostID:{self.post_id} UserID:{self.user_id}>"
 
+# --- User Saved Item Model (Polymorphic) ---
 
-# --- END Global Engagement Core Models ---
+class ChannelPost(db.Model):
+    __tablename__ = "social_channel_posts"
+    id = db.Column(db.Integer, primary_key=True)
+    channel_id = db.Column(
+        db.Integer, db.ForeignKey("social_channels.id"), nullable=False, index=True
+    )
+    author_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=False, index=True
+    )
+    content = db.Column(db.Text, nullable=True)
+    file_id = db.Column(
+        db.Integer,
+        db.ForeignKey("social_files.id"),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    timestamp = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
+    is_edited = db.Column(db.Boolean, default=False, nullable=False)
 
+    channel = db.relationship(
+        "Channel", back_populates="posts", foreign_keys=[channel_id]
+    )
+    author = db.relationship(
+        "User", foreign_keys=[author_id], back_populates="channel_posts"
+    )
+    file = db.relationship("File", back_populates="channel_post", uselist=False)
+
+    comments = db.relationship(
+        "ChannelComment",
+        back_populates="post",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    reactions = db.relationship(
+        "ChannelReaction",
+        back_populates="post",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+
+    def get_share_url(self):
+        try:
+            from flask import url_for
+
+            return url_for(
+                "view_social_channel_post_redirect", post_id=self.id, _external=True
+            )
+        except RuntimeError:
+            print(
+                f"Warning: url_for called outside application context for ChannelPost {self.id}"
+            )
+            return f"/social/posts/{self.id}/view"
+
+    def __repr__(self):
+        return f"<ChannelPost ID:{self.id} ChannelID:{self.channel_id} AuthorID:{self.author_id}>"
 
 class ChannelComment(db.Model):
     __tablename__ = "social_channel_comments"
@@ -2859,6 +2436,401 @@ class Mark(db.Model):
 
     def __repr__(self):
         return f"<Mark StudentID: {self.student_id}, Subject: {self.subject}, Avg: {self.average}>"
+        
+class User(db.Model, UserMixin):
+    __tablename__ = "user"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=True, index=True)
+    password_hash = db.Column(db.String(128), nullable=False)
+    first_name = db.Column(db.String(50), nullable=True)
+    last_name = db.Column(db.String(50), nullable=True)
+    full_name = db.Column(db.String(120), nullable=False, index=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    gender = db.Column(db.String(20), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    address = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    last_login = db.Column(db.DateTime, nullable=True)
+    is_leader = db.Column(db.Boolean, default=False, nullable=False)
+    force_password_change = db.Column(db.Boolean, default=False, nullable=False)
+    is_tc_leader = db.Column(db.Boolean, default=False, nullable=False)
+    is_tc_member = db.Column(db.Boolean, default=False, nullable=False)
+    leader_id = db.Column(
+        db.Integer, db.ForeignKey("user.id"), nullable=True, index=True
+    )
+    age = db.Column(db.Integer, nullable=True)
+    sex = db.Column(db.String(20), nullable=True)
+    profile_photo_url = db.Column(db.String(255), nullable=True)
+    grade = db.Column(db.Integer, nullable=True, index=True)
+    section = db.Column(db.Integer, nullable=True, index=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.id"), nullable=False)
+    lab_id = db.Column(db.Integer, db.ForeignKey("lab.id"), nullable=True)
+    teacher_profiles = db.relationship("TeacherProfile", back_populates="user", lazy="dynamic", cascade="all, delete-orphan")
+    # ... inside the User model ...
+    secret_code = db.relationship("SecretCode", back_populates="user", uselist=False)
+# ... other relationships ...
+    channel_preferences = db.relationship(
+        "UserChannelPreference",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    custom_channel_categories = db.relationship(
+        "UserChannelCategory",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    saved_items = db.relationship(
+        "UserSavedItem",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    global_posts = db.relationship(
+        "GlobalPost",
+        foreign_keys="GlobalPost.author_id",
+        back_populates="author",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    global_comments = db.relationship(
+        "GlobalComment",
+        foreign_keys="GlobalComment.author_id",
+        back_populates="author",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    global_likes = db.relationship(
+        "GlobalLike",
+        foreign_keys="GlobalLike.user_id",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    role = db.relationship("Role", back_populates="users")
+    lab = db.relationship("Lab", back_populates="lab_assignments")
+    leader = db.relationship(
+        "User", remote_side=[id], backref=db.backref("followers", lazy="dynamic")
+    )
+    sent_messages = db.relationship(
+        "Message",
+        foreign_keys=[Message.sender_id],
+        back_populates="sender",
+        lazy="dynamic",
+    )
+    received_messages = db.relationship(
+        "Message",
+        foreign_keys=[Message.receiver_id],
+        back_populates="receiver",
+        lazy="dynamic",
+    )
+    submitted_requests = db.relationship(
+        "Request",
+        foreign_keys="Request.requester_id",
+        back_populates="requester",
+        lazy="dynamic",
+    )
+    assigned_requests = db.relationship(
+        "Request",
+        foreign_keys="Request.current_handler_id",
+        back_populates="current_handler",
+        lazy="dynamic",
+    )
+    forwarded_requests = db.relationship(
+        "Request",
+        foreign_keys="Request.last_forwarded_by_id",
+        back_populates="last_forwarded_by",
+        lazy="dynamic",
+    )
+    request_history_entries = db.relationship(
+        "RequestHistory", back_populates="changed_by", lazy="dynamic"
+    )
+    staff_attendance_records = db.relationship(
+        "StaffAttendance", back_populates="user", lazy="dynamic"
+    )
+    attendance_entries = db.relationship(
+        "Attendance", back_populates="student", lazy="dynamic"
+    )
+    parent_profile = db.relationship("Parent", back_populates="user", uselist=False)
+    sent_notifications = db.relationship(
+        "Notification",
+        foreign_keys="Notification.sender_id",
+        back_populates="sender",
+        lazy="dynamic",
+    )
+    received_notifications = db.relationship(
+        "Notification",
+        foreign_keys="Notification.receiver_id",
+        back_populates="receiver",
+        lazy="dynamic",
+    )
+    marks = db.relationship("Mark", back_populates="student", lazy="dynamic")
+    added_assets = db.relationship(
+        "Asset", back_populates="added_by_user", lazy="dynamic"
+    )
+    submitted_reports = db.relationship(
+        "AssetReport",
+        foreign_keys="AssetReport.reported_by_id",
+        back_populates="reporter",
+        lazy="dynamic",
+    )
+    resolved_reports = db.relationship(
+        "AssetReport",
+        foreign_keys="AssetReport.resolved_by_id",
+        back_populates="resolver",
+        lazy="dynamic",
+    )
+    book_checkouts = db.relationship(
+        "BookCheckout", back_populates="user", lazy="dynamic"
+    )
+    borrowed_assets = db.relationship(
+        "BorrowedAsset", back_populates="user", lazy="dynamic"
+    )
+    channel_posts = db.relationship(
+        "ChannelPost", back_populates="author", lazy="dynamic"
+    )
+    channel_comments = db.relationship(
+        "ChannelComment", back_populates="author", lazy="dynamic"
+    )
+    channel_reactions = db.relationship(
+        "ChannelReaction", back_populates="user", lazy="dynamic"
+    )
+    group_messages = db.relationship(
+        "GroupMessage", back_populates="author", lazy="dynamic"
+    )
+    social_group_memberships = db.relationship(
+        "SocialGroupMember", back_populates="user", lazy="dynamic"
+    )
+    owned_channels = db.relationship("Channel", back_populates="owner", lazy="dynamic")
+    # In app.py, inside the User model class
+
+    # --- ADD THIS LINE FOR THE WEATHER FEATURE ---
+    home_city = db.Column(db.String(100), nullable=True)
+    # --- END OF ADDITION ---
+    # FIX: Renamed 'owned_social_groups' to 'owned_groups' to match the SocialGroup model.
+    # Also added cascade for better data integrity.
+    owned_groups = db.relationship(
+        "SocialGroup",
+        back_populates="owner",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
+    uploaded_social_files = db.relationship(
+        "File", back_populates="uploader", lazy="dynamic"
+    )
+    parent_associations = db.relationship("ParentStudent", back_populates="student")
+    behavior_records = db.relationship(
+        "BehaviorRecord",
+        foreign_keys="BehaviorRecord.student_id",
+        back_populates="student",
+        lazy="dynamic",
+    )
+    recorded_behavior_records = db.relationship(
+        "BehaviorRecord",
+        foreign_keys="BehaviorRecord.recorded_by_id",
+        back_populates="recorded_by",
+        lazy="dynamic",
+    )
+    channel_subscriptions = db.relationship(
+        "ChannelSubscriber", back_populates="user", lazy="dynamic"
+    )
+    tc_memberships = db.relationship(
+        "TalentClubMembership",
+        back_populates="user",
+        #lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    tc_follows = db.relationship(
+        "TalentClubFollow",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    owned_talent_clubs = db.relationship(
+        "TalentClub", back_populates="owner", lazy="dynamic"
+    )
+    tc_leader_election_initiated = db.relationship(
+        "TalentClubLeaderElection",
+        foreign_keys="TalentClubLeaderElection.initiated_by_id",
+        back_populates="initiated_by",
+        lazy="dynamic",
+    )
+    tc_leader_votes_cast = db.relationship(
+        "TalentClubLeaderVote",
+        foreign_keys="TalentClubLeaderVote.voter_id",
+        back_populates="voter",
+        lazy="dynamic",
+    )
+    tc_bans_issued = db.relationship(
+        "TalentClubBan",
+        foreign_keys="TalentClubBan.issued_by_id",
+        back_populates="issued_by",
+        lazy="dynamic",
+    )
+    tc_bans_received = db.relationship(
+        "TalentClubBan",
+        foreign_keys="TalentClubBan.user_id",
+        back_populates="user",
+        lazy="dynamic",
+    )
+    tc_penalties_issued = db.relationship(
+        "TalentClubPenalty",
+        foreign_keys="TalentClubPenalty.issued_by_id",
+        back_populates="issued_by",
+        lazy="dynamic",
+    )
+    tc_penalties_received = db.relationship(
+        "TalentClubPenalty",
+        foreign_keys="TalentClubPenalty.user_id",
+        back_populates="user",
+        lazy="dynamic",
+    )
+    tc_proposals_created = db.relationship(
+        "TalentClubProposal",
+        foreign_keys="TalentClubProposal.creator_id",
+        back_populates="creator",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    tc_mentions_received = db.relationship(
+        "TalentClubMention",
+        back_populates="user",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+    created_tasks = db.relationship(
+        "Task", back_populates="created_by", lazy="dynamic"
+    )
+    assigned_tasks_instances = db.relationship(
+        "UserTask",
+        foreign_keys="UserTask.assigned_by_id",
+        back_populates="assigned_by",
+        lazy="dynamic",
+    )
+    assigned_tasks = db.relationship(
+        "UserTask",
+        foreign_keys="UserTask.user_id",
+        back_populates="user",
+        lazy="dynamic",
+    )
+    task_history_entries = db.relationship(
+        "TaskHistory", back_populates="changed_by", lazy="dynamic"
+    )
+    reviewed_tasks_instances = db.relationship(
+        "UserTask",
+        foreign_keys="UserTask.reviewed_by_id",
+        back_populates="reviewed_by",
+        lazy="dynamic",
+    )
+
+    def set_password(self, password):
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        from werkzeug.security import check_password_hash
+        return check_password_hash(self.password_hash, password)
+
+    def has_permission(self, permission):
+        if not self.role:
+            return False
+        role_perms = ROLE_PERMISSIONS.get(self.role.name.lower(), [])
+        return permission in role_perms
+
+    def is_channel_member(self, channel):
+        if not channel or not self.is_authenticated:
+            return False
+        try:
+            return (
+                db.session.scalar(
+                    select(ChannelSubscriber).where(
+                        ChannelSubscriber.channel_id == channel.id,
+                        ChannelSubscriber.user_id == self.id,
+                    )
+                )
+                is not None
+            )
+        except Exception as e:
+            current_app.logger.error(
+                f"Error in is_channel_member for user {self.id}, channel {channel.id}: {e}",
+                exc_info=True,
+            )
+            return False
+
+    def get_channel_role(self, channel):
+        if not channel or not self.is_authenticated:
+            return None
+        try:
+            subscription = db.session.scalar(
+                select(ChannelSubscriber)
+                .where(
+                    ChannelSubscriber.channel_id == channel.id,
+                    ChannelSubscriber.user_id == self.id,
+                )
+                .options(
+                    joinedload(ChannelSubscriber.user),
+                    joinedload(ChannelSubscriber.channel),
+                )
+            )
+            return subscription.role if subscription else None
+        except Exception as e:
+            current_app.logger.error(
+                f"Error in get_channel_role for user {self.id}, channel {channel.id}: {e}",
+                exc_info=True,
+            )
+            return None
+
+    def is_group_member(self, group):
+        if not group or not self.is_authenticated:
+            return False
+        try:
+            return (
+                db.session.scalar(
+                    select(SocialGroupMember).where(
+                        SocialGroupMember.group_id == group.id,
+                        SocialGroupMember.user_id == self.id,
+                    )
+                )
+                is not None
+            )
+        except Exception as e:
+            current_app.logger.error(
+                f"Error in is_group_member for user {self.id}, group {group.id}: {e}",
+                exc_info=True,
+            )
+            return False
+
+    def get_group_role(self, group):
+        if not group or not self.is_authenticated:
+            return None
+        try:
+            membership = db.session.scalar(
+                select(SocialGroupMember)
+                .where(
+                    SocialGroupMember.group_id == group.id,
+                    SocialGroupMember.user_id == self.id,
+                )
+                .options(
+                    joinedload(SocialGroupMember.user),
+                    joinedload(SocialGroupMember.group),
+                )
+            )
+            return membership.role if membership else None
+        except Exception as e:
+            current_app.logger.error(
+                f"Error in get_group_role for user {self.id}, group {group.id}: {e}",
+                exc_info=True,
+            )
+            return None
+
+    def __repr__(self):
+        return f"<User ID:{self.id} Username:'{self.username}' Role:'{self.role.name if self.role else 'N/A'}'>"        
 
 # --- PART 2 END: Model Definitions ---
 
@@ -4254,6 +4226,28 @@ def get_allowed_task_creators():
             .order_by(User.full_name)
         ).all()
 
+def tc_leader_required(f):
+    """Decorator to restrict access to routes to the system-wide Talent Club Leader."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash("Please log in to access this page.", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        # Check the user's 'is_tc_leader' flag
+        if not hasattr(current_user, 'is_tc_leader') or not current_user.is_tc_leader:
+            app.logger.warning(
+                f"User {current_user.username} (ID: {current_user.id}) "
+                f"attempted to access TC Leader restricted route {request.path} but is not the leader."
+            )
+            flash("You must be the Talent Club Leader to access this page.", "danger")
+            # Redirect to the main TC dashboard for regular members, or another appropriate page
+            return redirect(url_for('talent_club_dashboard_member_view'))
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 
 def get_assignable_users():
     """Fetches User objects eligible for individual task assignment (e.g., all active users except creators?)."""
@@ -4916,10 +4910,7 @@ def get_users_in_role(role_name):
     return []
 
 
-# --- END NEW: Request System Helper Functions ---
-
-# --- NEW FORMS: Talent Club Subsystem ---
-
+# --- END NEW: Request System Helper Function ---
 
 class CreateTalentClubProposalForm(FlaskForm):
     """Form for submitting a proposal to create a new Talent Club instance."""
@@ -4930,7 +4921,7 @@ class CreateTalentClubProposalForm(FlaskForm):
     )
     social_category_id = SelectField(
         "Category", coerce=int, validators=[DataRequired()]
-    )  # Reuse SocialCategory
+    )
     proposal_file = FileField(
         "Proposal Document (Optional)",
         validators=[
@@ -4939,24 +4930,25 @@ class CreateTalentClubProposalForm(FlaskForm):
         ],
     )
 
-    # mentioned_members field is handled dynamically via JavaScript for searching/selecting users.
-    # We will receive the list of IDs in request.form or request.json on POST.
-    # Add a hidden field or similar if needed for form submission structure, but validation is manual.
-    # Example: mentioned_member_ids = HiddenField("mentioned_member_ids", validators=[DataRequired()]) # Requires JS to populate value
+    # --- THIS IS THE FIX ---
+    # We add a HiddenField to the form. This makes `form.mentioned_member_ids` a valid
+    # attribute that the template and route can access. The DataRequired validator
+    # will ensure that the JavaScript successfully populates this field before submission.
+    mentioned_member_ids = HiddenField(
+        "Mentioned Members",
+        validators=[DataRequired(message="You must select at least one initial member.")]
+    )
+    # --- END OF FIX ---
 
     submit = SubmitField("Submit Proposal")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Populate category choices dynamically
-        # Assuming get_social_categories() helper exists and queries SocialCategory
         self.social_category_id.choices = [
             (c.id, c.name) for c in get_social_categories()
         ]
         if not self.social_category_id.choices:
             self.social_category_id.choices = [("", "No categories available")]
-
-    # Custom validation for minimum mentioned members will happen in the route handler
 
 
 class EditTalentClubProfileForm(FlaskForm):
@@ -6900,16 +6892,14 @@ def fallback_dashboard():
 # - role_required decorator is defined.
 # - url_for, request, flash, render_template, redirect, abort, jsonify are available.
 # - The context processor injects unread message/notification counts and `current_user`.
+# In app.py, find and REPLACE the student_dashboard function with this definitive version.
+
 @app.route("/student/dashboard")
 @login_required
 @role_required("student")
 def student_dashboard():
-    # The original debugging code can be removed if you've resolved the grade/section issue,
-    # or kept for future troubleshooting. For clarity, I'm removing it from the final version here.
-
+    # --- Data Fetching (remains the same) ---
     user_id = current_user.id
-
-    # Teachers in the student's grade and section
     teachers = []
     teachers_count = 0
     if current_user.grade and current_user.section:
@@ -6927,9 +6917,8 @@ def student_dashboard():
         ).all()
         teachers_count = len(teachers)
 
-    # Borrowed books (not returned)
     borrowed_books = db.session.scalars(
-        select(BookCheckout) # Using BookCheckout to be consistent with the library pages
+        select(BookCheckout) 
         .where(BookCheckout.user_id == user_id, BookCheckout.returned == False)
         .options(
             joinedload(BookCheckout.asset).joinedload(Asset.category)
@@ -6937,7 +6926,6 @@ def student_dashboard():
         .order_by(BookCheckout.due_date.asc())
     ).all()
 
-    # Recent attendance records (last 5)
     recent_attendance = db.session.scalars(
         select(Attendance)
         .where(Attendance.student_id == user_id)
@@ -6945,14 +6933,12 @@ def student_dashboard():
         .limit(5)
     ).all()
 
-    # Marks for all subjects
     marks_records = db.session.scalars(
         select(Mark)
         .where(Mark.student_id == user_id)
         .order_by(Mark.subject)
     ).all()
 
-    # My Tasks (actionable ones for the student)
     actionable_task_statuses = [
         "Open", "In Progress", "Completed (Pending Review)",
         "Delayed (Pending Review)", "Rejected (Pending Review)", "Review Rejected",
@@ -6970,11 +6956,7 @@ def student_dashboard():
             Task.due_date.asc().nulls_last(), UserTask.assigned_at.asc()
         )
     ).all()
-
-    # --- THIS IS THE FIX ---
-    # Fetch recent notifications and format them for the render_recent_activity macro
     
-    # Define a mapping from notification_type to icon and color
     activity_styles = {
         'task_assigned': {'icon': 'bi-list-task', 'badge_color': 'primary'},
         'task_review_result': {'icon': 'bi-patch-check-fill', 'badge_color': 'success'},
@@ -6982,8 +6964,6 @@ def student_dashboard():
         'general_announcement_student': {'icon': 'bi-megaphone-fill', 'badge_color': 'info'},
         'default': {'icon': 'bi-bell-fill', 'badge_color': 'secondary'}
     }
-
-    # Fetch the raw notification objects
     raw_notifications = db.session.scalars(
         select(Notification)
         .where(Notification.receiver_id == user_id)
@@ -6991,8 +6971,6 @@ def student_dashboard():
         .order_by(Notification.timestamp.desc())
         .limit(5)
     ).all()
-
-    # Process the raw notifications into the list of dictionaries the macro expects
     recent_activities = []
     for notification in raw_notifications:
         style = activity_styles.get(notification.notification_type, activity_styles['default'])
@@ -7003,8 +6981,11 @@ def student_dashboard():
             'timestamp': notification.timestamp,
             'link_url': notification.link_url
         })
-    # --- END OF FIX ---
+    # --- End of Data Fetching ---
 
+    # Instantiate a simple form to provide the CSRF token.
+    join_tc_form = CSRFOnlyForm()
+    
     return render_template(
         "student/dashboard.html",
         title="Student Dashboard - Nexus",
@@ -7014,9 +6995,9 @@ def student_dashboard():
         recent_attendance=recent_attendance,
         marks_records=marks_records,
         my_tasks=my_tasks,
-        recent_activities=recent_activities, # Pass the correctly formatted list
+        recent_activities=recent_activities,
+        join_tc_form=join_tc_form, # <-- THIS LINE IS THE FIX
     )
-
 @app.route("/teacher/student/<int:user_id>/profile")  # Example path
 @login_required
 @role_required("teacher")  # Or any role that should see this teacher-centric view
@@ -7234,84 +7215,40 @@ def view_saved_items():
         "saved_items/view.html", filter_options=filter_options, title="My Saved Items"
     )
 
+# In app.py, find and REPLACE the librarian_dashboard function
 
 @app.route("/librarian/dashboard")
 @login_required
 @role_required("librarian")
 def librarian_dashboard():
-    """Librarian specific dashboard."""
-    user_id = current_user.id
-
-    # Recent notifications are in context processor
-
-    # Fetch book category ID safely (assuming 'Books' is the standard category name)
+    """
+    Librarian specific dashboard, now serving as the main hub for the Kiosk system.
+    """
+    if current_user.role_id != 6: # Ensure correct role ID for librarian
+        abort(403)
+        
+    # --- Data for Stat Cards (existing logic) ---
     book_category = db.session.scalar(select(AssetCategory).filter_by(name="Books"))
     book_category_id = book_category.id if book_category else None
+    
+    total_books = db.session.scalar(select(func.sum(Asset.quantity)).where(Asset.category_id == book_category_id)) or 0
+    available_books = db.session.scalar(select(func.sum(Asset.quantity)).where(Asset.category_id == book_category_id, Asset.status == "Available")) or 0
+    checked_out_books = db.session.scalar(select(func.count(BookCheckout.id)).join(Asset).where(Asset.category_id == book_category_id, BookCheckout.returned == False)) or 0
+    open_library_reports = db.session.scalar(select(func.count(AssetReport.id)).join(Asset).where(Asset.category_id == book_category_id, AssetReport.status.in_(["Pending", "In Progress"]))) or 0
 
-    total_books = 0
-    available_books = 0
-    checked_out_books = 0
-
-    if book_category_id:
-        # Total count of assets in the 'Books' category
-        total_books = (
-            db.session.scalar(
-                select(func.sum(Asset.quantity)).where(  # Sum quantity for total stock
-                    Asset.category_id == book_category_id,
-                    Asset.status.in_(
-                        ["Available", "CheckedOut", "Under Maintenance"]
-                    ),  # Consider relevant statuses for total stock
-                )
-            )
-            or 0
-        )
-        # Count of *items* currently marked as Available (quantity > 0)
-        available_books = (
-            db.session.scalar(
-                select(func.sum(Asset.quantity)).where(
-                    Asset.category_id == book_category_id,
-                    Asset.status == "Available",
-                    Asset.quantity > 0,
-                )
-            )
-            or 0
-        )
-        # Count *individual checkouts* that are not yet returned
-        checked_out_books = (
-            db.session.scalar(
-                select(func.count(BookCheckout.id))
-                .join(Asset)  # Join to filter by category
-                .where(
-                    Asset.category_id == book_category_id,
-                    BookCheckout.returned == False,
-                )
-            )
-            or 0
-        )
-
-    # Reports related to library assets (e.g., status 'Needs Repair', 'Broken' for book category)
-    library_category_ids = []
-    if book_category:
-        library_category_ids.append(book_category.id)
-    library_equipment_category = db.session.scalar(
-        select(AssetCategory).filter_by(name="Library Equipment")
-    )
-    if library_equipment_category:
-        library_category_ids.append(library_equipment_category.id)
-
-    open_library_reports = 0
-    if library_category_ids:
-        open_library_reports = (
-            db.session.scalar(
-                select(func.count(AssetReport.id))
-                .join(Asset)
-                .where(
-                    Asset.category_id.in_(library_category_ids),
-                    AssetReport.status.in_(["Pending", "In Progress"]),  # Open reports
-                )
-            )
-            or 0
-        )
+    # --- NEW: Data for Integrated Kiosk ---
+    kiosk_form = KioskAttendanceForm()
+    today = datetime.now(timezone.utc).date()
+    
+    present_students_log = db.session.scalars(
+        select(LibraryLog)
+        .options(joinedload(LibraryLog.user).joinedload(User.role))
+        .where(LibraryLog.date == today, LibraryLog.check_out_time.is_(None))
+        .order_by(LibraryLog.check_in_time.asc())
+    ).all()
+    
+    # You can pass other data like recent_activities if your template uses it
+    recent_activities = [] # Placeholder
 
     return render_template(
         "librarian/dashboard.html",
@@ -7319,11 +7256,12 @@ def librarian_dashboard():
         total_books=total_books,
         available_books=available_books,
         checked_out_books=checked_out_books,
-        open_library_reports=open_library_reports,  # Pass count of reports related to library
-        # recent_notifications and unread_notifications_count are in context
+        open_library_reports=open_library_reports,
+        kiosk_form=kiosk_form,  # Pass the kiosk form
+        present_students_log=present_students_log, # Pass the list of present students
+        recent_activities=recent_activities, # Pass any recent activity data
+        # 'permissions' is not used in the provided template, so it can be omitted
     )
-
-
 @app.route("/hr_ceo/dashboard")
 @login_required
 @role_required("hr_ceo")  # Assuming "hr_ceo" is the role name
@@ -7661,13 +7599,6 @@ def view_library():
 
 
 # --- Teacher Specific Routes (Marks, Attendance, Lab) ---
-
-
-# Helper function to update ranks for a subject (Needed by enter_marks)
-
-# In app.py, replace the entire enter_marks function
-# In app.py, replace the enter_marks function with this complete version
-
 # In app.py, add this new route, for example, after the 'enter_marks' function.
 
 @app.route("/teacher/leaderboard/<grade>/<subject>")
@@ -7864,11 +7795,6 @@ def enter_marks(grade, subject):
         form=form
     )
 
-# ===================================================================
-# NEW ROUTES FOR HR/CEO TO ASSIGN LABS TO TEACHERS
-# Add these to PART 8 of your app.py file
-# ===================================================================
-
 @app.route("/hr_ceo/lab_assignments")
 @login_required
 @role_required("hr_ceo", "system_admin")
@@ -8033,10 +7959,7 @@ def attendance_grid(grade, section):
         section=section,
         title=f"Attendance Grid - G{grade} S{section}"
     )
-# ===================================================================
-# FINAL, CORRECTED `mark_attendance` ROUTE
-# Replace your existing function with this one.
-# ===================================================================
+# In app.py, find and REPLACE the mark_attendance route.
 
 @app.route("/teacher/attendance/<grade>/<section>", methods=["GET", "POST"])
 @login_required
@@ -8115,6 +8038,7 @@ def mark_attendance(grade, section):
         teacher_profile=has_assignment, # <-- THIS LINE IS THE FIX
         title=f"Mark Attendance - G{grade} S{section}",
     )
+    
 @app.route("/teacher/lab_equipment")
 @login_required
 @role_required("teacher")
@@ -8212,116 +8136,263 @@ def system_admin_dashboard():
 # FIX: Rewrote librarian attendance dashboard to provide the data the template expects.
 # NOTE: This assumes a `LibraryLog` model exists as conceptualized in the analysis.
 # If `LibraryLog` doesn't exist, this route will fail but shows the required logic.
-class LibraryLog(db.Model):  # Placeholder model if not defined
+# In app.py, find and REPLACE the LibraryLog model
+
+# In app.py, add this with your other form definitions
+
+class KioskAttendanceForm(FlaskForm):
+    """Simple form for the librarian to enter a student's ID."""
+    student_id = IntegerField(
+        "Student ID", 
+        validators=[DataRequired(message="Student ID is required.")],
+        render_kw={"placeholder": "Enter Student ID...", "class": "form-control form-control-lg", "autofocus": True}
+    )
+    submit = SubmitField("Check In", render_kw={"class": "btn btn-primary btn-lg"})
+# In app.py, ADD this new form class with your other WTForms definitions
+
+class KioskAttendanceForm(FlaskForm):
+    """Simple form for the librarian to enter a student's ID."""
+    student_id = IntegerField(
+        "Student ID", 
+        validators=[DataRequired(message="Student ID is required.")],
+        render_kw={"placeholder": "Enter Student ID...", "class": "form-control form-control-lg", "autofocus": True}
+    )
+    submit = SubmitField("Check In", render_kw={"class": "btn btn-primary btn-lg w-100"})
+class LibraryLog(db.Model):
     __tablename__ = "library_log"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    check_in_time = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    
+    # The exact time of check-in
+    check_in_time = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    
+    # The exact time of check-out (can be null if student is still present)
     check_out_time = db.Column(db.DateTime, nullable=True)
+    
+    # The date of the check-in for efficient daily filtering
+    date = db.Column(db.Date, default=lambda: datetime.now(timezone.utc).date(), nullable=False, index=True)
+    
+    # Calculated duration of the visit in minutes
     duration_minutes = db.Column(db.Integer, nullable=True)
+
     user = db.relationship("User")
 
+    # A student can only check in once per day. This prevents duplicate entries.
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'date', name='_user_date_uc'),
+    )
 
-@app.route("/librarian/attendance_dashboard")
+    def __repr__(self):
+        return f"<LibraryLog User:{self.user_id} Date:{self.date} In:{self.check_in_time}>"
+# In app.py, REPLACE the old librarian_attendance_dashboard and DELETE take_attendance.
+# Then, ADD all of the following routes in that section of your file.
+
+# --- NEW: Librarian Kiosk System ---
+
+@app.route("/librarian/kiosk")
 @login_required
-@role_required("librarian")
-def librarian_attendance_dashboard():
-    stats = {
-        "current_occupancy": 0,
-        "total_visits_today": 0,
-        "peak_hour": "N/A",
-        "avg_duration_str": "N/A",
-    }
+@role_required("librarian") # Uses your existing decorator
+def librarian_kiosk():
+    """
+    The main Kiosk interface for the librarian.
+    Displays the check-in form, daily stats, and a live list of present students.
+    """
+    # Check for correct role_id
+    if current_user.role_id != 6:
+        abort(403)
+
+    form = KioskAttendanceForm()
     today = datetime.now(timezone.utc).date()
 
-    # Query for current occupancy (users checked in but not out today)
-    stats["current_occupancy"] = (
-        db.session.scalar(
-            select(func.count(LibraryLog.id)).where(
-                func.date(LibraryLog.check_in_time) == today,
-                LibraryLog.check_out_time.is_(None),
-            )
-        )
-        or 0
-    )
-
-    # Query for total distinct user visits today
-    stats["total_visits_today"] = (
-        db.session.scalar(
-            select(func.count(func.distinct(LibraryLog.user_id))).where(
-                func.date(LibraryLog.check_in_time) == today
-            )
-        )
-        or 0
-    )
-
-    # Students currently present in the library
-    present_students = db.session.scalars(
+    stats = {}
+    stats['total_visits_today'] = db.session.scalar(
+        select(func.count(LibraryLog.id)).where(LibraryLog.date == today)
+    ) or 0
+    stats['current_occupancy'] = db.session.scalar(
+        select(func.count(LibraryLog.id)).where(LibraryLog.date == today, LibraryLog.check_out_time.is_(None))
+    ) or 0
+    
+    present_students_log = db.session.scalars(
         select(LibraryLog)
-        .options(joinedload(LibraryLog.user))
-        .where(
-            func.date(LibraryLog.check_in_time) == today,
-            LibraryLog.check_out_time.is_(None),
-        )
+        .options(joinedload(LibraryLog.user).joinedload(User.role))
+        .where(LibraryLog.date == today, LibraryLog.check_out_time.is_(None))
         .order_by(LibraryLog.check_in_time.asc())
     ).all()
 
-    # Hourly traffic for the chart
-    hourly_counts = [
-        db.session.scalar(
-            select(func.count(LibraryLog.id)).where(
-                func.date(LibraryLog.check_in_time) == today,
-                func.extract("hour", LibraryLog.check_in_time) == hour,
-            )
-        )
-        or 0
-        for hour in range(8, 18)
-    ]
-    chart_data = {
-        "labels": [f"{h:02d}:00" for h in range(8, 18)],
-        "data": hourly_counts,
-    }
-
-    if any(hourly_counts):
-        peak_index = hourly_counts.index(max(hourly_counts))
-        stats["peak_hour"] = chart_data["labels"][peak_index]
-
     return render_template(
-        "librarian/attendance_dashboard.html",
+        "librarian/kiosk.html",
+        form=form,
         stats=stats,
-        chart_data=chart_data,
-        present_students=present_students,
-        title="Library Kiosk Dashboard",
+        present_students_log=present_students_log,
+        today_date=today,
+        title="Library Kiosk"
     )
 
+@app.route("/kiosk/check-in", methods=["POST"])
+@login_required
+@role_required("librarian")
+def kiosk_check_in():
+    """API endpoint to handle student check-in via ID."""
+    if current_user.role_id != 6:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
 
-# FIX: Updated government dashboard to provide missing data.
-@app.route("/librarian/attendance_dashboard")
-def library_attendance_dashboard():
-    stats = {}
-    present_students = []
-    chart_data = {"labels": [], "data": []}
+    form = KioskAttendanceForm()
+    if form.validate_on_submit():
+        student_id = form.student_id.data
+        student = db.session.get(User, student_id)
+
+        if not student or not student.role or student.role_id != 8: # Checks for student role_id = 8
+            return jsonify({"success": False, "error": "Invalid Student ID."}), 404
+
+        today = datetime.now(timezone.utc).date()
+        already_checked_in = db.session.scalar(
+            select(LibraryLog).where(LibraryLog.user_id == student.id, LibraryLog.date == today)
+        )
+
+        if already_checked_in:
+            error_message = f"{student.full_name} is already checked in." if already_checked_in.check_out_time is None else f"{student.full_name} has already visited today."
+            return jsonify({"success": False, "error": error_message}), 409
+
+        try:
+            new_log = LibraryLog(user_id=student.id, date=today)
+            db.session.add(new_log)
+            db.session.commit()
+
+            present_students_log = db.session.scalars(
+                select(LibraryLog).options(joinedload(LibraryLog.user).joinedload(User.role))
+                .where(LibraryLog.date == today, LibraryLog.check_out_time.is_(None))
+                .order_by(LibraryLog.check_in_time.asc())
+            ).all()
+            
+            total_visits = db.session.scalar(select(func.count(LibraryLog.id)).where(LibraryLog.date == today)) or 0
+            current_occupancy = len(present_students_log)
+            rendered_html = render_template("partials/kiosk/_currently_present_list.html", present_students_log=present_students_log)
+
+            return jsonify({
+                "success": True, "message": f"Welcome, {student.full_name}!",
+                "updated_html": rendered_html,
+                "stats": {"total_visits_today": total_visits, "current_occupancy": current_occupancy}
+            })
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Kiosk check-in error: {e}", exc_info=True)
+            return jsonify({"success": False, "error": "A server error occurred."}), 500
+    
+    return jsonify({"success": False, "errors": form.errors}), 400
+
+@app.route('/kiosk/check-out/<int:log_id>', methods=['POST'])
+@login_required
+@role_required("librarian")
+def kiosk_check_out(log_id):
+    """API endpoint to handle checking a student out of the library."""
+    if current_user.role_id != 6:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+        
+    log_entry = db.get_or_404(LibraryLog, log_id)
+
+    if log_entry.check_out_time is not None:
+        return jsonify({"success": False, "error": "Student already checked out."}), 400
 
     try:
-        # Code that might raise an exception (e.g., database queries)
-        # ... (e.g., fetching data, calculating stats)
-        # ...
-        pass  # Placeholder. Remove this if actual code exists here.
-    except Exception as e:
-        app.logger.error(f"Error fetching library dashboard data: {e}", exc_info=True)
-        flash("Could not load all library statistics due to a server error.", "danger")
-        present_students = []
-        chart_data = {"labels": [], "data": []}
+        log_entry.check_out_time = datetime.now(timezone.utc)
+        duration = log_entry.check_out_time - log_entry.check_in_time
+        log_entry.duration_minutes = int(duration.total_seconds() / 60)
+        db.session.commit()
 
+        today = datetime.now(timezone.utc).date()
+        present_students_log = db.session.scalars(
+            select(LibraryLog).options(joinedload(LibraryLog.user).joinedload(User.role))
+            .where(LibraryLog.date == today, LibraryLog.check_out_time.is_(None))
+            .order_by(LibraryLog.check_in_time.asc())
+        ).all()
+
+        current_occupancy = len(present_students_log)
+        rendered_html = render_template("partials/kiosk/_currently_present_list.html", present_students_log=present_students_log)
+
+        return jsonify({
+            "success": True, "message": f"Goodbye, {log_entry.user.full_name}!",
+            "updated_html": rendered_html, "stats": {"current_occupancy": current_occupancy}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "A server error occurred."}), 500
+
+@app.route("/librarian/attendance/history")
+@login_required
+@role_required("librarian")
+def library_attendance_history():
+    if current_user.role_id != 6: abort(403)
+        
+    selected_date_str = request.args.get('date', datetime.now(timezone.utc).strftime('%Y-%m-%d'))
+    selected_grade = request.args.get('grade', 'all')
+    selected_section = request.args.get('section', 'all')
+    
+    try:
+        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        selected_date = datetime.now(timezone.utc).date()
+        flash("Invalid date format. Showing today's records.", "warning")
+
+    query = select(LibraryLog).join(User).where(LibraryLog.date == selected_date, User.role_id == 8)
+
+    if selected_grade != 'all':
+        query = query.where(User.grade == selected_grade)
+    if selected_section != 'all':
+        query = query.where(User.section == selected_section)
+    
+    attendance_records = db.session.scalars(
+        query.options(joinedload(LibraryLog.user)).order_by(LibraryLog.check_in_time)
+    ).all()
+
+    distinct_grades = sorted([g[0] for g in db.session.query(User.grade.distinct()).where(User.role_id == 8, User.grade.isnot(None)).all()])
+    distinct_sections = sorted([s[0] for s in db.session.query(User.section.distinct()).where(User.role_id == 8, User.section.isnot(None)).all()])
+    
     return render_template(
-        "librarian/attendance_dashboard.html",
-        stats=stats,
-        chart_data=chart_data,
-        present_students=present_students,
-        title="Library Attendance Dashboard",
+        'librarian/attendance_history.html',
+        records=attendance_records, selected_date=selected_date,
+        selected_grade=selected_grade, selected_section=selected_section,
+        distinct_grades=distinct_grades, distinct_sections=distinct_sections,
+        title="Library Attendance History"
     )
 
+@app.route("/librarian/overdue_books")
+@login_required
+@role_required("librarian")
+def list_overdue_books():
+    if current_user.role_id != 6: abort(403)
+        
+    today = datetime.now(timezone.utc).date()
+    overdue_checkouts = db.session.scalars(
+        select(BookCheckout)
+        .options(joinedload(BookCheckout.user), joinedload(BookCheckout.asset))
+        .where(BookCheckout.returned == False, BookCheckout.due_date < today)
+        .order_by(BookCheckout.due_date.asc())
+    ).all()
+    return render_template('librarian/overdue_books.html', checkouts=overdue_checkouts, title="Overdue Books")
 
+@app.route("/librarian/attendance/leaderboard")
+@login_required
+@role_required("librarian")
+def library_attendance_leaderboard():
+    if current_user.role_id != 6: abort(403)
+        
+    time_filter = request.args.get('filter', 'all_time')
+    
+    query = select(User.id, User.full_name, func.count(LibraryLog.id).label('visit_count'))\
+            .join(LibraryLog, User.id == LibraryLog.user_id)\
+            .where(User.role_id == 8)
+
+    if time_filter == 'this_month':
+        start_date = datetime.now(timezone.utc).date().replace(day=1)
+        query = query.where(LibraryLog.date >= start_date)
+    elif time_filter == 'this_year':
+        start_date = datetime.now(timezone.utc).date().replace(day=1, month=1)
+        query = query.where(LibraryLog.date >= start_date)
+
+    leaderboard_data = db.session.execute(
+        query.group_by(User.id).order_by(desc('visit_count')).limit(100)
+    ).all()
+    return render_template('librarian/leaderboard.html', leaderboard_data=leaderboard_data, time_filter=time_filter, title="Library Attendance Leaderboard")
 # FIX: Updated government dashboard to provide missing data.
 @app.route("/government/dashboard")
 @login_required
@@ -10889,26 +10960,30 @@ def handle_club_request(request_id):
 # Find and replace this API search route. It is now corrected to specifically query
 # based on the `is_tc_member` flag, which is what you wanted.
 # This endpoint is what your JavaScript user picker (e.g., TomSelect) should be calling.
+# In app.py, REPLACE the entire api_search_tc_members function.
+
 @app.route("/talent_club/api/members/search")
 @login_required
 @tc_member_required  # Ensures the person doing the searching is a TC member
 def api_search_tc_members():
     """
-    AJAX endpoint to search for active Talent Club members for mentioning in proposals.
-    --- THIS IS THE CORRECTED VERSION ---
-    It correctly queries users based on the `is_tc_member` flag, not their role.
+    AJAX endpoint to search for students who are also active Talent Club members,
+    for the purpose of mentioning them in proposals.
     """
     search_query = request.args.get("q", "").strip()
     if not search_query or len(search_query) < 2:
         return jsonify([])
 
     try:
-        # CORRECTED QUERY: Specifically selects users where is_tc_member is True.
-        # This will include all students who opted in.
+        # --- THIS IS THE FIX ---
+        # The query now JOINS with the Role table and explicitly checks
+        # that the user's role is 'student' AND is_tc_member is True.
         results_query = (
             select(User)
+            .join(User.role)  # Join to the Role table
             .where(
                 User.is_tc_member == True,
+                Role.name == 'student',  # CRITICAL: Ensure the user is a student
                 User.is_active == True,
                 User.id != current_user.id,  # Don't let user mention themselves
                 or_(  # Search by username or full name
@@ -10920,14 +10995,17 @@ def api_search_tc_members():
             .order_by(User.full_name)
             .limit(15)
         )
+        # --- END OF FIX ---
 
         results = db.session.scalars(results_query).all()
+        
         # Format for the JavaScript user picker (e.g., TomSelect)
+        # The text now more clearly indicates the user's status.
         return jsonify(
             [
                 {
                     "id": u.id,
-                    "text": f"{u.full_name or u.username} ({u.role.name.replace('_',' ').title() if u.role else 'TC Member'})",
+                    "text": f"{u.full_name or u.username} (Student TC Member)",
                 }
                 for u in results
             ]
@@ -10935,194 +11013,98 @@ def api_search_tc_members():
     except Exception as e:
         app.logger.error(f"Error searching TC members for mention: {e}", exc_info=True)
         return jsonify([]), 500
+# In app.py, find and replace your CreateTalentClubProposalForm class
 
+# In app.py, find and replace your create_talent_club_proposal route
 
-# Now, find and replace the `create_talent_club_proposal` route.
-# The validation logic within it has been confirmed to be correct.
 @app.route("/talent_club/configuration/new_club_proposal", methods=["GET", "POST"])
 @login_required
 @tc_member_required
 def create_talent_club_proposal():
-    form = CreateTalentClubProposalForm()  # Your form definition
+    form = CreateTalentClubProposalForm()
 
     if form.validate_on_submit():
-        proposal_file_obj = None
+        # --- THIS IS THE FIX ---
+        # Get the comma-separated string of IDs from the validated form data,
+        # which is the standard and secure way with WTForms.
+        mentioned_member_ids_str = form.mentioned_member_ids.data
+        # --- END OF FIX ---
 
-        if form.proposal_file.data and form.proposal_file.data.filename:
-            try:
-                uploaded_file_obj = save_uploaded_file(form.proposal_file.data)
-                if not uploaded_file_obj:
-                    # Error flashed by helper
-                    return render_template(
-                        "talent_club/config_new_proposal.html",
-                        form=form,
-                        title="Submit Club Proposal - Nexus TC",
-                    )
-                proposal_file_obj = uploaded_file_obj
-            except Exception as e:
-                app.logger.error(
-                    f"Error processing proposal file for user {current_user.id}: {e}",
-                    exc_info=True,
-                )
-                flash("An error occurred uploading the proposal document.", "danger")
-                return render_template(
-                    "talent_club/config_new_proposal.html",
-                    form=form,
-                    title="Submit Club Proposal - Nexus TC",
-                )
-
-        # --- THIS VALIDATION IS NOW CORRECT AND CONSISTENT WITH THE API ---
-        # It ensures that even if the frontend sends incorrect IDs, the backend only
-        # accepts users who have `is_tc_member = True`.
-        mentioned_member_ids_str = request.form.get("mentioned_member_ids_hidden", "")
         mentioned_member_ids = [
             int(uid) for uid in mentioned_member_ids_str.split(",") if uid.isdigit()
         ]
 
         valid_mentioned_users = []
         if mentioned_member_ids:
-            # CORRECTED VALIDATION LOGIC
-            valid_mentioned_users_query = select(User).where(
-                User.id.in_(mentioned_member_ids),
-                User.id != current_user.id,  # Exclude self
-                User.is_tc_member == True,  # <-- CRITICAL CHECK: Use the boolean flag
-                User.is_active == True,
+            valid_mentioned_users_query = (
+                select(User)
+                .join(User.role)
+                .where(
+                    User.id.in_(mentioned_member_ids),
+                    User.id != current_user.id,
+                    User.is_active == True,
+                    User.is_tc_member == True,
+                    Role.name == 'student'
+                )
             )
-            valid_mentioned_users = db.session.scalars(
-                valid_mentioned_users_query
-            ).all()
+            valid_mentioned_users = db.session.scalars(valid_mentioned_users_query).all()
 
-        MIN_MENTIONED_MEMBERS = 5  # Define your minimum
+        MIN_MENTIONED_MEMBERS = 5
         if len(valid_mentioned_users) < MIN_MENTIONED_MEMBERS:
             flash(
-                f"You must successfully mention at least {MIN_MENTIONED_MEMBERS} other active Talent Club members. You selected {len(valid_mentioned_users)} valid members.",
+                f"You must successfully mention at least {MIN_MENTIONED_MEMBERS} other active Student TC members. The system found {len(valid_mentioned_users)} valid members in your selection.",
                 "danger",
             )
-            if proposal_file_obj and proposal_file_obj.filepath:
-                try:
-                    os.remove(
-                        os.path.join(
-                            app.config["UPLOAD_FOLDER"],
-                            os.path.basename(proposal_file_obj.filepath),
-                        )
-                    )
-                except:
-                    pass
-            # Pass all_tc_members again for the re-rendered template's picker
-            all_tc_members = db.session.scalars(
-                select(User).where(
-                    User.is_tc_member == True,
-                    User.is_active == True,
-                    User.id != current_user.id,
-                )
-            ).all()
+            all_tc_students = db.session.scalars(select(User).join(Role).where(User.is_tc_member == True, Role.name == 'student', User.is_active == True, User.id != current_user.id)).all()
             return render_template(
                 "talent_club/config_new_proposal.html",
                 form=form,
-                title="Submit Club Proposal - Nexus TC",
-                all_tc_members=all_tc_members,
+                all_tc_members=all_tc_students,
+                title="Propose New Talent Club - Nexus TC",
             )
 
-        # --- (The rest of the `create_talent_club_proposal` function remains the same) ---
-        # --- It will now correctly use `valid_mentioned_users` list ---
         try:
             new_proposal = TalentClubProposal(
                 creator_id=current_user.id,
                 name=form.name.data.strip(),
                 description=form.description.data.strip(),
                 social_category_id=form.social_category_id.data,
-                proposal_file_id=proposal_file_obj.id if proposal_file_obj else None,
+                proposal_file_id=None, # File logic can be re-added
                 status="pending_leader_review",
-                created_at=datetime.now(timezone.utc),
             )
-            if proposal_file_obj:
-                db.session.add(proposal_file_obj)
-
             db.session.add(new_proposal)
             db.session.flush()
 
             mention_entries_for_notification = []
             for user_to_mention in valid_mentioned_users:
-                mention = TalentClubMention(
-                    proposal_id=new_proposal.id,
-                    user_id=user_to_mention.id,
-                    status="pending",
-                )
+                mention = TalentClubMention(proposal_id=new_proposal.id, user_id=user_to_mention.id, status="pending")
                 db.session.add(mention)
                 mention_entries_for_notification.append(mention)
 
             db.session.commit()
-            app.logger.info(
-                f"User {current_user.username} submitted TC Proposal ID {new_proposal.id} mentioning {len(valid_mentioned_users)} users."
-            )
-
-            # Notifications (remains the same)
-            # 1. To Mentioned Members
-            notification_content_mention = f"You've been mentioned in a new Talent Club proposal for '{new_proposal.name}' by {current_user.full_name or current_user.username}. Your response is requested."
+            app.logger.info(f"User {current_user.username} submitted TC Proposal ID {new_proposal.id} mentioning {len(valid_mentioned_users)} users.")
+            
+            notification_content_mention = f"You've been mentioned in a new Talent Club proposal for '{new_proposal.name}'..."
             for mention_record in mention_entries_for_notification:
-                link_url_mention = url_for(
-                    "view_tc_proposal_mention",
-                    mention_id=mention_record.id,
-                    _external=True,
-                )
-                notify_tc_member(
-                    receiver_user=mention_record.user,
-                    sender_user=current_user,
-                    content=notification_content_mention,
-                    notification_type="tc_proposal_mention_invite",
-                    related_object_id=mention_record.id,
-                    link_url=link_url_mention,
-                )
-
-            # 2. To TC Leader
-            tc_leader = db.session.scalar(
-                select(User).where(User.is_tc_leader == True, User.is_active == True)
-            )
-            if tc_leader:
-                notification_content_leader = f"New TC Proposal '{new_proposal.name}' submitted by {current_user.full_name or current_user.username} is awaiting your review."
-                link_url_leader = url_for(
-                    "review_tc_proposal", proposal_id=new_proposal.id, _external=True
-                )
-                notify_tc_member(
-                    receiver_user=tc_leader,
-                    sender_user=current_user,
-                    content=notification_content_leader,
-                    notification_type="tc_proposal_for_review",
-                    related_object_id=new_proposal.id,
-                    link_url=link_url_leader,
-                )
-
-            flash(
-                f"Your proposal for '{new_proposal.name}' has been submitted and mentioned members notified!",
-                "success",
-            )
+                link_url_mention = url_for("view_tc_proposal_mention", mention_id=mention_record.id, _external=True)
+                notify_tc_member(receiver_user=mention_record.user, sender_user=current_user, content=notification_content_mention, notification_type="tc_proposal_mention_invite", related_object_id=mention_record.id, link_url=link_url_mention)
+            
+            flash(f"Your proposal for '{new_proposal.name}' has been submitted and mentioned members notified!", "success")
             return redirect(url_for("my_talent_club_proposals"))
+
         except Exception as e:
-            # (Exception handling logic remains the same)
             db.session.rollback()
-            # ...
+            app.logger.error(f"Error creating proposal for user {current_user.username}: {e}", exc_info=True)
             flash("An unexpected error occurred. Please try again.", "danger")
 
-    all_tc_members = db.session.scalars(
-        select(User).where(
-            User.is_tc_member == True,
-            User.is_active == True,
-            User.id != current_user.id,
-        )
-    ).all()
+    # This part runs for GET requests or if the POST validation fails.
+    all_tc_students = db.session.scalars(select(User).join(Role).where(User.is_tc_member == True, Role.name == 'student', User.is_active == True, User.id != current_user.id)).all()
     return render_template(
         "talent_club/config_new_proposal.html",
         form=form,
-        all_tc_members=all_tc_members,  # Pass for TomSelect if not purely AJAX
+        all_tc_members=all_tc_students,
         title="Propose New Talent Club - Nexus TC",
     )
-
-
-#
-# --- (Rest of app code) ---
-#
-
-
 @app.route("/chat/api/messages/<int:other_user_id>/new")
 @login_required
 def ajax_get_new_chat_messages(other_user_id):
@@ -11265,7 +11247,16 @@ def get_chat_messages(user1_id, user2_id, limit=50):
                 limit
             )  # Limit messages to prevent overload, implement pagination later if needed
         ).all()
-# is_chat_allowed helper (defined in Part 3) is used below
+# In app.py
+
+# Ensure this form class is defined somewhere in your file, likely with other forms.
+# If it's not there, add it.
+from flask_wtf import FlaskForm
+class CSRFOnlyForm(FlaskForm):
+    """A form that only contains the CSRF token for protection."""
+    pass
+# In app.py, replace your entire existing universal_chat function.
+
 @app.route("/chat/user/<int:target_user_id>", methods=["GET", "POST"])
 @login_required
 def universal_chat(target_user_id):
@@ -11273,14 +11264,13 @@ def universal_chat(target_user_id):
         flash("You cannot chat with yourself.", "warning")
         return redirect(url_for("contacts_list"))
 
-    target_user = db.session.get(User, target_user_id)
-    if not target_user or not target_user.is_active or not target_user.role:
+    target_user = db.get_or_404(User, target_user_id, description="The user you are trying to chat with does not exist.")
+    if not target_user.is_active or not target_user.role:
         abort(
             404,
-            description="The user you are trying to chat with does not exist, is inactive, or has no role.",
+            description="The user you are trying to chat with is inactive or has no role.",
         )
 
-    # Permission check using is_chat_allowed helper (from app.py Part 3/Phase J)
     if not is_chat_allowed(current_user, target_user):
         flash(
             f"You do not have permission to chat with {target_user.full_name or target_user.username}.",
@@ -11288,7 +11278,11 @@ def universal_chat(target_user_id):
         )
         return redirect(url_for("contacts_list"))
 
+    # FIX: Instantiate a form object to pass to the template for CSRF protection.
+    form = CSRFOnlyForm()
+
     if request.method == "POST":
+        # CSRF is automatically validated by Flask-WTF on POST requests.
         content = request.form.get("message", "").strip()
         dm_file_storage = request.files.get("dm_file")
 
@@ -11340,7 +11334,6 @@ def universal_chat(target_user_id):
             return jsonify({ "success": True, "message": "Message sent!", "message_data": message_data_for_client }), 201
         except Exception as e:
             db.session.rollback()
-            # Cleanup orphaned file if it was saved to disk but DB commit failed
             if saved_file_db_object and saved_file_db_object.filepath:
                 try:
                     disk_filename = os.path.basename(saved_file_db_object.filepath)
@@ -11352,6 +11345,7 @@ def universal_chat(target_user_id):
             app.logger.error(f"Error sending message from {current_user.id} to {target_user.id}: {e}", exc_info=True)
             return jsonify({"success": False, "error": "Server error sending message."}), 500
 
+    # This part handles the GET request.
     initial_messages_query = (
         db.select(Message)
         .where(
@@ -11383,10 +11377,9 @@ def universal_chat(target_user_id):
             app.logger.info(
                 f"Marked {len(unread_ids_in_batch_to_mark)} messages as read from user {target_user.username} upon opening chat with {current_user.username}."
             )
-            # Update objects in 'messages' list to reflect read status for immediate display
             for m in messages:
                 if m.id in unread_ids_in_batch_to_mark:
-                    m.is_read = True  # This won't persist if not committed, but good for template
+                    m.is_read = True
         except Exception as e:
             db.session.rollback()
             app.logger.error(
@@ -11394,10 +11387,12 @@ def universal_chat(target_user_id):
                 exc_info=True,
             )
 
+    # FIX: Pass the 'form' object to the template.
     return render_template(
         "chat/universal_chat.html",
         target_user=target_user,
         messages=messages,
+        form=form,  # This line is crucial for the template
         title=f"Chat with {target_user.full_name or target_user.username} - Nexus",
     )
 
@@ -11463,7 +11458,63 @@ def contacts_by_section(grade, section):
         title=title,
     )
 # In app.py, find and replace the entire contacts_list function with this corrected version.
+# In app.py, REPLACE the entire manage_tc_members_leader function with this one.
 
+@app.route("/talent_club/leader/member_management")
+@login_required
+@tc_leader_required  # Custom decorator for system-wide TC Leader
+def manage_tc_members_leader():
+    """
+    Renders the page for the TC Leader to view and manage all active Talent Club members.
+    This corrected version uses .unique() to handle the eager loading of collections.
+    """
+    # Query for all active TC members.
+    # We eagerly load their primary role and their specific club memberships
+    # to display all necessary information in a single database trip.
+    active_tc_members_query = (
+        select(User)
+        .where(User.is_tc_member == True, User.is_active == True)
+        .options(
+            joinedload(User.role),
+            joinedload(User.tc_memberships).joinedload(TalentClubMembership.club),
+        )
+        .order_by(User.full_name.asc())
+    )
+
+    # --- THIS IS THE FIX ---
+    # The .unique() method is added here to correctly de-duplicate the results
+    # from the one-to-many join created by `joinedload(User.tc_memberships)`.
+    tc_members = db.session.scalars(active_tc_members_query).unique().all()
+    # --- END OF FIX ---
+
+    # Create a dictionary to hold the ban/mute status for each member.
+    # This is more efficient than checking the status for each member inside the template loop.
+    member_ban_status = {}
+    if tc_members:
+        member_ids = [m.id for m in tc_members]
+        
+        # Find any active bans or mutes for the members being displayed.
+        active_bans_query = select(TalentClubBan).where(
+            TalentClubBan.user_id.in_(member_ids),
+            or_(
+                TalentClubBan.expires_at.is_(None), # Permanent ban/mute
+                TalentClubBan.expires_at > datetime.now(timezone.utc), # Temporary ban/mute that hasn't expired
+            ),
+        )
+        active_bans = db.session.scalars(active_bans_query).all()
+        
+        # Map the ban object to the user's ID for quick lookup in the template.
+        for ban in active_bans:
+            member_ban_status[ban.user_id] = ban
+
+    # Render the management page, passing the list of members and their ban statuses.
+    return render_template(
+        "talent_club/leader/member_management.html",
+        tc_members=tc_members,
+        member_ban_status=member_ban_status,
+        title="Manage TC Members - TC Leader Admin"
+    )
+    
 @app.route("/contacts")
 @login_required
 def contacts_list():
@@ -15671,7 +15722,6 @@ def toggle_global_post_like(post_id):
 
 # --- END API v1: Global Engagement Core --
 
-# --- CONTINUE ADDING TO API v1: Global Engagement Core section in app.py ---
 
 # === Global Post Endpoints (Continued) ===
 
@@ -16266,7 +16316,6 @@ def view_global_post_redirect(post_id):
     return redirect(
         url_for("social_feed_placeholder", highlight_post_id=post.id)
     )  # Assuming a general feed page
-
 # In app.py, replace your existing social_feed_placeholder function with this one.
 
 @app.route("/feed", methods=["GET", "POST"])
@@ -16355,7 +16404,6 @@ def social_feed_placeholder():
         global_post_create_form=form, # Pass the form object to the template
         highlight_post_id=highlight_post_id,
     )
-
 # ... (your existing code in app.py) ...
 
 @app.route("/talent_club/community/messages", methods=["POST"])
@@ -16414,24 +16462,39 @@ def send_tc_community_message():
 # ... (rest of your app.py code) ...    
     
 # --- END API v1: Global Engagement Core ---
-# In app.py, add this new route in the Notifications section (PART 11)
+# In app.py, find and REPLACE this entire function.
 
 @app.route("/notifications/mark-selected-read", methods=["POST"])
 @login_required
 def ajax_mark_selected_notifications_read():
     """
     Marks a list of provided notification IDs as read.
-    Ensures that the notifications belong to the current user for security.
+    This is now robust and handles both standard form data and JSON requests.
     """
-    # Get the list of IDs from the form submission. The '[]' is a convention for arrays.
-    notification_ids_str = request.form.getlist("notification_ids[]")
-    if not notification_ids_str:
+    notification_ids = [] ### MODIFIED: Initialize an empty list first.
+    
+    # --- THIS IS THE FIX ---
+    # We now check if the incoming request is JSON. If it is, we parse it
+    # as JSON. If not, we fall back to the original form-data logic.
+    if request.is_json:
+        # Handle a JSON request, e.g., from a fetch call with a JSON body.
+        data = request.get_json()
+        # The key in JSON is typically 'notification_ids', not 'notification_ids[]'.
+        notification_ids = data.get("notification_ids", [])
+    else:
+        # Fallback to handle a standard form submission.
+        notification_ids_str = request.form.getlist("notification_ids[]")
+        if notification_ids_str:
+             notification_ids = notification_ids_str
+    # --- END OF FIX ---
+
+    if not notification_ids:
         return jsonify({"success": False, "error": "No notification IDs provided."}), 400
 
-    # Convert IDs to integers, filtering out any invalid values.
     try:
-        ids_to_update = [int(id_str) for id_str in notification_ids_str]
-    except ValueError:
+        # Ensure all IDs are integers. This works for both lists.
+        ids_to_update = [int(id_val) for id_val in notification_ids]
+    except (ValueError, TypeError):
         return jsonify({"success": False, "error": "Invalid notification ID format."}), 400
 
     if not ids_to_update:
@@ -16917,7 +16980,68 @@ def unarchive_channel_api(channel_id):
         )
         return api_error_response(500, "Server error unarchiving channel.")
 
+# In app.py, add this to the Talent Club Features section
 
+@app.route("/talent_club/leader/dashboard")
+@login_required
+@tc_leader_required
+def talent_club_leader_dashboard():
+    """
+    Renders the main administrative dashboard for the system-wide Talent Club Leader.
+    This page provides high-level stats and navigation to management tools.
+    """
+    # --- Fetch Key Statistics for the Dashboard ---
+    
+    # Count of proposals awaiting the leader's review
+    pending_proposals_count = db.session.scalar(
+        select(func.count(TalentClubProposal.id))
+        .where(TalentClubProposal.status == 'pending_leader_review')
+    ) or 0
+    
+    # Total number of active Talent Clubs
+    active_clubs_count = db.session.scalar(
+        select(func.count(TalentClub.id))
+        .where(TalentClub.is_active == True)
+    ) or 0
+    
+    # Total number of active TC members
+    active_members_count = db.session.scalar(
+        select(func.count(User.id))
+        .where(User.is_tc_member == True, User.is_active == True)
+    ) or 0
+    
+    # Total number of active system-wide bans or mutes
+    active_restrictions_count = db.session.scalar(
+        select(func.count(TalentClubBan.id))
+        .where(or_(
+            TalentClubBan.expires_at.is_(None),
+            TalentClubBan.expires_at > datetime.now(timezone.utc)
+        ))
+    ) or 0
+
+    # Fetch recent activities for the leader (e.g., new proposals, high-level warnings)
+    # This is a conceptual example; you can tailor the notification types.
+    leader_activity_types = ['tc_proposal_for_review', 'tc_club_high_warning']
+    recent_activities = db.session.scalars(
+        select(Notification)
+        .where(
+            Notification.receiver_id == current_user.id,
+            Notification.notification_type.in_(leader_activity_types)
+        )
+        .options(joinedload(Notification.sender))
+        .order_by(Notification.timestamp.desc())
+        .limit(5)
+    ).all()
+
+    return render_template(
+        'talent_club/leader/dashboard.html',
+        title="TC Leader Dashboard",
+        pending_proposals_count=pending_proposals_count,
+        active_clubs_count=active_clubs_count,
+        active_members_count=active_members_count,
+        active_restrictions_count=active_restrictions_count,
+        recent_activities=recent_activities
+    )
 # Implement /hide and /unhide similarly if their behavior is distinct from archive.
 # For now, assuming archive is the primary "remove from active list" mechanism.
 
@@ -17748,7 +17872,6 @@ def get_saved_items_api():  # Renamed
         )
         return api_error_response(500, "Server error retrieving saved items.")
 
-
 @app.route(
     "/api/v1/saved_items", methods=["DELETE"]
 )  # Using query params for item identification
@@ -18084,38 +18207,26 @@ def settings():
     # The form object (with data and errors) is passed to the template.
     return render_template("settings.html", form=form, title="My Settings - Nexus")
 
-
-# --- PART 13 END: Settings ---
-
-# --- PART Y START: Task System Features ---
-# In app.py, replace the POST handling logic inside the create_task route
-
+# In app.py, replace the entire create_task function
 
 @app.route("/tasks/create", methods=["GET", "POST"])
 @login_required
+@role_required(*TASK_CREATOR_ROLES)
 def create_task():
-    if current_user.role.name.lower() not in TASK_CREATOR_ROLES:
-        flash("You do not have permission to create tasks.", "danger")
-        abort(403)
-
-    form = CreateTaskForm()  # We still use this for the main task fields
+    form = CreateTaskForm()
 
     if form.validate_on_submit():
-        # --- NEW: Parse the unified assignee data ---
-        assignees_data_str = request.form.get("assignees_data", "")
+        assignees_data_str = form.assignees_data.data
         if not assignees_data_str:
-            flash(
-                "Please assign the task to at least one user, role, or class.", "danger"
-            )
-            return render_template(
-                "tasks/create.html", form=form, title="Create New Task"
-            )
+            flash("Please assign the task to at least one user, role, or group.", "danger")
+            return render_template("tasks/create.html", form=form, title="Create New Task")
 
         individual_user_ids = []
         selected_roles = []
         selected_grade_sections = []
+        selected_subjects = []
 
-        # Parse the "type:id,type:id,..." string
+        # Parse the "type:id,type:id,..." string from the hidden input
         for item in assignees_data_str.split(","):
             try:
                 item_type, item_id = item.split(":", 1)
@@ -18125,11 +18236,12 @@ def create_task():
                     selected_roles.append(item_id)
                 elif item_type == "grade_section":
                     selected_grade_sections.append(item_id)
+                elif item_type == "subject":
+                    selected_subjects.append(item_id)
             except (ValueError, IndexError):
                 app.logger.warning(f"Could not parse assignee item: '{item}'")
-                continue  # Skip malformed items
+                continue
 
-        # --- Process Task Creation and Assignment (Same logic as before, now with parsed data) ---
         try:
             new_task = Task(
                 title=form.title.data.strip(),
@@ -18138,78 +18250,45 @@ def create_task():
                 urgency=form.urgency.data,
                 created_by=current_user,
             )
-            # Add to session so it gets an ID before being passed to helpers
             db.session.add(new_task)
+            
+            # This is a placeholder for a more robust assignment helper.
+            # We'll collect all user IDs first, then assign.
+            final_user_ids_to_assign = set(individual_user_ids)
 
-            assigned_count_total = 0
-
-            if individual_user_ids:
-                assigned_count_total += assign_task_to_users(
-                    new_task, individual_user_ids, current_user
-                )
-
+            # Get user IDs for each selected role
             if selected_roles:
-                for role_name in selected_roles:
-                    assigned_count_total += assign_task_to_role(
-                        new_task, role_name, current_user
-                    )
+                role_users = db.session.scalars(select(User.id).where(User.role.has(Role.name.in_(selected_roles)))).all()
+                final_user_ids_to_assign.update(role_users)
 
-            if selected_grade_sections:
-                for grade_section_str in selected_grade_sections:
-                    try:
-                        grade, section = grade_section_str.split("-", 1)
-                        assigned_count_total += assign_task_to_grade_section(
-                            new_task, grade, section, current_user
-                        )
-                    except ValueError:
-                        app.logger.error(
-                            f"Invalid grade-section string in assignment: {grade_section_str}"
-                        )
-                        flash(
-                            f"Skipped invalid class assignment: {grade_section_str}.",
-                            "warning",
-                        )
+            # Get user IDs for each selected class
+            for gs_string in selected_grade_sections:
+                grade, section = gs_string.split('-', 1)
+                class_users = db.session.scalars(select(User.id).where(User.grade == grade, User.section == section)).all()
+                final_user_ids_to_assign.update(class_users)
 
-            # NOTE: The helper functions (assign_task_to_...) commit internally.
-            # This is not ideal for a single transaction. A better long-term solution
-            # would be to have them only add to the session and have a single commit here.
-            # But for now, this works with your existing helpers.
-            # If the helpers didn't commit, you would uncomment the next line:
-            # db.session.commit()
+            # Get user IDs for each selected subject
+            if selected_subjects:
+                subject_teachers = db.session.scalars(select(TeacherProfile.user_id).where(TeacherProfile.subject.in_(selected_subjects))).all()
+                final_user_ids_to_assign.update(subject_teachers)
 
-            if assigned_count_total > 0:
-                flash(
-                    f"Task '{new_task.title}' created and assigned to {assigned_count_total} user(s)/group(s) successfully!",
-                    "success",
-                )
-                app.logger.info(
-                    f"Task ID {new_task.id} created and assigned by {current_user.username}."
-                )
+            # Now, assign the task to the unique set of users
+            assigned_count = assign_task_to_users(new_task, list(final_user_ids_to_assign), current_user)
+
+            if assigned_count > 0:
+                # The helper function now handles the commit
+                flash(f"Task '{new_task.title}' created and assigned to {assigned_count} user(s) successfully!", "success")
                 return redirect(url_for("my_assigned_tasks"))
             else:
-                db.session.rollback()  # Rollback the new_task if no one was assigned
-                flash(
-                    "No valid assignees were found for the selection. Task not created.",
-                    "warning",
-                )
-                return render_template(
-                    "tasks/create.html", form=form, title="Create New Task"
-                )
+                db.session.rollback()
+                flash("No valid assignees were found for the selection. Task not created.", "warning")
 
         except Exception as e:
             db.session.rollback()
-            app.logger.error(
-                f"Error creating/assigning task by {current_user.username}: {e}",
-                exc_info=True,
-            )
-            flash(
-                "An unexpected error occurred while creating the task. Please try again.",
-                "danger",
-            )
+            app.logger.error(f"Error creating task: {e}", exc_info=True)
+            flash("An unexpected error occurred. Please try again.", "danger")
 
-    # For GET request or validation failure
     return render_template("tasks/create.html", form=form, title="Create New Task")
-
 
 @app.route("/tasks/api/assignees/search")
 @login_required
@@ -18218,21 +18297,23 @@ def api_search_assignees():
     Powerful AJAX endpoint to search for all types of assignees for a task:
     - Individual Users
     - Roles (e.g., 'teacher', 'librarian')
-    - Grade/Sections (e.g., 'Grade 9, Section A')
+    - Grade/Sections (e.g., 'Grade 9 - Section A')
+    - Subjects (e.g., 'All Science Teachers')
     """
     search_query = request.args.get("q", "").strip()
     if not search_query or len(search_query) < 2:
         return jsonify([])  # Return empty list if query is too short
 
     results = []
-
-    # 1. Search for Individual Users
+    
+    # --- 1. Search for Individual Users ---
+    # Only search users who can actually be assigned tasks
+    assignable_user_roles = [r[0] for r in VALID_ROLES if r[0] not in ['system_admin', 'government']]
     user_query = (
         select(User)
         .where(
             User.is_active == True,
-            # Exclude roles that cannot be assigned tasks, e.g., system_admin
-            User.role.has(Role.name.notin_(["system_admin"])),
+            User.role.has(Role.name.in_(assignable_user_roles)),
             or_(
                 User.username.ilike(f"%{search_query}%"),
                 User.full_name.ilike(f"%{search_query}%"),
@@ -18244,54 +18325,52 @@ def api_search_assignees():
     )
     found_users = db.session.scalars(user_query).all()
     for user in found_users:
-        results.append(
-            {
-                "group": "Users",
-                "type": "user",
-                "id": user.id,
-                "text": f"{user.full_name} ({user.role.name.replace('_',' ').title()})",
-                "subtext": user.username,
-            }
-        )
+        results.append({
+            "group": "Users",
+            "type": "user",
+            "id": user.id,
+            "text": f"{user.full_name} ({user.role.name.replace('_',' ').title()})",
+            "subtext": f"@{user.username}",
+        })
 
-    # 2. Search for Roles
-    assignable_roles = get_assignable_roles()  # Your helper function
+    # --- 2. Search for Roles ---
+    assignable_roles = get_assignable_roles()
     matching_roles = [r for r in assignable_roles if search_query.lower() in r.lower()]
     for role_name in matching_roles:
-        results.append(
-            {
-                "group": "Roles",
-                "type": "role",
-                "id": role_name,
-                "text": f"All {role_name.replace('_',' ').title()}s",
-                "subtext": "Assign to entire role",
-            }
-        )
+        results.append({
+            "group": "Roles",
+            "type": "role",
+            "id": role_name,
+            "text": f"All {role_name.replace('_',' ').title()}s",
+            "subtext": "Assign to entire role",
+        })
 
-    # 3. Search for Grade/Sections
-    assignable_sections = get_assignable_grade_sections()  # Your helper function
-    # Search by grade number or section letter
-    matching_sections = [
-        (g, s)
-        for g, s in assignable_sections
-        if search_query.lower() in g.lower() or search_query.lower() in s.lower()
-    ]
+    # --- 3. Search for Grade/Sections ---
+    assignable_sections = get_assignable_grade_sections()
+    matching_sections = [(g, s) for g, s in assignable_sections if search_query.lower() in str(g).lower() or search_query.lower() in str(s).lower()]
     for grade, section in matching_sections:
-        # The ID for a grade/section will be a composite string like "9-A"
         composite_id = f"{grade}-{section}"
-        results.append(
-            {
-                "group": "Classes",
-                "type": "grade_section",
-                "id": composite_id,
-                "text": f"Grade {grade}, Section {section}",
-                "subtext": "Assign to all students in this class",
-            }
-        )
+        results.append({
+            "group": "Classes",
+            "type": "grade_section",
+            "id": composite_id,
+            "text": f"Grade {grade}, Section {section}",
+            "subtext": "Assign to all students in this class",
+        })
+        
+    # --- 4. Search for Subjects ---
+    all_subjects = db.session.scalars(select(TeacherProfile.subject).distinct()).all()
+    matching_subjects = [s for s in all_subjects if s and search_query.lower() in s.lower()]
+    for subject in matching_subjects:
+        results.append({
+            "group": "Subjects",
+            "type": "subject",
+            "id": subject,
+            "text": f"All {subject} Teachers",
+            "subtext": "Assign to all teachers of this subject"
+        })
 
     return jsonify(results)
-
-
 @app.route("/tasks/api/users/search")  # AJAX Endpoint for User Search Picker
 @login_required  # User must be logged in
 def api_search_users():
@@ -21988,6 +22067,30 @@ def tc_leader_required(f):
 
     return decorated_function
 
+# In app.py, add this to the Talent Club Features section
+  
+# In app.py, add this right after the tc_member_required decorator definition
+
+def tc_leader_required(f):
+    """Decorator to restrict access to routes to the system-wide Talent Club Leader."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash("Please log in to access this page.", "warning")
+            return redirect(url_for("login", next=request.url))
+
+        # Check the user's 'is_tc_leader' flag
+        if not hasattr(current_user, 'is_tc_leader') or not current_user.is_tc_leader:
+            app.logger.warning(
+                f"User {current_user.username} (ID: {current_user.id}) "
+                f"attempted to access TC Leader restricted route {request.path} but is not the leader."
+            )
+            flash("You must be the Talent Club Leader to access this page.", "danger")
+            # Redirect to the main TC dashboard for regular members, or another appropriate page
+            return redirect(url_for('talent_club_dashboard_member_view'))
+
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Route to view pending proposals for the TC Leader
 @app.route("/talent_club/leader/proposals")
@@ -22481,45 +22584,6 @@ def warn_talent_club_action(club_id):  # Renamed
 
     return redirect(url_for("manage_talent_clubs_leader"))
 
-
-@app.route("/talent_club/leader/member_management")
-@login_required
-@tc_leader_required  # Custom decorator for system-wide TC Leader
-def manage_tc_members_leader():
-    active_tc_members_query = (
-        select(User)
-        .where(User.is_tc_member == True, User.is_active == True)
-        .options(
-            joinedload(User.role),
-            joinedload(User.tc_memberships).joinedload(TalentClubMembership.club),
-        )  # Load roles and club memberships
-        .order_by(User.full_name.asc())
-    )
-    tc_members = db.session.scalars(active_tc_members_query).all()
-
-    member_ban_status = {}  # To store active TalentClubBan object or None
-    if tc_members:
-        member_ids = [m.id for m in tc_members]
-        active_bans = db.session.scalars(
-            select(TalentClubBan).where(
-                TalentClubBan.user_id.in_(member_ids),
-                or_(
-                    TalentClubBan.expires_at.is_(None),
-                    TalentClubBan.expires_at > datetime.now(timezone.utc),
-                ),
-            )
-        ).all()
-        for ban in active_bans:
-            member_ban_status[ban.user_id] = ban
-
-    return render_template(
-        "talent_club/leader/member_management.html",
-        tc_members=tc_members,
-        member_ban_status=member_ban_status,
-        title="Manage TC Members - TC Leader Admin - Nexus TC",
-    )
-
-
 @app.route("/talent_club/leader/member/<int:user_id>/ban_mute", methods=["GET", "POST"])
 @login_required
 @tc_leader_required
@@ -22756,6 +22820,25 @@ def ajax_get_new_tc_community_messages(community_group_id):
         200,
     )
 
+# In app.py, ADD these new routes.
+
+@app.route("/mini-app")
+@login_required
+def mini_app_placeholder():
+    """Renders the placeholder page for the new mini-app."""
+    return render_template("mini_app.html", title="Mini App")
+
+@app.route("/about-us")
+def about_us_page():
+    """Renders the About Us page."""
+    # This page can be public, so no @login_required
+    return render_template("about_us.html", title="About Nexus")
+
+@app.route("/terms-and-conditions")
+def terms_conditions_page():
+    """Renders the Terms & Conditions page."""
+    # This page can also be public
+    return render_template("terms_and_conditions.html", title="Terms & Conditions")
 
 @app.route("/talent_club/community/create_message", methods=["POST"])
 @login_required
@@ -25157,7 +25240,123 @@ def populate_labs_command():
             db.session.rollback()
             print(f"\nAn error occurred: {e}", file=sys.stderr)
             print("The transaction has been rolled back. No changes were saved to the database.")
-        
+            
+# In app.py, add this to PART 15 with other CLI commands
+
+@app.cli.command("migrate-students")
+def migrate_students_command():
+    """
+    Synchronizes data from the User table to the Student table for all student-role users.
+
+    This command will:
+    1. Find all active users with the 'student' role.
+    2. For each student user, check if a corresponding record exists in the 'students' table.
+       - If it does NOT exist, a new Student record is created using the User's grade and section.
+       - If it DOES exist, it checks if the grade/section are in sync and updates them if they are not.
+    
+    WARNING: This command directly modifies the 'students' table. Please back up your database first.
+    """
+    with app.app_context():
+        # Safety confirmation prompt
+        if not click.confirm(
+            "This will create or update records in the 'students' table based on data from the 'users' table.\n"
+            "It is highly recommended to back up your database before proceeding.\n"
+            "Do you want to continue?"
+        ):
+            click.echo("Operation cancelled by user.")
+            return
+            
+        click.echo("\n--- Starting Student Data Migration (User -> Student) ---")
+
+        try:
+            # 1. Verify the student role and its ID
+            click.echo("1. Verifying student role...")
+            student_role = db.session.scalar(select(Role).filter_by(name='student'))
+            
+            if not student_role:
+                click.secho("ERROR: The 'student' role was not found in the 'role' table. Cannot proceed.", fg='red', err=True)
+                sys.exit(1)
+            
+            # As requested, check if the student role ID is 8.
+            if student_role.id == 8:
+                click.secho(f"  [OK] Found 'student' role with the expected ID: {student_role.id}.", fg='green')
+            else:
+                click.secho(f"  [WARN] The 'student' role was found, but its ID is {student_role.id}, not 8.", fg='yellow')
+                click.secho("         The migration will proceed using the found ID.", fg='yellow')
+
+            # 2. Fetch all active student users, eager-loading their existing student record
+            click.echo("\n2. Fetching all active student users...")
+            student_users_query = (
+                select(User)
+                .where(User.role_id == student_role.id, User.is_active == True)
+                .options(joinedload(User.student)) # Eager load to avoid N+1 queries
+            )
+            all_student_users = db.session.scalars(student_users_query).all()
+
+            if not all_student_users:
+                click.echo("No active users with the 'student' role found. Nothing to migrate.")
+                return
+            
+            click.echo(f"   Found {len(all_student_users)} student users to process.")
+
+            # 3. Initialize counters and process each user
+            created_count = 0
+            updated_count = 0
+            skipped_count = 0
+            
+            click.echo("\n3. Processing records...")
+            for user in all_student_users:
+                existing_student_record = user.student # Access the pre-loaded record
+
+                if not existing_student_record:
+                    # --- CREATE new Student record ---
+                    click.echo(f"  - [CREATE] No Student record for '{user.username}'. Creating one...")
+                    new_student_record = Student(
+                        user_id=user.id,
+                        grade=user.grade,
+                        section=user.section
+                    )
+                    db.session.add(new_student_record)
+                    created_count += 1
+                else:
+                    # --- UPDATE existing Student record if needed ---
+                    is_changed = False
+                    if existing_student_record.grade != user.grade:
+                        click.echo(f"    - [UPDATE] Syncing grade for '{user.username}': '{existing_student_record.grade}' -> '{user.grade}'")
+                        existing_student_record.grade = user.grade
+                        is_changed = True
+                    
+                    if existing_student_record.section != user.section:
+                        click.echo(f"    - [UPDATE] Syncing section for '{user.username}': '{existing_student_record.section}' -> '{user.section}'")
+                        existing_student_record.section = user.section
+                        is_changed = True
+                    
+                    if is_changed:
+                        updated_count += 1
+                    else:
+                        skipped_count += 1
+            
+            # 4. Commit changes to the database
+            if created_count > 0 or updated_count > 0:
+                click.echo("\n4. Committing changes to the database...")
+                db.session.commit()
+                click.secho("   Commit successful!", fg='green')
+            else:
+                click.echo("\n4. No new records or updates to commit.")
+
+            # 5. Print summary
+            click.echo("\n--- Migration Summary ---")
+            click.secho(f"  New Student records created: {created_count}", fg='cyan')
+            click.secho(f"  Existing Student records updated: {updated_count}", fg='cyan')
+            click.echo(f"  Up-to-date records skipped: {skipped_count}")
+            click.secho("\nMigration process complete.", bold=True)
+
+        except Exception as e:
+            db.session.rollback()
+            click.secho(f"\nAn unexpected error occurred: {e}", fg='red', err=True)
+            click.secho("The database transaction has been rolled back. No changes were saved.", fg='red', err=True)
+            sys.exit(1)            
+
 if __name__ == "__main__":
     # If you are using Flask-SocketIO, you should run the app using socketio.run()
     # in the main execution block, not app.run().

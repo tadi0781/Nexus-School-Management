@@ -2,307 +2,372 @@
 <nav id="sidebarMenu" class="nexus-sidebar">
     <div class="sidebar-sticky pt-3">
         {# Sidebar Close Button for mobile #}
-        <button type="button" class="btn-close float-end mb-2 me-2 d-md-none" id="sidebarCloseButton" aria-label="Close sidebar"></button>
+        <button type="button" class="btn-close btn-close-white float-end mb-2 me-2 d-md-none" id="sidebarCloseButton" aria-label="Close sidebar"></button>
         <div style="clear:both;"></div>
 
         {% if current_user.is_authenticated %}
-            {# 1. Profile Info Block #}
-            <div class="px-3 mb-3 text-center">
-                <img src="{{ url_for('static', filename=(current_user.profile_photo_url or 'img/placeholders/user_avatar_default.png')) }}" alt="{{ current_user.username }}" class="rounded-circle mb-2" style="width: 80px; height: 80px; object-fit: cover; border: 2px solid var(--nexus-border-color);">
-                <h6 class="mb-0 mt-2 font-heading">{{ current_user.full_name or current_user.username }}</h6>
-                <small class="text-muted">{{ current_user.role.name.replace('_', ' ') | title if current_user.role else 'N/A' }}</small>
+            <!-- 1. Profile Info Block -->
+            <div class="px-3 mb-3 text-center sidebar-profile">
+                <img src="{{ url_for('static', filename=(current_user.profile_photo_url or 'img/placeholders/user_avatar_default.png')) }}" alt="{{ current_user.username }}" class="rounded-circle mb-2">
+                <h6 class="mb-0 mt-2 font-heading text-white">{{ current_user.full_name or current_user.username }}</h6>
+                <small class="text-white-50">{{ current_user.role.name.replace('_', ' ') | title if current_user.role else 'N/A' }}</small>
             </div>
-            <hr class="mx-3 my-2">
 
-            {# Main Navigation List #}
+            <!-- Main Navigation List -->
             <ul class="nav flex-column">
 
-                {# 2. Universal Core Links (for all roles) #}
+                <!-- 2. Universal Core Links -->
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint == 'role_redirect' or (request.endpoint and request.endpoint.endswith('_dashboard')) else '' }}" href="{{ url_for('role_redirect') }}">
                         <i class="bi bi-speedometer2"></i>
-                        Dashboard
+                        <span>Dashboard</span>
                     </a>
                 </li>
-
-                {# 3. Universal Social & Communication Links (Now with correct role checks) #}
-                {% if current_user.role and current_user.role.name not in ['government', 'system_admin'] %}
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Engage & Connect</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'social_feed_placeholder' else '' }}" href="{{ url_for('social_feed_placeholder') }}">
-                            <i class="bi bi-globe2"></i>
-                            Nexus Pulse
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint in ['contacts_list', 'contact_results', 'universal_chat'] else '' }}" href="{{ url_for('contacts_list') }}">
-                            <i class="bi bi-chat-dots-fill"></i>
-                            Chat / Contacts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_group_') else '' }}" href="{{ url_for('social_group_list') }}">
-                            <i class="bi bi-people-fill"></i> Groups
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_channel_') else '' }}" href="{{ url_for('social_channel_list') }}">
-                            <i class="bi bi-broadcast-pin"></i> Channels
-                        </a>
-                    </li>
-                    {% if current_user.is_authenticated %} {# Roles that can create content #}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="createDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-plus-square-fill"></i>
-                                Create
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="createDropdown">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('create_social_channel') }}">
-                                        <i class="bi bi-broadcast-pin me-2"></i>New Channel
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('create_social_group') }}">
-                                        <i class="bi bi-people-fill me-2"></i>New Group
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                    {% endif %}
-                {% endif %}
-                
                 <li class="nav-item">
                     <a class="nav-link {{ 'active' if request.endpoint in ['view_notifications', 'select_recipients', 'compose_notification'] else '' }}" href="{{ url_for('view_notifications') }}">
                         <i class="bi bi-bell-fill"></i>
-                        Notifications
+                        <span>Notifications</span>
                         {% if unread_notifications_count and unread_notifications_count > 0 %}
                             <span class="badge bg-danger rounded-pill ms-auto">{{ unread_notifications_count }}</span>
                         {% endif %}
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ 'active' if request.endpoint == 'view_saved_items' else '' }}" href="{{ url_for('view_saved_items') }}">
-                        <i class="bi bi-bookmark-star-fill"></i>
-                        Saved Messages
-                    </a>
+
+                <!-- 3. Role-Specific & Common Tools -->
+                <li class="sidebar-heading px-3 mt-4 mb-1">
+                    <span>Tools & Features</span>
                 </li>
 
-                {# 4. Role-Specific Sections #}
-
-                {# --- STUDENT --- #}
+                <!-- Communication Tools -->
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['contacts_list', 'contact_results', 'universal_chat'] else '' }}" href="{{ url_for('contacts_list') }}">
+                        <i class="bi bi-chat-dots-fill"></i>
+                        <span>Chat & Contacts</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_channel_') else '' }}" href="{{ url_for('social_channel_list') }}">
+                        <i class="bi bi-broadcast-pin"></i>
+                        <span>Channels</span>
+                    </a>
+                </li>
+                 <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('social_group_') else '' }}" href="{{ url_for('social_group_list') }}">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Groups</span>
+                    </a>
+                </li>
+                
+                <!-- Student Tools -->
                 {% if current_user.role.name == 'student' %}
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>My Academics & Tasks</span>
-                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'view_library' else '' }}" href="{{ url_for('view_library') }}">
-                            <i class="bi bi-book-half"></i> My Borrowed Books
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'view_student_behavior_records' and request.view_args.get('user_id') == current_user.id else '' }}" href="{{ url_for('view_student_behavior_records', user_id=current_user.id) }}">
-                            <i class="bi bi-clipboard2-check-fill"></i> My Behavior Records
+                            <i class="bi bi-book-half"></i> <span>My Borrowed Books</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'my_tasks' else '' }}" href="{{ url_for('my_tasks') }}">
-                            <i class="bi bi-list-task"></i> My Tasks
+                            <i class="bi bi-list-task"></i> <span>My Tasks</span>
                         </a>
                     </li>
                     {% if current_user.is_tc_member %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint and request.endpoint.startswith('talent_club_') else '' }}" href="{{ url_for('talent_club_dashboard_member_view') }}">
-                            <i class="bi bi-trophy-fill"></i> Talent Club
+                            <i class="bi bi-trophy-fill text-warning"></i> <span>Talent Club</span>
                         </a>
                     </li>
                     {% endif %}
                 {% endif %}
 
-                {# --- TEACHER --- #}
+                <!-- Teacher Tools -->
                 {% if current_user.role.name == 'teacher' %}
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Teaching Tools</span>
-                    </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'teacher_select_classroom' else '' }}" href="{{ url_for('teacher_select_classroom') }}">
-                            <i class="bi bi-person-video3"></i> My Classroom
+                            <i class="bi bi-person-video3"></i> <span>My Classroom</span>
                         </a>
                     </li>
-                    {% if current_user.lab_id %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'teacher_lab_equipment' else '' }}" href="{{ url_for('teacher_lab_equipment') }}">
-                            <i class="bi bi-binoculars-fill"></i> My Lab
-                        </a>
-                    </li>
-                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint in ['student_database_index', 'student_database_block'] else '' }}" href="{{ url_for('student_database_index') }}">
-                            <i class="bi bi-person-lines-fill"></i> Student Database
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'my_tasks' else '' }}" href="{{ url_for('my_tasks') }}">
-                            <i class="bi bi-list-task"></i> My Tasks
+                            <i class="bi bi-person-lines-fill"></i> <span>Student Database</span>
                         </a>
                     </li>
                 {% endif %}
 
-                {# --- LIBRARIAN --- #}
+                <!-- LIBRARIAN: Complete Tools Dropdown -->
                 {% if current_user.role.name == 'librarian' %}
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Library Management</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'checkout_book' else '' }}" href="{{ url_for('checkout_book') }}">
-                            <i class="bi bi-journal-arrow-up"></i> Checkout Book
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint and ('librarian' in request.endpoint or 'checkout' in request.endpoint or 'kiosk' in request.endpoint) else '' }}" href="#" id="libraryDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-book-fill"></i> <span>Library Management</span>
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="libraryDropdown">
+                            <li><h6 class="dropdown-header">Kiosk & Attendance</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('librarian_kiosk') }}"><i class="bi bi-pc-display-horizontal me-2"></i>Kiosk Dashboard</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('library_attendance_history') }}"><i class="bi bi-calendar3-week-fill me-2"></i>Kiosk History</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('library_attendance_leaderboard') }}"><i class="bi bi-trophy-fill me-2 text-warning"></i>Leaderboard</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header">Book Management</h6></li>
+                            <li><a class="dropdown-item" href="{{ url_for('checkout_book') }}"><i class="bi bi-journal-arrow-up me-2"></i>Manual Checkout</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('list_checkouts') }}"><i class="bi bi-journals me-2"></i>All Checkouts</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('list_overdue_books') }}"><i class="bi bi-hourglass-split me-2 text-danger"></i>Overdue Books</a></li>
+                        </ul>
+                    </li>
+                {% endif %}
+                
+                <!-- Mini App Placeholder -->
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'mini_app_placeholder' else '' }}" href="{{ url_for('mini_app_placeholder') }}">
+                        <i class="bi bi-joystick nexus-joystick-icon"></i>
+                        <span>Mini App</span>
+                    </a>
+                </li>
+                
+                <!-- "Create" Dropdown for all roles with creation permissions -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="createDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-plus-square-fill"></i>
+                        <span>Create & Submit</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="createDropdown">
+                        {# Add Asset (with special conditions for student/tc leaders) #}
+                        {% if (current_user.role.name == 'student' and current_user.is_leader) or 
+                              (current_user.role.name == 'talent_club' and current_user.is_tc_leader) or 
+                              (current_user.role.name in ['teacher', 'librarian']) %}
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('add_asset') }}">
+                                <i class="bi bi-box-arrow-in-up me-2"></i>Add Asset
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {# Create Channel/Group (assuming any authenticated user can create) #}
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('create_social_channel') }}">
+                                <i class="bi bi-broadcast-pin me-2"></i>New Channel
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('create_social_group') }}">
+                                <i class="bi bi-people-fill me-2"></i>New Group
+                            </a>
+                        </li>
+
+                        <!-- ===================== START OF FIX ===================== -->
+                        {# Add Student Behavior (for non-student roles with permission) #}
+                        {# This link will take the user to the student database to select a student first. #}
+                        {% set behavior_recorder_roles = ['teacher', 'librarian', 'talent_club', 'hr_ceo', 'system_admin', 'school_executive', 'government', 'parent'] %}
+                        {% if current_user.role.name in behavior_recorder_roles %}
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('student_database_index') }}">
+                                <i class="bi bi-person-plus-fill me-2 text-success"></i>Add Student Behavior
+                            </a>
+                        </li>
+                        {% endif %}
+                        <!-- ====================== END OF FIX ====================== -->
+                        
+                        {# Report General Issue #}
+                         <li>
+                           <a class="dropdown-item" href="{{ url_for('report_asset_general') }}">
+                               <i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i>Report Issue
+                           </a>
+                        </li>
+                    </ul>
+                </li>
+
+
+                <!-- 4. Administration Section (HR/CEO, SysAdmin, and TC Leader) -->
+                
+                <!-- *** START: Talent Club Leader Admin Section *** -->
+                {% if current_user.is_tc_leader %}
+                    <li class="sidebar-heading px-3 mt-4 mb-1">
+                        <span>TC Leader Admin</span>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'list_checkouts' else '' }}" href="{{ url_for('list_checkouts') }}">
-                            <i class="bi bi-journals"></i> All Checkouts
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'librarian_attendance_dashboard' else '' }}" href="{{ url_for('librarian_attendance_dashboard') }}">
-                            <i class="bi bi-door-open-fill"></i> Kiosk Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'my_tasks' else '' }}" href="{{ url_for('my_tasks') }}">
-                            <i class="bi bi-list-task"></i> My Tasks
+                        <a class="nav-link" href="{{ url_for('talent_club_leader_dashboard') }}">
+                           <i class="bi bi-star-fill text-warning"></i> <span>TC Administration</span>
                         </a>
                     </li>
                 {% endif %}
+                <!-- *** END: Talent Club Leader Admin Section *** -->
 
-                {# --- HR/CEO & SYSTEM ADMIN --- #}
                 {% if current_user.role.name in ['hr_ceo', 'system_admin'] %}
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Management</span>
+                    <li class="sidebar-heading px-3 mt-4 mb-1">
+                        <span>School Administration</span>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'lab_assignment_index' else '' }}" href="{{ url_for('lab_assignment_index') }}">
-                            <i class="bi bi-person-bounding-box"></i> Assign Labs
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="assetAdminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-boxes"></i> <span>Asset Admin</span>
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="assetAdminDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('list_all_assets') }}">All Assets</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('list_pending_assets') }}">Pending Assets</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('list_asset_reports') }}">Asset Reports</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('manage_asset_categories') }}">Asset Categories</a></li>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'list_pending_assets' else '' }}" href="{{ url_for('list_pending_assets') }}">
-                            <i class="bi bi-box-seam-fill"></i> Pending Assets
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userAdminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                             <i class="bi bi-person-badge-fill"></i> <span>User Admin</span>
                         </a>
+                         <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="userAdminDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('student_database_index') }}">Student Database</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('manage_student_leaders') }}">Student Leaders</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('manage_system_tc_leader') }}">TC Leader Admin</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('lab_assignment_index') }}">Assign Labs</a></li>
+                        </ul>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'list_all_assets' else '' }}" href="{{ url_for('list_all_assets') }}">
-                            <i class="bi bi-boxes"></i> All Assets
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="taskAdminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                             <i class="bi bi-card-checklist"></i> <span>Tasks & Requests</span>
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'list_asset_reports' else '' }}" href="{{ url_for('list_asset_reports') }}">
-                            <i class="bi bi-flag-fill"></i> Asset Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'manage_asset_categories' else '' }}" href="{{ url_for('manage_asset_categories') }}">
-                            <i class="bi bi-tags-fill"></i> Asset Categories
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'student_database_index' else '' }}" href="{{ url_for('student_database_index') }}">
-                            <i class="bi bi-person-lines-fill"></i> Student Database
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'manage_student_leaders' else '' }}" href="{{ url_for('manage_student_leaders') }}">
-                            <i class="bi bi-person-check-fill"></i> Student Leaders
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'manage_system_tc_leader' else '' }}" href="{{ url_for('manage_system_tc_leader') }}">
-                            <i class="bi bi-trophy-fill"></i> TC Leader Admin
-                        </a>
-                    </li>
-                    
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Tasks & Requests</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'create_task' else '' }}" href="{{ url_for('create_task') }}">
-                            <i class="bi bi-plus-square-dotted"></i> Create Task
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'my_assigned_tasks' else '' }}" href="{{ url_for('my_assigned_tasks') }}">
-                            <i class="bi bi-card-list"></i> Assigned Tasks
-                        </a>
-                    </li>
-                    {% if current_user.role and current_user.role.name in ['hr_ceo', 'school_executive', 'government'] %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'requests_inbox' else '' }}" href="{{ url_for('requests_inbox') }}">
-                            <i class="bi bi-envelope-paper-fill"></i> Requests Inbox
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'hr_ceo_initiate_request' else '' }}" href="{{ url_for('hr_ceo_initiate_request') }}">
-                            <i class="bi bi-send-plus-fill"></i> Initiate Request
-                        </a>
+                         <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="taskAdminDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('create_task') }}">Create Task</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('my_assigned_tasks') }}">Assigned Tasks</a></li>
+                            {% if current_user.role and current_user.role.name in ['hr_ceo', 'school_executive', 'government'] %}
+                            <li><a class="dropdown-item" href="{{ url_for('requests_inbox') }}">Requests Inbox</a></li>
+                            {% endif %}
+                        </ul>
                     </li>
                 {% endif %}
 
-                {# --- SUBMISSION LINKS (for non-admins) --- #}
-                {% if current_user.role.name in ['student', 'teacher', 'librarian', 'talent_club'] %}
-                    <li class="sidebar-heading px-3 mt-4 mb-1 text-muted text-uppercase">
-                        <span>Submissions</span>
-                    </li>
-                    {% if (current_user.role.name == 'student' and current_user.is_leader) or 
-                          (current_user.role.name == 'talent_club' and current_user.is_tc_leader) or 
-                          (current_user.role.name in ['teacher', 'librarian']) %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'add_asset' or request.endpoint == 'my_assets' else '' }}" href="{{ url_for('add_asset') }}">
-                            <i class="bi bi-plus-circle-dotted"></i> Add Asset
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item">
-                       <a class="nav-link {{ 'active' if request.endpoint == 'report_asset_general' else '' }}" href="{{ url_for('report_asset_general') }}">
-                           <i class="bi bi-exclamation-triangle-fill"></i> Report General Issue
-                       </a>
-                    </li>
-                    {% if permissions is defined and permissions.can_create_request %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'submit_request' else '' }}" href="{{ url_for('submit_request') }}">
-                            <i class="bi bi-file-earmark-plus-fill"></i> Submit Request
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.endpoint == 'my_requests' else '' }}" href="{{ url_for('my_requests') }}">
-                            <i class="bi bi-folder-check"></i> My Requests
-                        </a>
-                    </li>
-                    {% endif %}
-                {% endif %}
-
-                {# 5. Global Bottom Links #}
-                <li class="nav-item mt-auto mb-2"> {# Pushes to bottom of sidebar #}
-                     <hr class="mx-3 my-2">
+                <!-- 5. Global Bottom Links -->
+                <li class="nav-item mt-auto"> {# Pushes to bottom #}
+                     <hr class="mx-3 my-2 sidebar-divider">
+                    <a class="nav-link" href="{{ url_for('about_us_page') }}"><i class="bi bi-info-circle-fill"></i> <span>About Us</span></a>
+                    <a class="nav-link" href="{{ url_for('terms_conditions_page') }}"><i class="bi bi-file-text-fill"></i> <span>Terms & Conditions</span></a>
                     <a class="nav-link {{ 'active' if request.endpoint == 'settings' else '' }}" href="{{ url_for('settings') }}">
                         <i class="bi bi-gear-wide-connected"></i>
-                        Settings
+                        <span>Settings</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="{{ url_for('logout') }}" class="nav-link">
+                    <a href="{{ url_for('logout') }}" class="nav-link text-danger-emphasis">
                         <i class="bi bi-box-arrow-left"></i>
-                        Logout
+                        <span>Logout</span>
                     </a>
                 </li>
             </ul>
         {% endif %}
+        
+        <!-- Sidebar Footer -->
+        <div class="sidebar-footer text-center text-white-50 small p-3">
+            Nexus v1.1 © 2025
+        </div>
     </div>
-    <!-- Inside the <nav> element -->
-<a href="{{ url_for('weather_dashboard') }}" class="nav-item nav-link">
-    <i class="fas fa-cloud-sun-rain me-2"></i>Weather
-</a>
 </nav>
-<!-- END OF FILE: templates/layout/_sidebar.html -->
+
+<!-- Internal CSS for New Sidebar Aesthetics -->
+<style>
+    :root {
+      --nexus-sidebar-bg-start: #2c3e50;
+      --nexus-sidebar-bg-end: #1a252f;
+      --nexus-sidebar-text: rgba(236, 240, 241, 0.85);
+      --nexus-sidebar-text-muted: rgba(189, 195, 199, 0.6);
+      --nexus-sidebar-active-bg: #3498db;
+      --nexus-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+      --nexus-sidebar-divider: rgba(255, 255, 255, 0.15);
+      --nexus-primary-light: #5dade2;
+    }
+
+    .nexus-sidebar {
+        background: linear-gradient(180deg, var(--nexus-sidebar-bg-start), var(--nexus-sidebar-bg-end));
+        color: var(--nexus-sidebar-text);
+        box-shadow: 2px 0 15px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar-profile img {
+        width: 80px; 
+        height: 80px; 
+        object-fit: cover; 
+        border: 3px solid var(--nexus-primary-light);
+        transition: transform 0.3s ease;
+    }
+    .sidebar-profile img:hover {
+        transform: scale(1.05);
+    }
+
+    .nexus-sidebar .nav-link {
+        color: var(--nexus-sidebar-text);
+        transition: all 0.2s ease-in-out;
+        display: flex;
+        align-items: center;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-left: 3px solid transparent;
+    }
+    .nexus-sidebar .nav-link i {
+        margin-right: 0.85rem;
+        font-size: 1.2rem;
+        width: 28px;
+        text-align: center;
+        transition: transform 0.2s ease, color 0.2s ease;
+    }
+    .nexus-sidebar .nav-link:hover {
+        background-color: var(--nexus-sidebar-hover-bg);
+        color: #fff;
+        border-left-color: var(--nexus-primary-light);
+    }
+    .nexus-sidebar .nav-link.active {
+        background-color: var(--nexus-sidebar-active-bg);
+        color: #fff;
+        font-weight: 500;
+        border-left-color: #fff;
+    }
+    .nexus-sidebar .nav-link:hover i, .nexus-sidebar .nav-link.active i {
+        transform: scale(1.1);
+    }
+    
+    .sidebar-heading {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--nexus-sidebar-text-muted);
+        text-transform: uppercase;
+        letter-spacing: .05rem;
+    }
+    
+    .sidebar-divider {
+        border-color: var(--nexus-sidebar-divider);
+    }
+
+    .dropdown-menu {
+        background-color: #2c3e50;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .dropdown-item {
+        color: var(--nexus-sidebar-text);
+    }
+    .dropdown-item:hover {
+        background-color: var(--nexus-sidebar-hover-bg);
+        color: #fff;
+    }
+    .dropdown-header {
+        color: var(--nexus-sidebar-text-muted);
+        font-size: 0.8rem;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.9; }
+    }
+    .nexus-pulse-icon {
+        animation: pulse 2.5s infinite ease-in-out;
+        color: #29b6f6 !important; /* A light blue to stand out */
+    }
+
+    @keyframes joystick-sway {
+        0% { transform: rotate(-5deg); }
+        50% { transform: rotate(5deg); }
+        100% { transform: rotate(-5deg); }
+    }
+    .nexus-joystick-icon {
+        animation: joystick-sway 1.5s infinite cubic-bezier(0.455, 0.030, 0.515, 0.955);
+    }
+
+    .sidebar-footer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+</style>

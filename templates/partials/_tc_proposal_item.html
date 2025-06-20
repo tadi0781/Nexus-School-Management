@@ -1,11 +1,3 @@
-{# templates/partials/_tc_proposal_item.html - Nexus School Management System #}
-{# Gemini 3 Pro Preview - Phase F.3 #}
-{#
-    Reusable item for displaying a Talent Club proposal in a list.
-    Expects a `proposal` object (TalentClubProposal instance) and `current_user`.
-    Optionally `accepted_count` for this proposal.
-#}
-
 <div class="list-group-item list-group-item-action flex-column align-items-start tc-proposal-item py-3 px-3 mb-2 shadow-sm border rounded
     {% if proposal.status == 'pending_leader_review' %} border-info-subtle border-start-info border-start-3
     {% elif proposal.status == 'pending_members_accept' %} border-warning-subtle border-start-warning border-start-3
@@ -28,10 +20,10 @@
         </small>
     </div>
 
-    <p class="mb-2 text-muted- GGGGGGGGGGG">
+    <p class="mb-2 text-muted">
         <strong class="text-dark">Category:</strong> {{ proposal.social_category.name if proposal.social_category else 'N/A' }}
     </p>
-    <p class="mb-2 text-muted- GGGGGGGGGGG small">
+    <p class="mb-2 text-muted small">
         {{ proposal.description | truncate(150) }}
     </p>
 

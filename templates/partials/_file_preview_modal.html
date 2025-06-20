@@ -1,0 +1,24 @@
+{# templates/partials/_file_preview_modal.html #}
+<div class="modal fade" id="viewFileModal" tabindex="-1" aria-labelledby="filePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title font-heading" id="filePreviewModalLabel">File Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center d-flex align-items-center justify-content-center" id="viewFileModalBody" style="min-height: 300px;">
+                {# JavaScript will populate this area #}
+                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <span class="text-muted small" id="filePreviewModalInfo"></span>
+                <div>
+                    <a href="#" class="btn btn-primary" id="filePreviewModalDownloadBtn" download>
+                        <i class="bi bi-download me-2"></i>Download
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

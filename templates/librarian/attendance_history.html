@@ -1,0 +1,85 @@
+{# NEW, CORRECTED CODE #}
+{% extends "layout/base.html" %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Library Attendance History</h1>
+        <a href="{{ url_for('librarian_kiosk') }}" class="btn btn-sm btn-secondary shadow-sm"><i class="fas fa-arrow-left fa-sm text-white-50"></i> Back to Kiosk</a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('library_attendance_history') }}">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="date" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="grade" class="form-label">Grade</label>
+                        <select class="form-select" id="grade" name="grade">
+                            <option value="all" {% if selected_grade == 'all' %}selected{% endif %}>All Grades</option>
+                            {% for grade in distinct_grades %}
+                            <option value="{{ grade }}" {% if selected_grade == grade|string %}selected{% endif %}>Grade {{ grade }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="section" class="form-label">Section</label>
+                        <select class="form-select" id="section" name="section">
+                            <option value="all" {% if selected_section == 'all' %}selected{% endif %}>All Sections</option>
+                            {% for section in distinct_sections %}
+                            <option value="{{ section }}" {% if selected_section == section|string %}selected{% endif %}>Section {{ section }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end mb-3">
+                        <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Attendance Records for {{ selected_date.strftime('%B %d, %Y') }}</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>ID</th>
+                            <th>Grade & Section</th>
+                            <th>Check-in Time</th>
+                            <th>Check-out Time</th>
+                            <th>Duration (mins)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr>
+                            <td>{{ record.user.full_name }}</td>
+                            <td>{{ record.user.id }}</td>
+                            <td>{{ record.user.grade or 'N/A' }}-{{ record.user.section or 'N/A' }}</td>
+                            <td>{{ record.check_in_time.strftime('%I:%M %p') }}</td>
+                            <td>{{ record.check_out_time.strftime('%I:%M %p') if record.check_out_time else 'Still Present' }}</td>
+                            <td>{{ record.duration_minutes if record.duration_minutes is not none else '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">No records found for the selected filters.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

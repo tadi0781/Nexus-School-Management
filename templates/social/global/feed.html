@@ -30,6 +30,7 @@
                         file_input_name = "attached_file",
                         allow_file_upload = True
                     %}
+                        {# This partial is now handled correctly by the new app.js #}
                         {% include "partials/_social_content_form.html" %}
                     {% endwith %}
                 {% else %}
@@ -76,4 +77,8 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block body_scripts %}
+    {# The initialization logic is now correctly handled by app.js #}
 {% endblock %}

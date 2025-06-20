@@ -301,61 +301,77 @@ function updateNavbarNotificationCount(count) {
             });
         }
 
-        notificationActionForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const formData = new FormData(notificationActionForm);
-            const checkedIds = Array.from(notificationListContainer.querySelectorAll('.notification-checkbox:checked')).map(cb => cb.value);
+// In notifications.js, replace the entire notificationActionForm.addEventListener function with this:
 
-            if (checkedIds.length === 0) {
-                showNexusNotification('No Selection', 'Please select at least one notification to mark as read.', 'warning');
-                return;
-            }
+if (notificationActionForm) {
+    notificationActionForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
 
-            // Show loading state
-            markSelectedReadButton.disabled = true;
-            markSelectedReadButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...`;
+        // --- THIS IS THE FIX ---
+        // 1. Get the list of checked IDs first (your code for this was already correct).
+        const checkedIds = Array.from(notificationListContainer.querySelectorAll('.notification-checkbox:checked')).map(cb => cb.value);
+        
+        if (checkedIds.length === 0) {
+            showNexusNotification('No Selection', 'Please select at least one notification to mark as read.', 'warning');
+            return;
+        }
 
-            try {
-                // Using the postData utility from utils.js
-                const responseData = await postData(notificationActionForm.action, formData);
+        // 2. Create a NEW, EMPTY FormData object.
+        const formData = new FormData();
 
-                if (responseData.success) {
-                    showNexusNotification('Success!', responseData.message, 'success');
-                    
-                    // Update UI for each marked item
-                    checkedIds.forEach(id => {
-                        const item = document.querySelector(`.notification-item[data-notification-id="${id}"]`);
-                        if (item) {
-                            item.classList.remove('unread-notification', 'list-group-item-primary', 'bg-primary-subtle', 'border-primary-subtle');
-                            item.classList.add('list-group-item-light');
-                            const checkbox = item.querySelector('.notification-checkbox');
-                            if(checkbox) checkbox.checked = false; // Uncheck it
-                        }
-                    });
-                    
-                    // Update the main navbar count
-                    if(typeof updateNavbarNotificationCount === 'function') {
-                        updateNavbarNotificationCount(responseData.total_unread_count);
-                    }
-                    // Reset selection state
-                    if(selectAllCheckbox) selectAllCheckbox.checked = false;
-                    updateButtonState();
-
-                } else {
-                    showNexusNotification('Error', responseData.error || 'An unknown error occurred.', 'danger');
-                }
-            } catch (error) {
-                showNexusNotification('Network Error', 'Could not connect to the server.', 'danger');
-            } finally {
-                // Restore button text
-                markSelectedReadButton.innerHTML = `<i class="bi bi-check2-square me-1"></i> Mark Selected as Read (<span id="selectedNotificationCount">${selectedCountSpan.textContent}</span>)`;
-                updateButtonState(); // Re-evaluate if button should be disabled
-            }
+        // 3. Manually add each checked ID to the FormData object.
+        //    The key 'notification_ids[]' is what your Python backend expects.
+        checkedIds.forEach(id => {
+            formData.append('notification_ids[]', id);
         });
+        // --- END OF FIX ---
 
-        // Initial check
-        updateButtonState();
-    }
-// Make functions globally available if needed by inline JS or other scripts, or keep them module-scoped.
-// window.handleMarkAllNotificationsRead = handleMarkAllNotificationsRead;
-// window.handleMarkSingleNotificationRead = handleMarkSingleNotificationRead;
+
+        // Show loading state
+        markSelectedReadButton.disabled = true;
+        markSelectedReadButton.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...`;
+
+        try {
+            // Now, send the CORRECTLY POPULATED formData object to the server.
+            // Using the postData utility from utils.js
+            const responseData = await postData(notificationActionForm.action, formData);
+
+            if (responseData.success) {
+                showNexusNotification('Success!', responseData.message, 'success');
+                
+                // Update UI for each marked item
+                checkedIds.forEach(id => {
+                    const item = document.querySelector(`.notification-item[data-notification-id="${id}"]`);
+                    if (item) {
+                        item.classList.remove('unread-notification', 'list-group-item-primary', 'bg-primary-subtle', 'border-primary-subtle');
+                        item.classList.add('list-group-item-light');
+                        const checkbox = item.querySelector('.notification-checkbox');
+                        if(checkbox) checkbox.checked = false; // Uncheck it
+                    }
+                });
+                
+                // Update the main navbar count
+                if(typeof updateNavbarNotificationCount === 'function') {
+                    updateNavbarNotificationCount(responseData.total_unread_count);
+                }
+                // Reset selection state
+                if(selectAllCheckbox) selectAllCheckbox.checked = false;
+                updateButtonState();
+
+            } else {
+                showNexusNotification('Error', responseData.error || 'An unknown error occurred.', 'danger');
+            }
+        } catch (error) {
+            showNexusNotification('Network Error', 'Could not connect to the server.', 'danger');
+        } finally {
+            // Restore button text and state
+            const currentSelectedCount = notificationListContainer.querySelectorAll('.notification-checkbox:checked').length;
+            selectedCountSpan.textContent = currentSelectedCount;
+            markSelectedReadButton.innerHTML = `<i class="bi bi-check2-square me-1"></i> Mark Selected as Read (<span id="selectedNotificationCount">${currentSelectedCount}</span>)`;
+            updateButtonState(); // Re-evaluate if button should be disabled
+        }
+    });
+
+    // Keep your other functions like updateButtonState() and the initial check.
+    updateButtonState();
+}

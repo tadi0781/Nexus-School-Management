@@ -1,0 +1,135 @@
+{% extends "layout/base.html" %}
+
+{% block page_title %}Manage Talent Clubs{% endblock %}
+
+{% block content_header %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-shield-shaded me-2 text-success"></i>Manage All Talent Clubs
+    </h1>
+    <a href="{{ url_for('talent_club_leader_dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to Leader Dashboard
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card nexus-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Active Talent Clubs</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover nexus-table mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Club Name</th>
+                            <th scope="col">Owner</th>
+                            <th scope="col">Category</th>
+                            <th scope="col" class="text-center">Level</th>
+                            <th scope="col" class="text-center">Members</th>
+                            <th scope="col" class="text-center">Warnings</th>
+                            <th scope="col" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for club in all_clubs %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('view_talent_club_profile', club_id=club.id) }}" class="fw-bold text-decoration-none">
+                                    {{ club.name }}
+                                </a>
+                            </td>
+                            <td>{{ club.owner.full_name or club.owner.username }}</td>
+                            <td>
+                                <span class="badge bg-secondary-soft">{{ club.social_category.name }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-primary-soft">{{ club.level }}</span>
+                            </td>
+                            <td class="text-center">
+                                {{ club.memberships.filter_by(is_active=True).count() }}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge rounded-pill {{ 'bg-danger' if club.warning_count > 0 else 'bg-success' }}">{{ club.warning_count }}</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#setLevelModal-{{ club.id }}">
+                                        <i class="bi bi-bar-chart-steps"></i> Set Level
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#warnClubModal-{{ club.id }}">
+                                        <i class="bi bi-exclamation-triangle"></i> Warn
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No active talent clubs found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals for Actions -->
+{% for club in all_clubs %}
+<!-- Set Level Modal -->
+<div class="modal fade" id="setLevelModal-{{ club.id }}" tabindex="-1" aria-labelledby="setLevelModalLabel-{{ club.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('set_talent_club_level', club_id=club.id) }}" method="POST">
+                {{ level_form.csrf_token }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="setLevelModalLabel-{{ club.id }}">Set Level for {{ club.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Current Level: <strong>{{ club.level }}</strong></p>
+                    <div class="mb-3">
+                        {{ level_form.level.label(class="form-label") }}
+                        {{ level_form.level(class="form-control", value=club.level) }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    {{ level_form.submit(class="btn btn-primary") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Warn Club Modal -->
+<div class="modal fade" id="warnClubModal-{{ club.id }}" tabindex="-1" aria-labelledby="warnClubModalLabel-{{ club.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('warn_talent_club_action', club_id=club.id) }}" method="POST">
+                {{ warning_form.csrf_token }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="warnClubModalLabel-{{ club.id }}">Issue Warning to {{ club.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                     <p>Current Warning Count: <strong>{{ club.warning_count }}</strong>. At Level 1, 3 warnings will deactivate the club.</p>
+                    <div class="mb-3">
+                        {{ warning_form.reason.label(class="form-label") }}
+                        {{ warning_form.reason(class="form-control", rows=4) }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    {{ warning_form.submit(class="btn btn-warning") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

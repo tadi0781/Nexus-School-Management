@@ -19,6 +19,8 @@ let sendChatMessageBtn = null;
 let typingIndicator = null;
 let filePreviewArea = null;
 let actualFileInput = null;
+// In static/js/chat.js
+
 /**
  * Initializes the chat interface, populates module-level variables,
  * and sets up all necessary event listeners.
@@ -37,9 +39,9 @@ function initializeChat(targetUserId, currentUserId) {
     chatMessageInput = document.getElementById('chatMessageInput');
     sendChatMessageBtn = document.getElementById('sendChatMessageBtn');
     typingIndicator = document.getElementById('typingIndicator');
+    actualFileInput = document.getElementById('chatActualDmFileInput');
+    filePreviewArea = document.getElementById('dmFilePreviewArea');
     const attachFileBtn = document.getElementById('chatAttachFileBtn');
-    const actualFileInput = document.getElementById('chatActualDmFileInput');
-    const filePreviewArea = document.getElementById('dmFilePreviewArea');
 
     if (!chatMessageForm || !chatWindowMessages || !chatMessageInput) {
         console.error("Critical chat UI elements are missing. Chat cannot be initialized.");
@@ -51,13 +53,7 @@ function initializeChat(targetUserId, currentUserId) {
     
     if(attachFileBtn && actualFileInput){
         attachFileBtn.addEventListener('click', () => actualFileInput.click());
-        actualFileInput.addEventListener('change', () => {
-             if (actualFileInput.files.length > 0) {
-                filePreviewArea.innerHTML = `<span class="badge bg-secondary">${actualFileInput.files[0].name} <button type="button" class="btn-close btn-close-white ms-1" style="font-size: .6em;" onclick="this.parentElement.remove(); document.getElementById('chatActualDmFileInput').value='';"></button></span>`;
-            } else {
-                filePreviewArea.innerHTML = '';
-            }
-        });
+        actualFileInput.addEventListener('change', handleFileSelection);
     }
 
     // Auto-resize textarea
@@ -71,49 +67,43 @@ function initializeChat(targetUserId, currentUserId) {
     startMessagePolling();
 }
 
+
 /**
- * Handles the chat message form submission.
+ * Handles the chat message form submission with file support.
  * @param {Event} event - The form submission event.
  */
 async function handleSendMessage(event) {
     event.preventDefault();
-    if (!chatMessageForm || !currentChatTargetUserId) {
-        console.error("Chat form or target user not set.");
-        return;
-    }
+    if (!chatMessageForm || !currentChatTargetUserId) return;
 
     const content = chatMessageInput.value.trim();
-    const fileInput = document.getElementById('chatActualDmFileInput');
-    const file = fileInput ? fileInput.files[0] : null;
+    const file = actualFileInput.files[0];
 
     if (!content && !file) {
-        // Do not send empty messages
+        showNexusNotification('Empty Message', 'Cannot send an empty message or file.', 'warning');
         return;
     }
     
-    const originalButtonHTML = sendChatMessageBtn.innerHTML;
-    sendChatMessageBtn.disabled = true;
-    sendChatMessageBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
-    chatMessageInput.disabled = true;
+    const originalButtonText = sendChatMessageBtn.innerHTML;
+    setSendButtonLoading(true);
 
+    // FormData automatically collects all fields from the form, including the hidden CSRF token.
     const formData = new FormData(chatMessageForm);
-    // FormData will correctly handle both the message textarea and the file input
     
     try {
+        // --- THIS IS THE FIX ---
+        // The fetch call no longer needs to manually set the CSRF header,
+        // as it's now part of the FormData body.
         const response = await fetch(chatMessageForm.action, {
             method: 'POST',
             body: formData,
-            headers: { 'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') }
+            // We do NOT set 'Content-Type' for FormData, the browser does it automatically with the boundary.
         });
-
         const data = await response.json();
 
         if (response.ok && data.success && data.message_data) {
             appendMessageToChat(data.message_data, currentChatUserId);
-            
-            // Reset form state
             chatMessageForm.reset();
-            const filePreviewArea = document.getElementById('dmFilePreviewArea');
             if (filePreviewArea) filePreviewArea.innerHTML = '';
             chatMessageInput.style.height = 'auto';
             lastMessageTimestamp = new Date(data.message_data.timestamp).getTime();
@@ -124,13 +114,11 @@ async function handleSendMessage(event) {
         console.error('Error sending message:', error);
         showNexusNotification('Send Error', `A network error occurred: ${error.message}`, 'error');
     } finally {
-        sendChatMessageBtn.disabled = false;
-        sendChatMessageBtn.innerHTML = originalButtonHTML;
-        chatMessageInput.disabled = false;
+        setSendButtonLoading(false);
+        sendChatMessageBtn.innerHTML = originalButtonText; // Restore original content
         chatMessageInput.focus();
     }
 }
-
 /**
  * Displays a preview when a user selects a file to attach.
  */

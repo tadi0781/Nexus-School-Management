@@ -1,161 +1,548 @@
-{% extends "layout/base.html" %}
+{% extends 'layout/base.html' %}
 
-{% block page_title %}Welcome to Nexus - Kechene Debre Selam G.S.S.{% endblock %}
+{% block page_title %}Nexus School Management - Empowering Education{% endblock %}
 
-{% block content %}
-{% set no_sidebar = True %} {# No sidebar for the public landing page #}
-
+{% block head_css %}
 <style>
-    .hero-section {
-        background: linear-gradient(135deg, var(--nexus-primary) 0%, var(--nexus-secondary) 100%);
-        color: var(--nexus-light);
-        padding: 6rem 1.5rem;
+    /* General Dark Mode Base Styles (assuming data-bs-theme="dark" is set on <html> or <body>) */
+    [data-bs-theme="dark"] body {
+        background-color: #0a0a0a; /* Even darker background for a sleek look */
+        color: #e0e0e0;
+    }
+
+    /* Hero Section */
+    .hero-landing {
+        position: relative;
+        overflow: hidden;
+        min-height: 100vh; /* Full viewport height */
+        display: flex;
+        align-items: center;
+        justify-content: center;
         text-align: center;
-        border-bottom-left-radius: 50% 20%;
-        border-bottom-right-radius: 50% 20%;
-        margin-bottom: -1px; /* To overlap slight rendering gaps with cards */
+        color: white;
+        background-size: cover;
+        background-position: center;
+        /*
+           IMPORTANT: Replace 'your_school_building.jpg' with the actual filename of your school building image.
+           Make sure this image is located in your Flask app's static/img/ folder.
+        */
+        background-image: url('{{ url_for('static', filename='img/your_school_building.jpg') }}');
     }
-    .hero-section h1 {
-        font-size: 2.8rem;
-        font-weight: 700; /* Poppins Bold */
-        color: #fff; /* Ensure high contrast on gradient */
-        margin-bottom: 0.5rem;
+
+    .hero-landing::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        /* Darker gradient overlay for text readability and sleekness */
+        background: linear-gradient(135deg, rgba(13, 26, 56, 0.9) 0%, rgba(30, 0, 74, 0.9) 100%);
+        z-index: 1;
     }
-    .hero-section .lead {
-        font-size: 1.3rem;
-        font-weight: 300; /* Poppins Light */
-        color: rgba(255, 255, 255, 0.85);
-        margin-bottom: 2rem;
-        max-width: 700px;
-        margin-left: auto;
-        margin-right: auto;
+
+    .hero-content {
+        position: relative;
+        z-index: 2;
+        padding: 20px;
+        max-width: 900px;
     }
-    .hero-section .btn-lg {
-        padding: 0.8rem 2rem;
-        font-size: 1.1rem;
+
+    .hero-landing h1 {
+        font-size: 4.5rem; /* Larger for impact */
+        font-weight: 800;
+        margin-bottom: 25px;
+        line-height: 1.1;
+        text-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
     }
-    .features-section {
-        padding: 4rem 1.5rem;
+
+    .hero-landing p.lead {
+        font-size: 1.5rem;
+        margin-bottom: 40px;
+        opacity: 0.9;
     }
-    .feature-icon {
-        font-size: 3rem;
-        color: var(--nexus-primary);
-        margin-bottom: 1rem;
+
+    /* General Section Styling for Dark Mode */
+    .section-spacing {
+        padding: 100px 0; /* More vertical spacing */
+        background-color: #121212; /* Dark section background */
+    }
+    .section-spacing.alt-bg {
+        background-color: #0a0a0a; /* Slightly different dark background */
+    }
+
+    .section-title {
+        font-size: 3.5rem; /* Larger titles */
+        font-weight: 700;
+        margin-bottom: 60px;
+        color: #ffffff;
+        position: relative;
         display: inline-block;
-        padding: 1rem;
-        background-color: rgba(var(--nexus-primary-rgb), 0.1); /* Assuming --nexus-primary-rgb is defined or use lighten */
-        border-radius: 50%;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     }
-     .login-form-section {
-        padding: 3rem 1.5rem;
-        background-color: var(--nexus-body-bg); /* Match body background */
+
+    .section-title::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: -15px;
+        width: 100px;
+        height: 5px;
+        background-color: #8a2be2; /* Purple accent */
+        border-radius: 3px;
     }
-    .login-form-section .card {
-        border: none; /* Remove card border for seamless look */
+
+    /* Feature Cards */
+    .feature-card-landing {
+        background-color: #1e1e1e; /* Darker card background */
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Pronounced shadow */
+        padding: 35px;
+        margin-bottom: 30px;
+        transition: all 0.4s ease;
+        border: 1px solid #333333;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* Distribute content */
+        overflow: hidden; /* For inner effects */
+    }
+
+    .feature-card-landing::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, rgba(138, 43, 226, 0.05) 0%, rgba(37, 117, 252, 0.05) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 0;
+    }
+
+    .feature-card-landing:hover::before {
+        opacity: 1;
+    }
+
+    .feature-card-landing:hover {
+        transform: translateY(-12px) scale(1.03);
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+        border-color: #8a2be2; /* Highlight border on hover */
+    }
+
+    .feature-card-landing .icon {
+        font-size: 3.8rem; /* Larger icons */
+        color: #8a2be2; /* Purple accent for icons */
+        margin-bottom: 25px;
+        display: inline-block;
+        animation: rotateIn 0.8s ease-out; /* Entry animation */
+        position: relative;
+        z-index: 1; /* Above pseudo-element */
+    }
+
+    @keyframes rotateIn {
+        from {
+            transform: rotateY(90deg) scale(0.5);
+            opacity: 0;
+        }
+        to {
+            transform: rotateY(0deg) scale(1);
+            opacity: 1;
+        }
+    }
+
+    .feature-card-landing h4 {
+        color: #ffffff;
+        font-weight: 600;
+        margin-bottom: 15px;
+        font-size: 1.8rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .feature-card-landing p {
+        color: #b0b0b0;
+        line-height: 1.8;
+        font-size: 1.05rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Call to Action Section */
+    .cta-section {
+        background: linear-gradient(45deg, #1e004a 0%, #0d1a38 100%);
+        color: white;
+        padding: 80px 0;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .cta-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20V40zm40 0V20L20 40h20z'/%3E%3C/g%3E%3C/svg%3E");
+        opacity: 0.8;
+        z-index: 0;
+    }
+    .cta-content {
+        position: relative;
+        z-index: 1;
+    }
+    .cta-section h2 {
+        font-size: 3.2rem;
+        font-weight: 700;
+        margin-bottom: 25px;
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+    }
+    .cta-section p.lead {
+        font-size: 1.4rem;
+        margin-bottom: 40px;
+    }
+    .btn-cta {
+        background-color: #00e676; /* Bright green for CTA */
+        border-color: #00e676;
+        color: #1a1a1a;
+        font-weight: 700;
+        padding: 15px 40px;
+        border-radius: 50px;
+        font-size: 1.3rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(0, 230, 118, 0.3);
+    }
+    .btn-cta:hover {
+        background-color: #00c764;
+        border-color: #00c764;
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 12px 25px rgba(0, 230, 118, 0.4);
+    }
+
+    /* Portfolio/Showcase Section (Example) */
+    .portfolio-item {
+        background-color: #1e1e1e;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        padding: 30px;
+        margin-bottom: 30px;
+        transition: all 0.3s ease;
+        border: 1px solid #333333;
+        height: 100%;
+    }
+    .portfolio-item:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+        border-color: #00e676; /* Green accent on hover */
+    }
+    .portfolio-item h5 {
+        color: #ffffff;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    .portfolio-item p {
+        color: #b0b0b0;
+    }
+    .portfolio-item .bi {
+        font-size: 2.5rem;
+        color: #00e676; /* Green icon for portfolio */
+        margin-bottom: 20px;
+    }
+
+    /* Video Section Styling */
+    .video-container {
+        position: relative;
+        padding-bottom: 56.25%; /* 16:9 Aspect Ratio (for <iframe> or to help with <video> responsiveness) */
+        height: 0;
+        overflow: hidden;
+        max-width: 100%;
+        background: #000;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        margin: auto; /* Center the video container */
+    }
+
+    .video-container video {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        object-fit: cover; /* Ensures video covers the container */
+    }
+
+    /* Animations and Utilities */
+    .fade-in-section {
+        opacity: 0;
+        transform: translateY(40px); /* Larger initial translation */
+        transition: opacity 1s ease-out, transform 1s ease-out; /* Slower, smoother animation */
+    }
+    .fade-in-section.appear {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 991px) {
+        .hero-landing h1 {
+            font-size: 3.5rem;
+        }
+        .hero-landing p.lead {
+            font-size: 1.3rem;
+        }
+        .section-title {
+            font-size: 2.8rem;
+        }
+        .feature-card-landing h4 {
+            font-size: 1.5rem;
+        }
+        .feature-card-landing .icon {
+            font-size: 3rem;
+        }
+        .cta-section h2 {
+            font-size: 2.5rem;
+        }
+        .btn-cta {
+            padding: 12px 30px;
+            font-size: 1.1rem;
+        }
+        .section-spacing {
+            padding: 80px 0;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .hero-landing {
+            min-height: 80vh;
+        }
+        .hero-landing h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+        }
+        .hero-landing p.lead {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 2.2rem;
+            margin-bottom: 40px;
+        }
+        .feature-card-landing, .portfolio-item {
+            padding: 25px;
+        }
+        .feature-card-landing .icon {
+            font-size: 2.5rem;
+        }
+        .cta-section h2 {
+            font-size: 2rem;
+        }
+        /* Video for smaller screens */
+        .video-container {
+            margin: 0 15px; /* Add some side margin on small screens */
+        }
     }
 </style>
+{% endblock %}
 
-{# Hero Section #}
-<div class="hero-section">
-    <div class="container">
-        <img src="{{ url_for('static', filename='img/logo_light.png') }}" alt="Kechene Debre Selam G.S.S. Logo" class="mb-4" style="max-height: 80px;">
-        <h1 class="display-4 font-heading">Welcome to Kechene Debre Selam G.S.S.</h1>
-        <p class="lead">Powered by <strong>Nexus School Management</strong> - Your integrated platform for seamless school operations and enhanced learning experiences.</p>
-        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-            <a href="{{ url_for('login') }}" class="btn btn-light btn-lg px-4 gap-3"><i class="bi bi-box-arrow-in-right me-2"></i>Login</a>
-            <a href="{{ url_for('pre_register') }}" class="btn btn-outline-light btn-lg px-4"><i class="bi bi-person-plus-fill me-2"></i>Register</a>
+{% block content %}
+<div class="container-fluid p-0">
+
+    <!-- Hero Section: Dynamic School Background -->
+    <section class="hero-landing d-flex align-items-center justify-content-center">
+        <div class="container hero-content text-white fade-in-section">
+            <h1 class="animate__animated animate__fadeInDown">Empowering Education with Nexus</h1>
+            <p class="lead animate__animated animate__fadeInUp animate__delay-1s">
+                The ultimate School Management System designed for modern institutions, educators, students, and parents.
+            </p>
+            <div class="mt-5 animate__animated animate__zoomIn animate__delay-2s">
+                <a href="#features" class="btn btn-cta btn-lg me-3">
+                    Discover Features <i class="bi bi-arrow-right"></i>
+                </a>
+                <a href="#contact" class="btn btn-outline-light btn-lg">
+                    Request a Demo
+                </a>
+            </div>
         </div>
-    </div>
-</div>
+    </section>
 
-{# Login Form Section - Placed prominently after hero for easy access #}
-<section class="login-form-section">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-5 col-md-7">
-                 <div class="card shadow-lg">
-                    <div class="card-body p-4 p-md-5">
-                        <h3 class="card-title text-center font-heading mb-4">Secure Login</h3>
-                        {% include 'layout/_flash_messages.html' %} {# Include flash messages here too #}
-                        <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}" novalidate>
-                            {{ form.hidden_tag() if form.hidden_tag }}
-                            <div class="mb-3">
-                                {{ form.username.label(class="form-label") }}
-                                {{ form.username(class="form-control form-control-lg" + (" is-invalid" if form.username.errors else ""), placeholder="Username") }}
-                                {% if form.username.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.username.errors %}<span>{{ error }}</span>{% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="mb-3">
-                                {{ form.password.label(class="form-label") }}
-                                {{ form.password(class="form-control form-control-lg" + (" is-invalid" if form.password.errors else ""), placeholder="Password") }}
-                                {% if form.password.errors %}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.password.errors %}<span>{{ error }}</span>{% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="d-grid">
-                                {{ form.submit(class="btn btn-primary btn-lg w-100") }}
-                            </div>
-                            <div class="text-center mt-3">
-                                <small><a href="{{ url_for('pre_register') }}" class="text-muted">Need an account? Register</a></small>
-                            </div>
-                        </form>
+    <!-- Tailored System Features Section -->
+    <section id="features" class="section-spacing text-center">
+        <div class="container">
+            <h2 class="section-title fade-in-section">Why Choose Nexus? 💡</h2>
+            <p class="lead text-muted mb-5 fade-in-section">
+                Nexus is built to simplify complex school operations and enhance every aspect of the learning journey.
+            </p>
+
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <div class="col">
+                    <div class="feature-card-landing fade-in-section">
+                        <div class="icon"><i class="bi bi-person-workspace"></i></div>
+                        <h4>Intuitive Admin Dashboard</h4>
+                        <p>Gain a holistic view of your school's operations. Manage admissions, faculty, staff, and resources effortlessly with a powerful, centralized control panel.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card-landing fade-in-section">
+                        <div class="icon"><i class="bi bi-clipboard-data"></i></div>
+                        <h4>Smart Academic Management</h4>
+                        <p>Streamline grading, attendance, timetable creation, and curriculum planning. Automated reporting keeps stakeholders informed and on track.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card-landing fade-in-section">
+                        <div class="icon"><i class="bi bi-wallet-fill"></i></div>
+                        <h4>Integrated Fee Collection</h4>
+                        <p>Simplify fee structures, online payments, and financial tracking. Generate detailed reports for complete transparency and audit readiness.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card-landing fade-in-section">
+                        <div class="icon"><i class="bi bi-chat-left-text"></i></div>
+                        <h4>Real-time Communication Hub</h4>
+                        <p>Connect students, teachers, parents, and administrators instantly through announcements, private messages, and group discussions, fostering a vibrant community.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card-landing fade-in-section">
+                        <div class="icon"><i class="bi bi-file-earmark-bar-graph"></i></div>
+                        <h4>Advanced Analytics & Reporting</h4>
+                        <p>Leverage data-driven insights with customizable reports on student performance, resource utilization, and operational efficiency to make informed decisions.</p>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="feature-card-landing fade-in-section">
+                        <div class="icon"><i class="bi bi-cloud-check-fill"></i></div>
+                        <h4>Secure & Scalable Cloud Platform</h4>
+                        <p>Benefit from robust data security, reliable uptime, and the flexibility to scale with your institution's growth, all hosted on a secure cloud infrastructure.</p>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
-
-{# Features Section - Optional, can be expanded or removed #}
-<section class="features-section text-center">
-    <div class="container">
-        <h2 class="mb-5 font-heading">Why Choose Nexus?</h2>
-        <div class="row">
-            <div class="col-md-4 mb-4">
-                <div class="p-3">
-                    <span class="feature-icon"><i class="bi bi-people-fill"></i></span>
-                    <h4 class="font-heading mt-3">Centralized Management</h4>
-                    <p class="text-muted">Streamline all administrative, academic, and communication tasks in one powerful platform.</p>
+    <!-- Engaging Message / Value Proposition Section -->
+    <section class="section-spacing alt-bg text-center">
+        <div class="container">
+            <h2 class="section-title fade-in-section">Your Journey to Smarter Education Starts Here 🌟</h2>
+            <p class="lead text-muted mb-5 fade-in-section">
+                Nexus is meticulously crafted to be more than just software; it's your partner in fostering an environment where learning thrives and administrative burdens diminish. We believe in simplifying complexity so you can focus on what truly matters: education.
+            </p>
+            <div class="row g-4 justify-content-center">
+                <div class="col-md-5">
+                    <div class="portfolio-item text-start fade-in-section">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-tools me-3"></i>
+                            <h5>Customization & Flexibility</h5>
+                        </div>
+                        <p>Adapt Nexus to your unique school's needs. Our modular design and customizable features ensure a perfect fit for any educational structure.</p>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="portfolio-item text-start fade-in-section">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-headset"></i>
+                            <h5>Dedicated Support</h5>
+                        </div>
+                        <p>Our team is committed to your success. Get timely, expert support whenever you need it, ensuring smooth operations and peace of mind.</p>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-4 mb-4">
-                 <div class="p-3">
-                    <span class="feature-icon"><i class="bi bi-bar-chart-line-fill"></i></span>
-                    <h4 class="font-heading mt-3">Data-Driven Insights</h4>
-                    <p class="text-muted">Access real-time analytics to monitor progress, identify trends, and make informed decisions.</p>
-                </div>
+            <div class="mt-5 fade-in-section">
+                <p class="h4 text-light mb-4">Ready to transform your school's management?</p>
+                <a href="#contact" class="btn btn-cta btn-lg">
+                    Schedule a Free Demo <i class="bi bi-play-circle-fill"></i>
+                </a>
             </div>
-            <div class="col-md-4 mb-4">
-                 <div class="p-3">
-                    <span class="feature-icon"><i class="bi bi-shield-check"></i></span>
-                    <h4 class="font-heading mt-3">Secure & Reliable</h4>
-                    <p class="text-muted">Built with security at its core to protect your data and ensure dependable performance.</p>
+        </div>
+    </section>
+
+    <!-- Video Overview Section -->
+    <section id="platform-overview" class="section-spacing text-center">
+        <div class="container">
+            <h2 class="section-title fade-in-section">Nexus Platform Overview 🎥</h2>
+            <p class="lead text-muted mb-5 fade-in-section">
+                Watch this short video to get a comprehensive understanding of how Nexus School Management System can revolutionize your institution.
+            </p>
+            <div class="row justify-content-center">
+                <div class="col-lg-10 col-md-12">
+                    <div class="video-container fade-in-section">
+                        <video controls loop preload="metadata">
+                            <source src="{{ url_for('static', filename='videos/nexus_intro.mp4') }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
-{# Call to Action / Contact Section - Optional #}
-{# <section class="py-5 bg-light">
-    <div class="container text-center">
-        <h3 class="font-heading">Ready to Transform Your School?</h3>
-        <p class="lead text-muted">Contact us today to learn more about Nexus for Kechene Debre Selam G.S.S.</p>
-        <a href="#" class="btn btn-info btn-lg mt-3">Get in Touch</a> {# Placeholder link #}
-    {# </div>
-</section> #}
+    <!-- Call to Action Section (Repeat for emphasis) -->
+    <section id="contact" class="cta-section">
+        <div class="container cta-content fade-in-section">
+            <h2 class="animate__animated animate__fadeInDown">Let's Build a Brighter Future Together!</h2>
+            <p class="lead animate__animated animate__fadeInUp animate__delay-1s">
+                Experience the difference Nexus can make. Contact us today for a personalized walkthrough.
+            </p>
+            <div class="mt-4 animate__animated animate__zoomIn animate__delay-2s">
+                <a href="mailto:tadi0781@example.com" class="btn btn-cta btn-lg">
+                    <i class="bi bi-envelope-fill me-2"></i> Send Us an Email
+                </a>
+                <a href="tel:+251938749242" class="btn btn-outline-light btn-lg ms-3">
+                    <i class="bi bi-phone-fill me-2"></i> Call Now
+                </a>
+            </div>
+        </div>
+    </section>
 
+</div>
 {% endblock %}
 
 {% block body_scripts %}
 <script>
-    // Any page-specific JavaScript for index.html can go here.
-    // For instance, animations or interactive elements for the hero/features.
+    document.addEventListener('DOMContentLoaded', function() {
+        // Intersection Observer for fade-in animations
+        const fadeElements = document.querySelectorAll('.fade-in-section');
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.1 // Trigger when 10% of the element is visible
+        };
+
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('appear');
+                    // If you want the animation to play only once, uncomment the line below:
+                    // observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        fadeElements.forEach(el => {
+            observer.observe(el);
+        });
+
+        // Smooth scrolling for anchor links (e.g., "Discover Features")
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}
+

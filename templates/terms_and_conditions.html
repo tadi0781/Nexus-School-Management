@@ -1,0 +1,145 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Terms and Conditions - Nexus{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    /* Custom styles for T&C page for better readability in dark mode */
+    .terms-container {
+        background-color: #212529; /* Bootstrap dark background */
+        color: #dee2e6; /* Bootstrap light text */
+        border-radius: .5rem;
+        padding: 2rem;
+        border: 1px solid #495057;
+    }
+    .terms-container h1, .terms-container h2, .terms-container h3 {
+        color: #ffffff;
+        border-bottom: 1px solid #495057;
+        padding-bottom: 0.5rem;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .terms-container h1 {
+        font-size: 2.5rem;
+        color: #0d6efd; /* Bootstrap primary blue */
+    }
+    .terms-container strong {
+        color: #ffc107; /* Bootstrap warning yellow */
+    }
+    .terms-container a {
+        color: #6ea8fe; /* Lighter blue for links in dark mode */
+        text-decoration: none;
+    }
+    .terms-container a:hover {
+        text-decoration: underline;
+    }
+    .terms-container ol, .terms-container ul {
+        padding-left: 2rem;
+    }
+    .terms-container li {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+    .terms-container .last-updated {
+        font-style: italic;
+        color: #adb5bd; /* Bootstrap secondary text color */
+        text-align: right;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="terms-container">
+                <h1>Terms and Conditions</h1>
+                <p class="lead text-light">Welcome to Nexus, the comprehensive school management system for Kechene Debre Selam G.S.S.</p>
+                <p class="last-updated">Last Updated: October 26, 2023</p>
+
+                <p>Please read these Terms and Conditions ("Terms", "Terms and Conditions") carefully before using the Nexus platform (the "Service") operated by the Nexus Development Team ("us", "we", or "our").</p>
+
+                <p>Your access to and use of the Service is conditioned on your acceptance of and compliance with these Terms. These Terms apply to all visitors, users, and others who access or use the Service, including but not limited to Students, Parents, Teachers, Librarians, Talent Club Members and Leaders, School Executives, HR & CEO, Government Officials, and System Administrators ("Users").</p>
+
+                <p>By accessing or using the Service, you agree to be bound by these Terms. If you disagree with any part of the terms, then you may not access the Service.</p>
+
+                <h2 id="definitions">1. Definitions</h2>
+                <ol>
+                    <li><strong>Service:</strong> The Nexus school management platform and all related features, including but not limited to user management, academic records (marks, attendance), asset management, internal communication (chat, notifications), social features (channels, groups, global feed), task management, and the multi-tiered request system.</li>
+                    <li><strong>User:</strong> Any individual with an authorized account on the Service, corresponding to roles such as Student, Teacher, Parent, Administrator, etc.</li>
+                    <li><strong>Content:</strong> Any information, text, graphics, files, photos, videos, or other materials uploaded, shared, or displayed by a User on the Service. This includes posts, comments, messages, and uploaded files.</li>
+                    <li><strong>KDSGSS:</strong> Refers to Kechene Debre Selam General Secondary School, the institution for which this Service is provided.</li>
+                </ol>
+
+                <h2 id="accounts">2. User Accounts</h2>
+                <ol>
+                    <li><strong>Registration:</strong> Account creation is strictly controlled via a pre-registration system using unique secret codes provided by KDSGSS administration. You must provide accurate, complete, and current information during the registration process. Failure to do so constitutes a breach of the Terms, which may result in immediate termination of your account.</li>
+                    <li><strong>Account Security:</strong> You are responsible for safeguarding the password that you use to access the Service and for any activities or actions under your password. You agree not to disclose your password to any third party. You must notify us immediately upon becoming aware of any breach of security or unauthorized use of your account.</li>
+                    <li><strong>Account Roles:</strong> Your account role (e.g., Student, Teacher, Parent) is assigned by the administration and dictates your level of access and permissions within the Service. Attempting to circumvent these permissions is strictly prohibited.</li>
+                    <li><strong>Termination:</strong> We may terminate or suspend your account immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms. Upon termination, your right to use the Service will immediately cease.</li>
+                </ol>
+
+                <h2 id="acceptable-use">3. Acceptable Use Policy</h2>
+                <p>You agree not to use the Service to:</p>
+                <ul>
+                    <li>Post or transmit any Content that is unlawful, threatening, abusive, libelous, defamatory, obscene, vulgar, pornographic, profane, or indecent. This includes any form of cyberbullying or harassment directed at other Users.</li>
+                    <li>Violate the academic integrity of KDSGSS. This includes cheating, plagiarism, or facilitating academic dishonesty through the Service's communication tools.</li>
+                    <li>Impersonate any person or entity or falsely state or otherwise misrepresent your affiliation with a person or entity.</li>
+                    <li>Upload or transmit any Content that infringes any patent, trademark, trade secret, copyright, or other proprietary rights of any party.</li>
+                    <li>Attempt to gain unauthorized access to any other User's account, the Service's administrative areas, or any computer systems or networks connected to the Service.</li>
+                    <li>Misuse the Asset Reporting or Multi-Tiered Request systems by submitting false, malicious, or frivolous reports and requests.</li>
+                    <li>Use the Social Media, Chat, or Notification features to distribute spam, unsolicited messages, or chain letters.</li>
+                    <li>Disrupt the normal flow of dialogue or otherwise act in a manner that negatively affects other Users' ability to use the Service.</li>
+                </ul>
+
+                <h2 id="content">4. User-Generated Content</h2>
+                <ol>
+                    <li><strong>Ownership:</strong> You retain all of your ownership rights in your Content.</li>
+                    <li><strong>License Grant:</strong> By submitting, posting, or displaying Content on or through the Service, you grant us a worldwide, non-exclusive, royalty-free license to use, copy, reproduce, process, adapt, modify, publish, transmit, display, and distribute such Content in any and all media or distribution methods now known or later developed, solely for the purpose of operating, developing, providing, and improving the Service for KDSGSS.</li>
+                    <li><strong>Responsibility:</strong> You are solely responsible for your Content and the consequences of posting or publishing it. We do not endorse any Content submitted to the Service by any User or other licensor, or any opinion, recommendation, or advice expressed therein.</li>
+                    <li><strong>Moderation:</strong> We reserve the right, but are not obligated, to review, monitor, and remove Content that we determine in our sole discretion violates these Terms or is otherwise inappropriate, without notice to you. This includes content within public channels, groups, and the global feed. Private communications may be reviewed if a violation of these Terms is reported and investigated by authorized administrators.</li>
+                </ol>
+
+                <h2 id="modules">5. Specific Feature Terms</h2>
+                <ol>
+                    <li><strong>Social & Communication Tools:</strong> All communications within Channels, Groups, and Direct Chat must adhere to the Acceptable Use Policy. Channel and Group owners/admins are responsible for moderating content within their respective spaces and may have their administrative privileges revoked for failing to do so.</li>
+                    <li><strong>Talent Clubs:</strong> The creation of a Talent Club is a privilege subject to an approval process. Club leaders are responsible for the activities and content within their club's feed. Clubs are subject to a warning and level system, and may be deactivated by the system-wide TC Leader or school administration for violating these Terms.</li>
+                    <li><strong>Asset and Request Systems:</strong> Users must provide truthful and accurate information when reporting damaged assets or submitting requests through the multi-tiered system. Abuse of these systems may result in disciplinary action.</li>
+                </ol>
+
+                <h2 id="privacy">6. Privacy</h2>
+                <p>Your privacy is important to us. Our Privacy Policy explains how we collect, use, and share your personal information. By using the Service, you agree to the collection and use of information in accordance with our Privacy Policy. We encourage you to read it carefully.</p>
+                <p>A link to our Privacy Policy can be found here: <a href="{{ url_for('home') }}#privacy-policy">Privacy Policy</a>.</p>
+
+                <h2 id="ip">7. Intellectual Property</h2>
+                <p>The Service and its original content (excluding Content provided by Users), features, and functionality are and will remain the exclusive property of the Nexus Development Team and its licensors. The Service is protected by copyright, trademark, and other laws of both Ethiopia and foreign countries. Our trademarks and trade dress may not be used in connection with any product or service without our prior written consent.</p>
+
+                <h2 id="liability">8. Disclaimers and Limitation of Liability</h2>
+                <p>THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS. YOUR USE OF THE SERVICE IS AT YOUR SOLE RISK. WE EXPRESSLY DISCLAIM ALL WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.</p>
+                <p>WE DO NOT WARRANT THAT (I) THE SERVICE WILL MEET YOUR SPECIFIC REQUIREMENTS, (II) THE SERVICE WILL BE UNINTERRUPTED, TIMELY, SECURE, OR ERROR-FREE, (III) THE RESULTS THAT MAY BE OBTAINED FROM THE USE OF THE SERVICE WILL BE ACCURATE OR RELIABLE, OR (IV) ANY ERRORS IN THE SERVICE WILL BE CORRECTED.</p>
+                <p>IN NO EVENT SHALL THE NEXUS DEVELOPMENT TEAM, NOR ITS DIRECTORS, EMPLOYEES, PARTNERS, AGENTS, SUPPLIERS, OR AFFILIATES, BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING WITHOUT LIMITATION, LOSS OF PROFITS, DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES, RESULTING FROM YOUR ACCESS TO OR USE OF OR INABILITY TO ACCESS OR USE THE SERVICE.</p>
+
+                <h2 id="indemnification">9. Indemnification</h2>
+                <p>You agree to defend, indemnify, and hold harmless the Nexus Development Team, KDSGSS, and its licensee and licensors, and their employees, contractors, agents, officers, and directors, from and against any and all claims, damages, obligations, losses, liabilities, costs or debt, and expenses (including but not limited to attorney's fees), resulting from or arising out of a) your use and access of the Service, by you or any person using your account and password; or b) a breach of these Terms.</p>
+
+                <h2 id="governing-law">10. Governing Law</h2>
+                <p>These Terms shall be governed and construed in accordance with the laws of Ethiopia, without regard to its conflict of law provisions. Any disputes arising from these Terms or the use of the Service shall be resolved in the competent courts of Addis Ababa, Ethiopia.</p>
+
+                <h2 id="changes">11. Changes to Terms</h2>
+                <p>We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will provide at least 30 days' notice prior to any new terms taking effect, which may be delivered via a system-wide notification within the Service. What constitutes a material change will be determined at our sole discretion.</p>
+                <p>By continuing to access or use our Service after those revisions become effective, you agree to be bound by the revised terms.</p>
+
+                <h2 id="contact">12. Contact Us</h2>
+                <p>If you have any questions about these Terms, please contact us:</p>
+                <ul>
+                    <li>By email: <a href="mailto:support@nexus-edu.com">support@nexus-edu.com</a> or <a href="mailto:tadi0781@gmail.com">tadi0781@gmail.com</a></li>
+                    <li>By Telegram: <a href="https://t.me/tadi0781" target="_blank" rel="noopener noreferrer">@tadi0781</a></li>
+                    <li>Through the internal support request system available to authorized users.</li>
+                </ul>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

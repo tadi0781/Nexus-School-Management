@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     
-    {# CSRF Token for secure AJAX requests from JS files #}
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {# --- FIX: CSRF Token for secure AJAX requests from JS files --- #}
+    <meta name="csrf-token" content="{{ get_csrf_token_value() }}">
 
     <title>{% block page_title %}Nexus School Management{% endblock %} - Nexus</title>
 
@@ -18,9 +18,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
     
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
+    <!-- Font Awesome for icons (ADDED THIS LINE) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
     <!-- Third-Party Libraries CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
@@ -41,46 +44,29 @@
         {% include 'layout/_navbar.html' %}
     {% endblock navbar_block %}
     
-    {# This div will contain the sidebar and the main content area #}
+    {# --- FIX: Corrected Off-Canvas Layout Structure --- #}
     <div class="d-flex flex-grow-1">
 
-        {# RENDER THE SIDEBAR (if applicable) #}
+        {# 1. RENDER THE SIDEBAR (if applicable) #}
         {% if current_user.is_authenticated and not no_sidebar %}
             {% include 'layout/_sidebar.html' %}
-            {# ADD THE MISSING BACKDROP FOR MOBILE VIEW #}
+            {# 2. ADD THE MISSING BACKDROP FOR MOBILE VIEW #}
             <div class="sidebar-backdrop d-md-none"></div>
         {% endif %}
 
-        {# RENDER THE MAIN CONTENT AREA #}
+        {# 3. RENDER THE MAIN CONTENT AREA #}
         <main role="main" class="nexus-main-content">
             {% block content_header %}{% endblock %}
             {% block content %}{% endblock %}
         </main>
         
     </div>
+    {# --- END OF CORRECTION --- #}
 
     {% include 'layout/_footer.html' %}
 
     {# Global modal structure for file previews #}
-    <div class="modal fade" id="viewFileModal" tabindex="-1" aria-labelledby="viewFileModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title font-heading" id="viewFileModalLabel">File Preview</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center" id="viewFileModalBody">
-                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
-                </div>
-                <div class="modal-footer">
-                    <a href="#" class="btn btn-primary" id="filePreviewModalDownloadBtn" download>
-                        <i class="bi bi-download me-2"></i>Download
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    {% include 'partials/_file_preview_modal.html' %}
 
     <!-- JavaScript Libraries & Application Scripts -->
     <script>
@@ -97,12 +83,12 @@
     
     
     <!-- Core & Third-Party Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 
     <!-- FilePond JS Plugins (must come before main FilePond script) -->
@@ -111,9 +97,7 @@
     <script src="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.min.js"></script>
     <script src="https://unpkg.com/filepond/dist/filepond.min.js"></script>
     
-    {# ========================================================================= #}
-    {# === CORRECTED APPLICATION JAVASCRIPT LOADING ORDER ====================== #}
-    {# ========================================================================= #}
+    {# --- FIX: Corrected Application JavaScript Loading Order --- #}
 
     <!-- 1. Core Utilities & Services (MUST be loaded first) -->
     <script src="{{ url_for('static', filename='js/utils.js') }}?v={{ range(1, 99999) | random }}"></script>
@@ -131,12 +115,9 @@
     <!-- 3. Global Initializers & Main App Entrypoint (MUST be loaded last) -->
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1, 99999) | random }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(1, 99999) | random }}"></script>
-
-    {# ========================================================================= #}
-    {# === END OF CORRECTION =================================================== #}
-    {# ========================================================================= #}
     
     {% block body_scripts %}{% endblock %} {# For page-specific JS #}
 
 </body>
 </html>
+

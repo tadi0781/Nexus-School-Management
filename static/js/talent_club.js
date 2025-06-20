@@ -1,12 +1,66 @@
 // --- START OF FILE talent_club.js ---
 // Nexus School Management System - talent_club.js
 // Version: CONSOLIDATED & REFACTORED
-alert("talent_club.js has loaded!");
-
-// --- The rest of your code starts below this line ---
-// Nexus School Management System - talent_club.js
 "use strict";
-// ...
+
+/**
+ * =================================================================
+ * UTILITY FUNCTIONS (Global Helpers)
+ * =================================================================
+ */
+
+// A generic function to post form data and handle responses
+async function postData(url = '', data = {}) {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(), // Assumes a function to get the CSRF token
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "An unknown error occurred." }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+}
+
+// A generic function to fetch data
+async function getData(url = '') {
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "An unknown error occurred." }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+}
+
+
+// Function to get CSRF token from a meta tag
+function getCsrfToken() {
+  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+// Function to safely escape HTML to prevent XSS
+function escapeHTML(str) { 
+    if (typeof str !== 'string') return '';
+    return str.replace(/[&<>"']/g, match => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[match]));
+}
+
+// A global function to show notifications (can be customized)
+function showNexusNotification(title, message, type = 'info') {
+    // This is a placeholder. You would integrate your actual notification/toast library here.
+    console.log(`[Notification - ${type.toUpperCase()}] ${title}: ${message}`);
+    alert(`${title}: ${message}`);
+}
+
 
 /**
  * =================================================================
@@ -14,7 +68,6 @@ alert("talent_club.js has loaded!");
  * =================================================================
  */
 
-// Global state variables for different modules within this file
 let currentTCClubId = null;
 let currentTCFeedPage = 1;
 let isLoadingTCPosts = false;
@@ -24,25 +77,59 @@ const TC_COMMUNITY_POLL_INTERVAL = 7000;
 let tcCommunityMessagePollIntervalId = null;
 let lastTCCommunityMessageTimestamp = 0;
 
-// Central event listener for the entire document
 document.addEventListener('DOMContentLoaded', function () {
     console.log('Nexus Talent Club JS Initialized.');
 
-    // Use a single, delegated event listener for form submissions.
-    document.body.addEventListener('submit', async function(event) {
-        if (event.target.closest('.tc-comment-form')) {
-            event.preventDefault();
-            await handleTCCommentSubmit(event.target.closest('.tc-comment-form'));
-        }
-        if (event.target.closest('.tc-member-action-form')) {
-            event.preventDefault();
-            await handleTCMemberActionFormSubmit(event.target.closest('.tc-member-action-form'));
-        }
-    });
+    initializeProposalForm();
+    initializeDiscoveryAndProfileActions();
+    initializeTCFeedFromPage();
+    initializeTCCommunityChatFromPage();
+    initializeMemberManagementActions();
 });
 
 // Register real-time handlers once the global socket manager is ready.
-document.addEventListener('realtimeManagerReady', registerTCRealtimeHandlers);
+// document.addEventListener('realtimeManagerReady', registerTCRealtimeHandlers);
+
+
+/**
+ * =================================================================
+ * TALENT CLUB PROPOSAL FORM
+ * =================================================================
+ */
+function initializeProposalForm() {
+    const formEl = document.getElementById('proposalForm');
+    const memberPickerEl = document.getElementById('mentioned_member_ids_picker');
+    const hiddenInputEl = document.getElementById('mentioned_member_ids');
+
+    if (!formEl || !memberPickerEl || !hiddenInputEl) {
+        return;
+    }
+    
+    console.log("Proposal form elements FOUND. Initializing member picker.");
+
+    const memberTomSelect = new TomSelect(memberPickerEl, {
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text'],
+        plugins: ['remove_button'],
+        maxItems: 20,
+        create: false,
+        load: function(query, callback) {
+            if (!query.length || query.length < 2) return callback();
+            const url = `/talent_club/api/members/search?q=${encodeURIComponent(query)}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(json => callback(json))
+                .catch(() => callback());
+        }
+    });
+
+    formEl.addEventListener('submit', function(event) {
+        const selectedIds = memberTomSelect.getValue();
+        hiddenInputEl.value = Array.isArray(selectedIds) ? selectedIds.join(',') : '';
+        console.log('Form Submit: Populating hidden input with:', hiddenInputEl.value);
+    });
+}
 
 
 /**
@@ -50,13 +137,31 @@ document.addEventListener('realtimeManagerReady', registerTCRealtimeHandlers);
  * TALENT CLUB PROFILE & DISCOVERY (Tabs, Follow/Unfollow)
  * =================================================================
  */
+function initializeDiscoveryAndProfileActions() {
+    document.body.addEventListener('click', async function (event) {
+        const tabButton = event.target.closest('.tc-content-tab');
+        if (tabButton) {
+            event.preventDefault();
+            const clubId = tabButton.dataset.clubId;
+            const tabName = tabButton.dataset.tabName;
+            document.querySelectorAll('.tc-content-tab').forEach(btn => btn.classList.remove('active'));
+            tabButton.classList.add('active');
+            await loadTabContent(clubId, tabName);
+        }
+
+        const actionButton = event.target.closest('.tc-action-btn');
+        if (actionButton) {
+            event.preventDefault();
+            const clubId = actionButton.dataset.clubId;
+            const action = actionButton.dataset.action;
+            await handleTalentClubAction(clubId, action, actionButton);
+        }
+    });
+}
 
 async function loadTabContent(clubId, tabName) {
     const container = document.getElementById('tab-content-container');
-    if (!container) {
-        console.error('Error: #tab-content-container element not found.');
-        return;
-    }
+    if (!container) return;
     container.innerHTML = `<div class="text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>`;
     try {
         const response = await fetch(`/talent_club/${clubId}/content/${tabName}`);
@@ -78,43 +183,41 @@ async function handleTalentClubAction(clubId, action, buttonElement) {
     const originalButtonHTML = buttonElement.innerHTML;
     buttonElement.disabled = true;
     buttonElement.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Working...`;
-    let responseData = null;
-
+    
     try {
-        responseData = await postData(`/talent_club/${clubId}/${action.replace('_club', '')}`, {}); // Assumes postData from utils.js
+        const responseData = await postData(`/talent_club/${clubId}/${action}`, {}); 
 
         if (responseData.success) {
             showNexusNotification('Success!', responseData.message || 'Action completed.', 'success');
-            // UI updates based on action
-            if (action === 'follow_club') {
+            // Update UI based on action
+            if (action === 'follow') {
                 buttonElement.innerHTML = '<i class="bi bi-bell-slash-fill me-1"></i> Following';
                 buttonElement.classList.replace('btn-primary', 'btn-info');
-                buttonElement.dataset.action = 'unfollow_club';
-            } else if (action === 'unfollow_club') {
+                buttonElement.dataset.action = 'unfollow';
+            } else if (action === 'unfollow') {
                 buttonElement.innerHTML = '<i class="bi bi-bell-fill me-1"></i> Follow';
                 buttonElement.classList.replace('btn-info', 'btn-primary');
-                buttonElement.dataset.action = 'follow_club';
+                buttonElement.dataset.action = 'follow';
             } else if (action === 'leave_club') {
-                buttonElement.closest('.talent-club-card')?.parentElement.remove();
+                // Redirect or remove element
+                window.location.href = responseData.redirect_url || '/talent_club/my_clubs';
             }
 
-            // Update engagement count if provided
-            if (typeof responseData.new_total_engagement === 'number') {
-                const engagementElement = buttonElement.closest('.talent-club-card')?.querySelector('small.text-muted i.bi-people-fill')?.nextSibling;
-                if (engagementElement) engagementElement.textContent = ` ${responseData.new_total_engagement} Engaged`;
+            if (typeof responseData.follower_count === 'number') {
+                const engagementElement = document.querySelector(`.engagement-count[data-club-id="${clubId}"]`);
+                if (engagementElement) engagementElement.textContent = ` ${responseData.follower_count} Engaged`;
             }
+            buttonElement.disabled = false;
         } else {
-            showNexusNotification('Action Failed', responseData.error || 'Could not complete action.', 'error');
+            showNexusNotification('Action Failed', responseData.error || 'Could not complete action.', 'danger');
             buttonElement.innerHTML = originalButtonHTML;
+            buttonElement.disabled = false;
         }
     } catch (error) {
         console.error(`Error with TC action '${action}' for club ${clubId}:`, error);
-        showNexusNotification('Error', `An unexpected error occurred: ${error.message}`, 'error');
+        showNexusNotification('Error', `An unexpected error occurred.`, 'error');
         buttonElement.innerHTML = originalButtonHTML;
-    } finally {
-        if (!responseData || !responseData.success || action !== 'leave_club') {
-            buttonElement.disabled = false;
-        }
+        buttonElement.disabled = false;
     }
 }
 
@@ -125,52 +228,120 @@ async function handleTalentClubAction(clubId, action, buttonElement) {
  * =================================================================
  */
 
+function initializeTCFeedFromPage() {
+    const feedContainer = document.querySelector('.tc-feed-container');
+    if (feedContainer) {
+        const clubId = feedContainer.dataset.clubId;
+        initializeTCFeed(clubId);
+    }
+}
+
 function initializeTCFeed(clubId) {
     console.log(`Initializing TC Feed for Club ID: ${clubId}`);
     currentTCClubId = clubId;
     currentTCFeedPage = 1;
     isLoadingTCPosts = false;
-    const loadMoreButton = document.querySelector(`#loadMoreTcPostsTrigger-${clubId} .load-more-tc-posts-btn`);
-    loadMoreButton?.addEventListener('click', () => loadMoreTcFeedPosts(clubId, loadMoreButton));
-    const feedContainer = document.getElementById(`tcFeedContainer-${clubId}`);
-    feedContainer?.addEventListener('click', async function(event) {
-        const reactionBtn = event.target.closest('.tc-reaction-btn');
+    
+    document.body.addEventListener('click', async function(event) {
+        const reactionBtn = event.target.closest(`.tc-reaction-btn[data-club-id="${clubId}"]`);
         if (reactionBtn) { event.preventDefault(); await handleTCReactionClick(reactionBtn); }
-        const deletePostBtn = event.target.closest('.delete-tc-feed-post-btn');
+        
+        const deletePostBtn = event.target.closest(`.delete-tc-feed-post-btn[data-club-id="${clubId}"]`);
         if (deletePostBtn) { event.preventDefault(); await handleDeleteTCFeedPost(deletePostBtn); }
-        const deleteCommentBtn = event.target.closest('.delete-comment-btn');
-        if (deleteCommentBtn) { event.preventDefault(); await handleDeleteTCFeedComment(deleteCommentBtn); }
+    });
+
+    document.body.addEventListener('submit', async function(event) {
+        const commentForm = event.target.closest(`.tc-comment-form[data-club-id="${clubId}"]`);
+        if (commentForm) { event.preventDefault(); await handleTCCommentSubmit(commentForm); }
     });
 }
 window.initializeTCFeed = initializeTCFeed;
 
-async function loadMoreTcFeedPosts(clubId, buttonElement) { /* Retained from original file */ }
-async function handleTCCommentSubmit(form) { /* Retained from original file */ }
-async function handleTCReactionClick(buttonElement) { /* Retained from original file */ }
-async function handleDeleteTCFeedPost(buttonElement) { /* Retained from original file */ }
-async function handleDeleteTCFeedComment(buttonElement) { /* Retained from original file */ }
+async function handleTCCommentSubmit(form) {
+    const postId = form.dataset.postId;
+    const submitButton = form.querySelector('button[type="submit"]');
+    const content = form.querySelector('textarea[name="content"]').value;
 
+    if (!content.trim()) return;
+
+    submitButton.disabled = true;
+    try {
+        const responseData = await postData(`/talent_club/feed/posts/${postId}/comment`, { content });
+        if (responseData.success) {
+            const commentsContainer = document.getElementById(`comments-container-${postId}`);
+            commentsContainer.insertAdjacentHTML('beforeend', responseData.comment_html);
+            form.reset();
+        } else {
+            showNexusNotification('Error', responseData.error || 'Failed to post comment.', 'danger');
+        }
+    } catch(error) {
+        showNexusNotification('Error', 'Could not post comment.', 'danger');
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
+async function handleTCReactionClick(buttonElement) {
+    const postId = buttonElement.dataset.postId;
+    const emoji = buttonElement.dataset.emoji;
+    
+    try {
+        const responseData = await postData(`/talent_club/feed/posts/${postId}/react`, { emoji });
+        if (responseData.success) {
+            buttonElement.querySelector('.reaction-count').textContent = responseData.new_count;
+            buttonElement.classList.toggle('active', responseData.user_reacted);
+        } else {
+            showNexusNotification('Error', responseData.error, 'danger');
+        }
+    } catch(error) {
+        showNexusNotification('Error', 'Could not process reaction.', 'danger');
+    }
+}
+
+async function handleDeleteTCFeedPost(buttonElement) {
+    const postId = buttonElement.dataset.postId;
+    if (confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+        try {
+            const responseData = await postData(`/talent_club/feed/posts/${postId}/delete`, {});
+            if (responseData.success) {
+                document.getElementById(`tc-feed-post-${postId}`)?.remove();
+                showNexusNotification('Success', 'Post deleted.', 'success');
+            } else {
+                showNexusNotification('Error', responseData.error, 'danger');
+            }
+        } catch(error) {
+            showNexusNotification('Error', 'Could not delete post.', 'danger');
+        }
+    }
+}
 
 /**
  * =================================================================
- * TALENT CLUB COMMUNITY CHAT (Corrected and Consolidated)
+ * TALENT CLUB COMMUNITY CHAT
  * =================================================================
  */
+function initializeTCCommunityChatFromPage() {
+    const form = document.querySelector('.tc-community-message-form');
+    if (form) {
+        const communityGroupId = form.dataset.communityGroupId;
+        const userId = form.dataset.currentUserId;
+        initializeTCCommunityChat(communityGroupId, userId);
+    }
+}
 
 function initializeTCCommunityChat(communityGroupId, userId) {
-    console.log(`Initializing TC Community Chat for Group ID: ${communityGroupId}`);
     const messageForm = document.getElementById(`tcCommunityMessageForm-${communityGroupId}`);
     const chatWindow = document.getElementById(`tcCommunityChatWindowMessages-${communityGroupId}`);
-    if (!messageForm || !chatWindow) {
-        console.error(`CRITICAL: Chat form or window not found for group ${communityGroupId}. Chat disabled.`);
-        return;
-    }
+    if (!messageForm || !chatWindow) return;
+    
     currentTCCommunityGroupId = communityGroupId;
     currentTCUserId = userId;
+    
     messageForm.addEventListener('submit', handleTCCommunityMessageSubmit);
-    console.log("Successfully attached submit handler to the TC community chat form.");
-    const lastMsgEl = chatWindow.querySelector('.chat-message-wrapper:last-child .message-timestamp'); // last-child for normal flow, first-child for column-reverse
-    lastTCCommunityMessageTimestamp = lastMsgEl?.title ? new Date(lastMsgEl.title).getTime() : Date.now();
+    
+    const lastMsgEl = chatWindow.querySelector('.chat-message-wrapper:last-child');
+    lastTCCommunityMessageTimestamp = lastMsgEl ? new Date(lastMsgEl.dataset.timestamp).getTime() : Date.now();
+    
     startTCCommunityMessagePolling();
 }
 window.initializeTCCommunityChat = initializeTCCommunityChat;
@@ -178,31 +349,27 @@ window.initializeTCCommunityChat = initializeTCCommunityChat;
 async function handleTCCommunityMessageSubmit(event) {
     event.preventDefault();
     const form = event.target;
-    const submitButton = form.querySelector('.post-submit-btn');
+    const submitButton = form.querySelector('button[type="submit"]');
     const formData = new FormData(form);
-    const originalButtonHTML = submitButton.innerHTML;
+    
     submitButton.disabled = true;
-    submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Sending...`;
-
     try {
         const response = await fetch(form.action, { method: 'POST', body: formData, headers: {'X-CSRFToken': getCsrfToken()} });
         const responseData = await response.json();
         if (response.ok && responseData.success && responseData.post_data) {
             appendTCCommunityMessage(responseData.post_data);
             form.reset();
-            const contentTextarea = form.querySelector('.post-content-textarea');
-            if (contentTextarea) contentTextarea.style.height = 'auto';
-            const fileInput = form.querySelector('.filepond-input');
-            if (fileInput && FilePond.find(fileInput)) FilePond.find(fileInput).removeFiles();
-            lastTCCommunityMessageTimestamp = new Date(responseData.post_data.timestamp).getTime();
+            // Reset FilePond if used
+            if(window.FilePond && FilePond.find(form.querySelector('input[type="file"]'))) {
+                FilePond.find(form.querySelector('input[type="file"]')).removeFiles();
+            }
         } else {
             showNexusNotification('Error', responseData.error || 'Failed to send message.', 'danger');
         }
     } catch (error) {
-        showNexusNotification('Network Error', `Message send failed: ${error.message}`, 'danger');
+        showNexusNotification('Network Error', `Message could not be sent.`, 'danger');
     } finally {
         submitButton.disabled = false;
-        submitButton.innerHTML = originalButtonHTML;
     }
 }
 
@@ -210,17 +377,17 @@ function appendTCCommunityMessage(msgData) {
     const chatWindow = document.getElementById(`tcCommunityChatWindowMessages-${currentTCCommunityGroupId}`);
     if (!chatWindow) return;
     const messageHTML = renderChatMessageItem(msgData, currentTCUserId);
-    chatWindow.querySelector('.text-center.text-muted')?.remove();
-    // Prepending because of flex-direction: column-reverse
-    chatWindow.insertAdjacentHTML('afterbegin', messageHTML);
+    chatWindow.insertAdjacentHTML('beforeend', messageHTML); // Append new messages at the end
+    chatWindow.scrollTop = chatWindow.scrollHeight; // Scroll to bottom
 }
 
 function renderChatMessageItem(messageData, currentUserId) {
     const isSender = messageData.sender_id === currentUserId;
-    const senderName = messageData.sender ? (messageData.sender.full_name || messageData.sender.username) : "System";
+    const senderName = messageData.sender?.full_name || messageData.sender?.username || "System";
     const senderAvatar = messageData.sender?.profile_photo_url ? `/static/${messageData.sender.profile_photo_url}` : '/static/img/placeholders/user_avatar_default.png';
     const timestamp = new Date(messageData.timestamp);
     const timeString = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
     let fileHTML = '';
     if (messageData.file) {
         fileHTML = `
@@ -231,8 +398,9 @@ function renderChatMessageItem(messageData, currentUserId) {
                 </a>
             </div>`;
     }
+
     return `
-        <div class="chat-message-wrapper d-flex mb-3 ${isSender ? 'justify-content-end' : 'justify-content-start'}" id="message-${messageData.id}">
+        <div class="chat-message-wrapper d-flex mb-3 ${isSender ? 'justify-content-end' : ''}" id="message-${messageData.id}" data-timestamp="${timestamp.toISOString()}">
             <div class="chat-message d-flex flex-column ${isSender ? 'sent align-items-end' : 'received align-items-start'}" style="max-width: 75%;">
                 <div class="d-flex align-items-end ${isSender ? 'flex-row-reverse' : ''}">
                     ${!isSender ? `<img src="${senderAvatar}" alt="${escapeHTML(senderName)}" class="rounded-circle me-2 shadow-sm" style="width: 30px; height: 30px; object-fit: cover;">` : ''}
@@ -251,19 +419,18 @@ function renderChatMessageItem(messageData, currentUserId) {
 function startTCCommunityMessagePolling() {
     if (tcCommunityMessagePollIntervalId) clearInterval(tcCommunityMessagePollIntervalId);
     if (!currentTCCommunityGroupId) return;
-    console.log('TC Community message polling started.');
-    fetchNewTCCommunityMessages();
     tcCommunityMessagePollIntervalId = setInterval(fetchNewTCCommunityMessages, TC_COMMUNITY_POLL_INTERVAL);
 }
 
 async function fetchNewTCCommunityMessages() {
     if (!currentTCCommunityGroupId) return;
     try {
-        const data = await getData(`/talent_club/api/community/${currentTCCommunityGroupId}/messages/new?since=${lastTCCommunityMessageTimestamp}`); // Assumes getData from utils.js
+        const data = await getData(`/talent_club/api/community/${currentTCCommunityGroupId}/messages/new?since=${lastTCCommunityMessageTimestamp}`);
         if (data.messages && data.messages.length > 0) {
-            data.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             data.messages.forEach(msg => {
-                if (!document.getElementById(`message-${msg.id}`)) appendTCCommunityMessage(msg);
+                if (!document.getElementById(`message-${msg.id}`)) {
+                    appendTCCommunityMessage(msg);
+                }
             });
             lastTCCommunityMessageTimestamp = new Date(data.messages[data.messages.length - 1].timestamp).getTime();
         }
@@ -277,36 +444,47 @@ function stopTCCommunityMessagePolling() {
     if (tcCommunityMessagePollIntervalId) {
         clearInterval(tcCommunityMessagePollIntervalId);
         tcCommunityMessagePollIntervalId = null;
-        console.log('TC Community message polling stopped.');
     }
 }
 window.addEventListener('beforeunload', stopTCCommunityMessagePolling);
 
-
 /**
  * =================================================================
- * REAL-TIME EVENT HANDLERS (Socket.IO)
+ * TC MEMBER MANAGEMENT (Leader/Admin Actions)
  * =================================================================
  */
+function initializeMemberManagementActions() {
+    document.body.addEventListener('submit', async function(event) {
+        const memberActionForm = event.target.closest('.tc-member-action-form');
+        if (memberActionForm) {
+            event.preventDefault();
+            await handleTCMemberActionFormSubmit(memberActionForm);
+        }
+    });
+}
 
-function registerTCRealtimeHandlers() {
-    if (typeof nexusRealtimeManager === 'undefined') {
-        return console.warn("nexusRealtimeManager not found. Real-time updates for TC disabled.");
+async function handleTCMemberActionFormSubmit(form) {
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    
+    submitButton.disabled = true;
+    try {
+        const response = await fetch(form.action, { method: 'POST', body: formData, headers: {'X-CSRFToken': getCsrfToken()} });
+        // This action usually results in a redirect with a flash message, so we just follow it.
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else {
+            // Handle JSON responses if any
+            const responseData = await response.json();
+            if (responseData.success) {
+                showNexusNotification('Success', responseData.message, 'success');
+            } else {
+                showNexusNotification('Error', responseData.error || 'Action failed.', 'danger');
+            }
+        }
+    } catch (error) {
+        showNexusNotification('Error', 'An unexpected error occurred.', 'danger');
+    } finally {
+        submitButton.disabled = false;
     }
-    console.log("Registering Talent Club real-time event handlers.");
-    nexusRealtimeManager.subscribe('tc_new_feed_post', (data) => { /* Retained from original file */ });
-    nexusRealtimeManager.subscribe('tc_new_comment', (data) => { /* Retained from original file */ });
 }
-
-/**
- * =================================================================
- * UTILITY FUNCTIONS (Placeholders if not in utils.js)
- * =================================================================
- */
-
-function escapeHTML(str) { return str.replace(/[&<>"']/g, match => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": ''' }[match])); }
-function getCsrfToken() {
-  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-}
-// Assumes getData, postData, showNexusNotification exist in a separate utils.js file
-// --- END OF FILE talent_club.js ---

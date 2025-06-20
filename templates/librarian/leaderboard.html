@@ -1,0 +1,49 @@
+{# NEW, CORRECTED CODE #}
+{% extends "layout/base.html" %}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Library Attendance Leaderboard</h1>
+        <a href="{{ url_for('librarian_kiosk') }}" class="btn btn-sm btn-secondary shadow-sm"><i class="fas fa-arrow-left fa-sm text-white-50"></i> Back to Kiosk</a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Top 100 Most Frequent Visitors</h6>
+            <div class="btn-group">
+                <a href="{{ url_for('library_attendance_leaderboard', filter='this_month') }}" class="btn btn-outline-primary btn-sm {% if time_filter == 'this_month' %}active{% endif %}">This Month</a>
+                <a href="{{ url_for('library_attendance_leaderboard', filter='this_year') }}" class="btn btn-outline-primary btn-sm {% if time_filter == 'this_year' %}active{% endif %}">This Year</a>
+                <a href="{{ url_for('library_attendance_leaderboard', filter='all_time') }}" class="btn btn-outline-primary btn-sm {% if time_filter == 'all_time' %}active{% endif %}">All Time</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Student</th>
+                            <th>Total Visits</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in leaderboard_data %}
+                        <tr>
+                            <td><span class="badge bg-primary rounded-pill fs-6">#{{ loop.index }}</span></td>
+                            <td>
+                                {{ row.full_name }} (ID: {{ row.id }})
+                            </td>
+                            <td class="font-weight-bold">{{ row.visit_count }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No attendance data to display.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
